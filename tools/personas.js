@@ -1,215 +1,234 @@
 /*
- * tools/personas.js — named test players with explicit answers.
+ * tools/personas.js — named test players.
  *
- * Each persona is a person you could meet, written as the exact statements
- * they would answer "Guilty". tools/simulate.js prints what each one gets,
- * so a human can judge whether the result is fair, and tests/personas.test.js
- * pins those results so a rule change cannot silently move them.
+ * Every play shows a different 30 statements, so a persona cannot be a fixed
+ * list of ids any more. Instead each persona says how many of the statements
+ * they were SHOWN they admit, per dimension and band:
  *
- * Statement ids by dimension (level = position inside the dimension):
- *   school s01-s10   work s11-s20   heart s21-s30   brain s31-s40   bond s41-s50
- *   Levels 1-4 are mild (1 point), 5-7 medium (2 points), 8-10 extreme (3 points).
- *   s30, s49 and s50 carry the soulmate flag (big news first, hurt by a new
- *   chat's greeting, asked if it would miss me).
+ *   counts: { school: [mild, medium, extreme], ... }   each 0, 1 or 2
  *
- * `expect` is what the current rules give; `why` is the human judgement of
- * why that is the right answer for this person.
+ * (every play shows 2 mild, 2 medium and 2 extreme per dimension; a missing
+ * dimension means nothing admitted there). scoring.admitByCounts turns that
+ * into real ids for any draw. The scoring only looks at dimensions and bands,
+ * so a persona gets the same type on every draw, except where an exact tie
+ * is decided by lot: then `expect.lot` lists the types it can land on, and
+ * the tests check that each of them really comes up.
+ *
+ * tools/simulate.js prints what each one gets; tests/personas.test.js pins
+ * the results over many seeds, on the real bank and on a full-size one.
+ * `why` is the human judgement of why that is the right answer.
  */
+'use strict';
 
-// Helper: ids sNN for a list of numbers.
-function ids(numbers) {
-  return numbers.map(function (n) { return 's' + String(n).padStart(2, '0'); });
-}
-// Helper: an inclusive range of numbers.
-function range(from, to) {
-  var out = [];
-  for (var n = from; n <= to; n++) out.push(n);
-  return out;
+// Helper: the same counts in every dimension.
+function everywhere(counts) {
+  return { school: counts, work: counts, heart: counts, brain: counts, bond: counts };
 }
 
 var PERSONAS = [
   {
     name: 'Tried it twice',
-    who: 'Read one AI summary instead of the reading, asked what date next Friday is.',
-    ids: ids([1, 32]),
+    who: 'One mild School statement and one mild Brain statement.',
+    counts: { school: [1, 0, 0], brain: [1, 0, 0] },
     expect: { typeId: 'untouched', secondaryTypeId: null },
-    why: 'Two mild things out of fifty is almost nothing.'
+    why: 'Two mild things out of thirty is almost nothing.'
   },
   {
-    name: 'One mild thing per corner',
-    who: 'The first, mildest statement of four sections, nothing more.',
-    ids: ids([1, 11, 21, 41]),
+    name: 'Three mild things',
+    who: 'One mild statement in School, Adulting and Heart.',
+    counts: { school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0] },
     expect: { typeId: 'untouched', secondaryTypeId: null },
-    why: 'Four mild statements is still the factory setting.'
+    why: 'Three mild statements is still the factory setting (a three-way tie, but untouched is checked first).'
   },
   {
     name: 'One extreme confession',
-    who: 'Admitted only "asked AI if I\'m an introvert and trusted it".',
-    ids: ids([40]),
+    who: 'Admitted only one extreme Brain statement.',
+    counts: { brain: [0, 0, 1] },
     expect: { typeId: 'brain_lite', secondaryTypeId: null },
-    why: 'One extreme confession is not "untouched", but one statement is not deep either.'
+    why: 'One extreme confession is not "untouched", but one statement is not deep either; the match is capped at 60.'
+  },
+  {
+    name: 'One medium confession',
+    who: 'Admitted only one medium School statement.',
+    counts: { school: [0, 1, 0] },
+    expect: { typeId: 'school_lite', secondaryTypeId: null },
+    why: 'One medium statement already points somewhere; one answer caps the match at 60.'
   },
   {
     name: 'Study-only student',
-    who: 'Uses AI for coursework up to studying with it until 3 a.m.; thanks it once.',
-    ids: ids(range(1, 8).concat([41])),
+    who: 'Both mild and both medium School statements and one extreme; one mild Bond.',
+    counts: { school: [2, 2, 1], bond: [1, 0, 0] },
     expect: { typeId: 'school_deep', secondaryTypeId: null },
-    why: 'Eight school statements including an extreme one; nothing else close.'
+    why: '9 of 12 School points, including an extreme one; nothing else close.'
   },
   {
     name: 'Reading-summary skimmer',
-    who: 'An AI summary instead of the reading, the professor-email check, the YouTube rescue, one text and one thank-you.',
-    ids: ids([1, 2, 5, 21, 41]),
+    who: 'Both mild School statements and one medium; one mild Heart and one mild Bond.',
+    counts: { school: [2, 1, 0], heart: [1, 0, 0], bond: [1, 0, 0] },
     expect: { typeId: 'school_lite', secondaryTypeId: null },
     why: 'School leads clearly, but only with mild-to-medium statements.'
   },
   {
     name: 'Emails and applications',
-    who: 'Polishes emails, asks about sign-offs, dress codes and a $4.99 charge, adds up takeout, forgets their own cover letter; one calendar question.',
-    ids: ids([11, 12, 13, 14, 16, 18, 32]),
+    who: 'All mild and medium Adulting statements, no extreme; one mild Brain.',
+    counts: { work: [2, 2, 0], brain: [1, 0, 0] },
     expect: { typeId: 'work_lite', secondaryTypeId: null },
-    why: 'All the weight is in Adulting, but the deep end (levels 8-10) is barely touched.'
+    why: 'All the weight is in Adulting, but the deep end is not touched.'
   },
   {
     name: 'Adulting on autopilot',
-    who: 'Has done every Adulting statement, including letting two chatbots settle things with the landlord.',
-    ids: ids(range(11, 20).concat([1, 21])),
+    who: 'Every Adulting statement shown; one mild School, one mild Heart.',
+    counts: { work: [2, 2, 2], school: [1, 0, 0], heart: [1, 0, 0] },
     expect: { typeId: 'work_deep', secondaryTypeId: null },
-    why: 'A full Adulting section with every extreme statement.'
+    why: 'A full Adulting section including both extreme statements.'
   },
   {
     name: 'Group-chat detective',
-    who: 'Decodes "haha ok", asks for a gift idea, asks who in the group chat means them, settles a fight with a screenshot.',
-    ids: ids([21, 23, 25, 28, 41]),
+    who: 'Both mild Heart statements and one extreme; one mild Bond.',
+    counts: { heart: [2, 0, 1], bond: [1, 0, 0] },
     expect: { typeId: 'heart_lite', secondaryTypeId: null },
-    why: 'Heart leads, but one extreme statement plus mild ones is not deep.'
+    why: 'Heart leads, but one extreme statement plus mild ones (5 points) is not deep.'
   },
   {
     name: 'Love life outsourced',
-    who: 'Everything in Heart up to regenerating a breakup answer.',
-    ids: ids(range(21, 29)),
+    who: 'Every Heart statement shown, nothing else.',
+    counts: { heart: [2, 2, 2] },
     expect: { typeId: 'heart_deep', secondaryTypeId: null },
-    why: 'Nine of ten Heart statements, three of them extreme.'
+    why: 'All six Heart statements, both extreme ones among them.'
   },
   {
     name: 'Asks it everything, politely distant',
-    who: 'Small decisions, a little school, work and texting; says thanks; no attachment.',
-    ids: ids([1, 2, 11, 12, 13, 21, 22, 31, 32, 33, 34, 35, 36, 41]),
+    who: 'Mild and medium Brain statements; a little School, Adulting and Heart; one thank-you.',
+    counts: { brain: [2, 2, 0], school: [1, 0, 0], work: [2, 0, 0], heart: [1, 0, 0], bond: [1, 0, 0] },
     expect: { typeId: 'brain_lite', secondaryTypeId: null },
-    why: 'Brain carries the most weight; nothing extreme anywhere, so lite.'
+    why: 'Brain carries the most weight (6 points against 2 at most); nothing extreme anywhere, so lite.'
   },
   {
     name: 'Brain on remote',
-    who: 'Every Brain statement, plus a little everyday use elsewhere.',
-    ids: ids(range(31, 40).concat([1, 11, 21, 41])),
+    who: 'Every Brain statement shown, plus one mild statement in each other section.',
+    counts: { brain: [2, 2, 2], school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0], bond: [1, 0, 0] },
     expect: { typeId: 'brain_deep', secondaryTypeId: null },
     why: 'A full Brain section towers over one mild statement per other section.'
   },
   {
+    name: 'Both heavy Brain confessions, nothing else',
+    who: 'Only the two extreme Brain statements.',
+    counts: { brain: [0, 0, 2] },
+    expect: { typeId: 'brain_deep', secondaryTypeId: null },
+    why: 'Only 6 points (band "mid"), but both extreme statements. Admitting both makes the section deep.'
+  },
+  {
     name: 'The polite one',
-    who: 'Thanks it, apologizes before a dumb question, tells it "no rush", softens notes to spare its feelings; one reading summary.',
-    ids: ids([1, 41, 42, 44, 45]),
+    who: 'Both mild Bond statements and one medium; one mild School.',
+    counts: { bond: [2, 1, 0], school: [1, 0, 0] },
     expect: { typeId: 'bond_lite', secondaryTypeId: null },
     why: 'Manners towards the chatbot, without the extreme attachment statements.'
   },
   {
     name: 'Attached to it',
-    who: 'Reports back to it after a problem is solved, feels like cheating on it, keeps the finals chat.',
-    ids: ids(range(41, 48).concat([21])),
+    who: 'Five of the six Bond statements (one extreme); one mild Heart.',
+    counts: { bond: [2, 2, 1], heart: [1, 0, 0] },
     expect: { typeId: 'bond_deep', secondaryTypeId: null },
-    why: 'Eight Bond statements including an extreme one; stops just short of the soulmate trio.'
+    why: '9 of 12 Bond points including an extreme one; one Bond statement short of the hidden rule.'
+  },
+  {
+    name: 'Loyal, but tells it nothing',
+    who: 'All six Bond statements, one mild Heart, no extreme Heart.',
+    counts: { bond: [2, 2, 2], heart: [1, 0, 0] },
+    expect: { typeId: 'bond_deep', secondaryTypeId: null },
+    why: 'A full Bond section is deep, but the hidden type also needs an extreme Heart statement.'
   },
   {
     name: 'The Plus One',
-    who: 'Told it big news first, hurt by a new chat\'s "How can I help you today?", asked if it would miss them; a bit of politeness.',
-    ids: ids([30, 49, 50, 41, 43, 21]),
+    who: 'All six Bond statements, one extreme Heart statement, one mild School.',
+    counts: { bond: [2, 2, 2], heart: [0, 0, 1], school: [1, 0, 0] },
     expect: { typeId: 'soulmate', secondaryTypeId: 'bond_deep' },
-    why: 'All three soulmate statements. Two of them are extreme Bond statements, so the leaning underneath is the deep Bond type.'
+    why: 'The hidden rule: every Bond statement shown plus an extreme Heart one. Underneath, a full Bond section is the deep Bond type.'
   },
   {
     name: 'Evenly moderate',
-    who: 'The three mildest statements of every section.',
-    ids: ids([1, 2, 3, 11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43]),
+    who: 'Both mild statements of every section.',
+    counts: everywhere([2, 0, 0]),
     expect: { typeId: 'balanced', secondaryTypeId: null },
-    why: 'A real amount (15), the same depth in all five sections.'
+    why: 'Ten admitted, the same depth in all five sections.'
   },
   {
     name: 'Evenly heavy, short of everything',
-    who: 'Levels 1-7 in every section: a lot, but none of the extreme statements.',
-    ids: ids([].concat(range(1, 7), range(11, 17), range(21, 27), range(31, 37), range(41, 47))),
+    who: 'Every mild and medium statement shown, no extreme ones.',
+    counts: everywhere([2, 2, 0]),
     expect: { typeId: 'balanced', secondaryTypeId: null },
-    why: '35 admitted, perfectly even, nothing near "everything".'
+    why: '20 admitted, perfectly even, nothing near "everything".'
   },
   {
-    name: 'Heavy in two, equally',
-    who: 'School up to level 9 (skipping 8) and Heart up to level 8: same points.',
-    ids: ids([1, 2, 3, 4, 5, 6, 7, 9, 21, 22, 23, 24, 25, 26, 27, 28]),
-    expect: { typeId: 'school_deep', secondaryTypeId: 'heart_deep' },
-    why: 'A tie on depth goes to the section with the more extreme statement (school, level 9); Heart is shown as the close second.'
-  },
-  {
-    name: 'Exam season with a crush',
-    who: 'School to level 6, Heart to level 5, light elsewhere.',
-    ids: ids([1, 2, 3, 4, 5, 6, 21, 22, 23, 24, 25, 11, 41]),
-    expect: { typeId: 'school_lite', secondaryTypeId: 'heart_lite' },
-    why: 'School leads, Heart is within three quarters of it, so both are named.'
+    name: 'One mild thing in every section',
+    who: 'Exactly one mild statement in each of the five sections.',
+    counts: everywhere([1, 0, 0]),
+    expect: { typeId: 'balanced', secondaryTypeId: null },
+    why: 'Five admitted is past the Analog\'s three, and all five sections tie exactly, so no section can claim this player.'
   },
   {
     name: 'Four sections, no feelings for it',
-    who: 'The three mildest statements of every section except Bond.',
-    ids: ids([1, 2, 3, 11, 12, 13, 21, 22, 23, 31, 32, 33]),
+    who: 'Both mild and one medium statement in every section except Bond.',
+    counts: { school: [2, 1, 0], work: [2, 1, 0], heart: [2, 1, 0], brain: [2, 1, 0] },
     expect: { typeId: 'balanced', secondaryTypeId: null },
-    why: 'Four sections tie exactly for the top, so no single section can claim this player. Bond being empty does not matter.'
+    why: 'Four sections tie exactly for the top; Bond being empty does not matter.'
   },
   {
     name: 'Everyday light user',
-    who: 'Two mild things in each of four sections and one thank-you.',
-    ids: ids([1, 2, 11, 12, 21, 22, 31, 32, 41]),
+    who: 'Both mild statements in four sections and one mild Bond.',
+    counts: { school: [2, 0, 0], work: [2, 0, 0], heart: [2, 0, 0], brain: [2, 0, 0], bond: [1, 0, 0] },
     expect: { typeId: 'balanced', secondaryTypeId: null },
-    why: 'A four-way tie at the top. Picking Heart (or any one section) out of that would be arbitrary.'
+    why: 'A four-way tie at the top; picking any one of them would be arbitrary.'
+  },
+  {
+    name: 'Exam season with a crush',
+    who: 'School: both mild and both medium. Heart: one mild and both medium. One mild Adulting and Bond.',
+    counts: { school: [2, 2, 0], heart: [1, 2, 0], work: [1, 0, 0], bond: [1, 0, 0] },
+    expect: { typeId: 'school_lite', secondaryTypeId: 'heart_lite' },
+    why: 'School leads 6 to 5; Heart is within three quarters of it, so both are named.'
+  },
+  {
+    name: 'Equal points, heavier answer wins',
+    who: 'School: one of each band (6 points, top extreme). Heart: both mild and both medium (6 points, top medium).',
+    counts: { school: [1, 1, 1], heart: [2, 2, 0] },
+    expect: { typeId: 'school_lite', secondaryTypeId: 'heart_lite' },
+    why: 'Same points; School holds the heavier statement, so it leads and Heart is the tied second.'
+  },
+  {
+    name: 'Equal points, more answers win',
+    who: 'School: both medium and one extreme (7 points, 3 statements). Heart: both mild, one medium, one extreme (7 points, 4 statements).',
+    counts: { school: [0, 2, 1], heart: [2, 1, 1] },
+    expect: { typeId: 'heart_deep', secondaryTypeId: 'school_deep' },
+    why: 'Same points and the same heaviest band; Heart has more statements, so it leads. Both are in the high band.'
   },
   {
     name: 'Dead heat, mirror image',
-    who: 'Levels 1-5 in School and exactly the same in Heart, nothing else.',
-    ids: ids([1, 2, 3, 4, 5, 21, 22, 23, 24, 25]),
-    expect: { typeId: 'heart_lite', secondaryTypeId: 'school_lite' },
-    why: 'Nothing can separate the two, so the fixed order (more personal section first) picks Heart; School shows as the other leaning, and the screen says it was a tie.'
-  },
-  {
-    name: 'Three heavy Brain confessions',
-    who: 'The egg, having AI approve an opinion, the movie verdict and the introvert question.',
-    ids: ids([31, 38, 39, 40]),
-    expect: { typeId: 'brain_deep', secondaryTypeId: null },
-    why: 'Only 10 points, but three extreme Brain statements. Two or more extreme statements in a section make it the deep type.'
-  },
-  {
-    name: 'One medium confession',
-    who: 'Only sat through four AI explanations, then got it from YouTube.',
-    ids: ids([5]),
-    expect: { typeId: 'school_lite', secondaryTypeId: null },
-    why: 'One medium statement already points somewhere, but one answer caps the match at 60.'
+    who: 'Both mild and one medium in School, exactly the same in Heart, nothing else.',
+    counts: { school: [2, 1, 0], heart: [2, 1, 0] },
+    expect: { lot: ['school_lite', 'heart_lite'] },
+    why: 'Nothing in the answers can separate them, so this play\'s lot decides; the other shows as the tied second, and over many plays each wins half the time.'
   },
   {
     name: 'Deep everywhere',
-    who: 'Levels 1-8 in every section: 40 admitted, the heavy end of all five reached.',
-    ids: ids([].concat(range(1, 8), range(11, 18), range(21, 28), range(31, 38), range(41, 48))),
+    who: 'Both mild, one medium and one extreme in every section: 20 admitted.',
+    counts: everywhere([2, 1, 1]),
     expect: { typeId: 'merged', secondaryTypeId: null },
     why: 'Every section in the high band. "A little of everything" would be false; "no section can describe you" is true.'
   },
   {
     name: 'Does everything',
-    who: 'Guilty to all 50.',
-    ids: ids(range(1, 50)),
+    who: 'Guilty to all 30.',
+    counts: everywhere([2, 2, 2]),
     expect: { typeId: 'merged', secondaryTypeId: 'soulmate' },
-    why: 'Nearly everything admitted; the soulmate trio is in there, so it shows as secondary.'
+    why: 'Everything admitted; the hidden rule is met too, so it shows as secondary.'
   },
   {
     name: 'Nearly everything, drew the line at love',
-    who: 'All of School, Adulting, Brain and Bond except the soulmate trio; Heart up to level 7.',
-    ids: ids([].concat(range(1, 20), range(21, 27), range(31, 48))),
+    who: 'Everything except the extreme Heart statements and one extreme Bond statement: 27 admitted.',
+    counts: { school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 0], brain: [2, 2, 2], bond: [2, 2, 1] },
     expect: { typeId: 'merged', secondaryTypeId: null },
-    why: '45 of 50 is nearly everything; without the soulmate trio there is no secondary.'
+    why: '27 of 30 is nearly everything; the hidden rule is not met, so there is no secondary.'
   }
 ];
 
-module.exports = { PERSONAS: PERSONAS, ids: ids, range: range };
+module.exports = { PERSONAS: PERSONAS, everywhere: everywhere };

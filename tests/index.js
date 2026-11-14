@@ -6,3 +6,5 @@ require('./content.test.js');
 require('./personas.test.js');
 require('./answers.test.js');
 require('./gallery.test.js');
+require('./draw.test.js');
+require('./fairness.test.js');

@@ -1,34 +1,80 @@
 // Run with: node --test tests/
-// Every persona in tools/personas.js, scored with the REAL content.js, must get
-// exactly the type and secondary type a human agreed was right. If a rule change
-// moves one of them, this fails: decide whether the new result is better, then
-// update the persona's `expect` (and SCORING.md) on purpose.
+// Every persona in tools/personas.js must get exactly the type and secondary
+// type a human agreed was right, on EVERY draw: personas are written as band
+// counts ("both mild School statements shown, one medium..."), and
+// admitByCounts turns them into real ids for each draw. Checked over 300
+// draws of the real content.js and 300 of a full-size bank.
+// If a rule change moves one, this fails: decide whether the new result is
+// better, then update the persona's `expect` (and SCORING.md) on purpose.
 const test = require('node:test');
 const assert = require('node:assert');
-const { score, TYPE_IDS } = require('../scoring.js');
+const { score, admitByCounts, drawStatements, TYPE_IDS, DIM_KEYS, STATEMENT_BANDS } = require('../scoring.js');
 const { PERSONAS } = require('../tools/personas.js');
+const { syntheticContent, seedStream } = require('../tools/sim-helpers.js');
 
 require('../content.js');
-const content = globalThis.APT_CONTENT;
+const BANKS = [['real content.js', globalThis.APT_CONTENT], ['full-size bank', syntheticContent(7)]];
+const DRAWS = 300;
 
-test('personas: there are at least 16, with unique names and valid ids', () => {
+test('personas: at least 16, unique names, counts are 0-2 per band of a known dimension', () => {
   assert.ok(PERSONAS.length >= 16);
   assert.strictEqual(new Set(PERSONAS.map((p) => p.name)).size, PERSONAS.length);
-  const known = new Set(content.statements.map((s) => s.id));
-  PERSONAS.forEach((p) => p.ids.forEach((id) => assert.ok(known.has(id), p.name + ': unknown id ' + id)));
+  PERSONAS.forEach((p) => {
+    Object.keys(p.counts).forEach((dim) => {
+      assert.ok(DIM_KEYS.includes(dim), p.name + ': unknown dimension ' + dim);
+      assert.strictEqual(p.counts[dim].length, STATEMENT_BANDS.length, p.name + ': ' + dim + ' needs [mild, medium, extreme]');
+      p.counts[dim].forEach((n) => assert.ok([0, 1, 2].includes(n), p.name + ': ' + dim + ' count ' + n));
+    });
+    assert.ok(p.expect.lot || TYPE_IDS.includes(p.expect.typeId), p.name + ': expect a type or a lot');
+  });
 });
 
 PERSONAS.forEach((p) => {
-  test('persona "' + p.name + '" -> ' + p.expect.typeId + (p.expect.secondaryTypeId ? ' + ' + p.expect.secondaryTypeId : ''), () => {
-    const r = score(p.ids, content);
-    assert.strictEqual(r.typeId, p.expect.typeId);
-    assert.strictEqual(r.secondaryTypeId, p.expect.secondaryTypeId);
-    // The evidence quoted back must be things this persona actually admitted.
-    r.evidenceIds.forEach((id) => assert.ok(p.ids.includes(id)));
+  const label = p.expect.lot ? 'lot between ' + p.expect.lot.join(' and ')
+    : p.expect.typeId + (p.expect.secondaryTypeId ? ' + ' + p.expect.secondaryTypeId : '');
+  test('persona "' + p.name + '" -> ' + label + ', on every draw', () => {
+    BANKS.forEach(([bank, content]) => {
+      const seeds = seedStream('persona-test|' + p.name);
+      const lotWinners = {};
+      for (let i = 0; i < DRAWS; i++) {
+        const drawn = drawStatements(content, seeds());
+        const admitted = admitByCounts(content, drawn, p.counts);
+        const r = score(admitted, content, drawn);
+        if (p.expect.lot) {
+          // A mirror tie: one of the two wins by this play's lot, the other
+          // is the secondary, and the screen is told it was a lot.
+          const k = p.expect.lot.indexOf(r.typeId);
+          assert.ok(k !== -1, bank + ': got ' + r.typeId);
+          assert.strictEqual(r.secondaryTypeId, p.expect.lot[1 - k]);
+          assert.strictEqual(r.tieBreak, 'lot');
+          lotWinners[r.typeId] = (lotWinners[r.typeId] || 0) + 1;
+        } else {
+          assert.strictEqual(r.typeId, p.expect.typeId, bank);
+          assert.strictEqual(r.secondaryTypeId, p.expect.secondaryTypeId, bank);
+        }
+        // The evidence quoted back must be things this persona actually admitted.
+        r.evidenceIds.forEach((id) => assert.ok(admitted.includes(id)));
+        // And the same play always gives the same result.
+        if (i < 5) assert.deepStrictEqual(score(admitted, content, drawn), r);
+      }
+      if (p.expect.lot) {
+        // Over 300 plays both sides win; 300 fair coin flips stay within 50% +- 10 points.
+        p.expect.lot.forEach((typeId) => {
+          const share = (lotWinners[typeId] || 0) / DRAWS;
+          assert.ok(share > 0.4 && share < 0.6, bank + ': ' + typeId + ' won ' + share);
+        });
+      }
+    });
   });
 });
 
 test('personas: between them, every one of the 14 types comes up', () => {
-  const got = new Set(PERSONAS.map((p) => score(p.ids, content).typeId));
+  const content = BANKS[0][1];
+  const drawn = drawStatements(content, 'abc123');
+  const got = new Set();
+  PERSONAS.forEach((p) => {
+    (p.expect.lot || [p.expect.typeId]).forEach((id) => got.add(id));
+    got.add(score(admitByCounts(content, drawn, p.counts), content, drawn).typeId);
+  });
   assert.deepStrictEqual(TYPE_IDS.filter((id) => !got.has(id)), []);
 });

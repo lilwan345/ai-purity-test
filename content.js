@@ -9,17 +9,27 @@
  * needs to carry the same joke in both.
  * Statements: English reads after an implied "I have...", Chinese is a
  * short clause with no subject. Max 90 chars (en) / 34 chars (zh).
- * Exactly 3 statements carry flag: "soulmate" (all answered Guilty -> soulmate type).
  *
- * Order matters: inside each dimension, list statements mildest first. The
- * quiz asks them in rounds (the 1st of every dimension, then the 2nd of
- * every dimension...), see questionOrder in scoring.js.
+ * The statements are a BANK. Each play draws 30 of them (drawStatements in
+ * scoring.js): in every dimension, 2 mild, 2 medium and 2 extreme, picked
+ * uniformly at random. So every statement needs a `band`:
+ *   "mild" (weight 1), "medium" (weight 2) or "extreme" (weight 3).
+ * The order of statements in this file does not matter any more, and no
+ * statement carries a `flag`: every statement in a stratum (dimension x
+ * band) must have exactly the same chance of being shown. See SCORING.md.
  */
 globalThis.APT_CONTENT = {
   ui: {
     appName:         { en: "AI Purity Test", zh: "AI 纯度测试" },
-    intro:           { en: "Fifty things people do with AI, shown one at a time. Own up to the ones you've actually done. Each one costs two points of purity. Lower score, more chatbot.", zh: "50 件跟 AI 有关的事，一次只看一件。干过就认，放心，没人看见。每认一件扣 2 分，纯度越低，AI 含量越高。" },
-    meta:            { en: "50 quick taps, about 3 minutes.", zh: "50 条，一条点一下，大约 3 分钟。" },
+    intro:           { en: "Thirty things people do with AI, shown one at a time. Own up to the ones you've actually done. Each one costs about three points of purity. Lower score, more chatbot.", zh: "30 件跟 AI 有关的事，一次只看一件。干过就认，放心，没人看见。每认一件扣 3 分多，纯度越低，AI 含量越高。" },
+    meta:            { en: "30 quick taps, about 2 minutes. Drawn from a bigger pile and different every time, so memorizing won't help.", zh: "30 条，一条点一下，大约 2 分钟。题是从一大堆里抽的，每次都换，背答案没用。" },
+    // People were answering too literally: a statement is a kind of thing,
+    // not an exact story. closeEnoughHint is the short form on the first
+    // three statements of a play.
+    closeEnough:     { en: "Close enough counts. Done something like it? Guilty.", zh: "差不多就算。干过类似的？那就是干过。" },
+    closeEnoughHint: { en: "Close enough counts", zh: "差不多就算" },
+    // Landing, only when the seed came from someone's link.
+    seedFromLink:    { en: "Same thirty statements as whoever sent this link, so the scores compare.", zh: "和发链接的人是同一套 30 条，分数可以直接比。" },
     start:           { en: "Start the test", zh: "开始测" },
     fromFriend:      { en: "A friend got {name}. What are you?", zh: "你朋友测出了「{name}」。你呢？" },
     typesTeaser:     { en: "14 possible results. None of them is a compliment.", zh: "14 种结果，没有一种是在夸你。" },
@@ -36,7 +46,7 @@ globalThis.APT_CONTENT = {
     keysHint:        { en: "Keyboard: Y / N (or → / ←) to answer, ↓ if not sure, Backspace to go back", zh: "键盘：Y / N（或 → / ←）作答，↓ 不确定，Backspace 返回上一条" },
     resultHeading:   { en: "Your result", zh: "你的结果" },
     previewBadge:    { en: "Preview with sample numbers", zh: "预览：示例数据" },
-    cardTicks:       { en: "{n}/50 guilty", zh: "干过 {n}/50" },
+    cardTicks:       { en: "{n}/{total} guilty", zh: "干过 {n}/{total}" },
     cardNote:        { en: "Zero science · lilwan345.github.io/ai-purity-test", zh: "零科学含量 · lilwan345.github.io/ai-purity-test" },
     barsLabel:       { en: "How much weight each section carries", zh: "每个部分有多重" },
     barAria:         { en: "{name}: {n} of 10 squares", zh: "{name}：10 格里占了 {n} 格" },
@@ -46,7 +56,7 @@ globalThis.APT_CONTENT = {
     saveImage:       { en: "Save image", zh: "保存图片" },
     copyLink:        { en: "Copy link", zh: "复制链接" },
     share:           { en: "Share", zh: "分享" },
-    startOver:       { en: "Start over", zh: "重新测" },
+    newQuestions:    { en: "New questions", zh: "换一套题" },
     imageSaved:      { en: "Image saved", zh: "图片已保存" },
     imageFailed:     { en: "Couldn't make the image. A screenshot works too.", zh: "图片没生成出来，截个屏也行" },
     saveHint:        { en: "Press and hold the image to save it.", zh: "长按图片，保存到相册" },
@@ -64,12 +74,12 @@ globalThis.APT_CONTENT = {
     evidenceLead:        { en: "Because you admitted:", zh: "因为你认了这些：" },
     evidenceLeadOnly:    { en: "Everything you admitted:", zh: "你认的全部就这些：" },
     evidenceLeadSome:    { en: "You admitted {n}, all mild. Three of them:", zh: "你认了 {n} 条，全是轻度的，挑三条看看：" },
-    evidenceLeadHidden:  { en: "The three hidden statements:", zh: "三条隐藏题：" },
+    evidenceLeadHidden:  { en: "Every Bond statement you were shown, plus a heavy Heart one. The heaviest:", zh: "这一局的羁绊题你全认了，还认了一条重度感情题。最重的几条：" },
     evidenceLeadSpread:  { en: "Out of {n} admitted, the heaviest from three different sections:", zh: "你认的 {n} 条里，来自三个不同部分的最重几条：" },
     evidenceLeadSample:  { en: "For example, a player who admitted:", zh: "举个例子，有人认了这些：" },
     evidenceNone:        { en: "Nothing. Not one statement. The evidence bag is empty.", zh: "一条都没有。证物袋是空的。" },
     exhibitLabel:        { en: "Exhibit {n}", zh: "证物 {n}" },
-    exhibitMeta:         { en: "{dim} · level {level} of 10 · {weight}", zh: "{dim} · 第 {level} 级 · {weight}" },
+    exhibitMeta:         { en: "{dim} · {weight} · {pts}", zh: "{dim} · {weight} · {pts}" },
     levelMild:           { en: "mild", zh: "轻度" },
     levelMedium:         { en: "medium", zh: "中度" },
     levelExtreme:        { en: "extreme", zh: "重度" },
@@ -78,32 +88,32 @@ globalThis.APT_CONTENT = {
     matchDimAlone:       { en: "{dim} is the only section you touched, so nothing competes with it.", zh: "你只碰了{dim}这一块，没有对手。" },
     matchTieTop:         { en: "{dim} and {dim2} are dead level at {a} points each. {dim} goes first because its heaviest answer is heavier.", zh: "{dim}和{dim2}打平，都是 {a} 分。{dim}排前面，因为它最重的那条更重。" },
     matchTieCount:       { en: "{dim} and {dim2} are dead level at {a} points each. {dim} goes first because you admitted more of it.", zh: "{dim}和{dim2}打平，都是 {a} 分。{dim}排前面，因为这块你认的条数更多。" },
-    matchTieOrder:       { en: "{dim} and {dim2} are dead level at {a} points each, answer for answer. With nothing to separate them, the more personal section goes first.", zh: "{dim}和{dim2}完全打平，都是 {a} 分，连每条的轻重都一样。分不出高下时，更私人的那块排前面。" },
+    matchTieLot:         { en: "{dim} and {dim2} are dead level at {a} points each, answer for answer. Nothing in your answers can split them, so this play's lot decided.", zh: "{dim}和{dim2}完全打平，都是 {a} 分，连每条的轻重都一样。答案里分不出高下，这一局抽签定了。" },
     matchCapOne:         { en: "It rests on a single answer, though, so the match stops at {cap}%.", zh: "不过只靠一条撑着，匹配度最多算 {cap}%。" },
     matchCapTwo:         { en: "It rests on just two answers, though, so the match stops at {cap}%.", zh: "不过只靠两条撑着，匹配度最多算 {cap}%。" },
     matchBalanced:       { en: "Among the sections you touched, the heaviest and the lightest are just {gap} apart.", zh: "你碰过的几块里，最重和最轻只差 {gap}。" },
     matchBalancedExact:  { en: "Every section you touched carries exactly the same weight.", zh: "你碰过的每一块，分量一模一样。" },
     matchMerged:         { en: "That's how deep you went into the five sections, on average.", zh: "这是你在五个部分里平均认到的深度。" },
     matchSample:         { en: "That's the sample player's match, not yours.", zh: "这是示例玩家的匹配度，不是你的。" },
-    matchSoulmate:       { en: "All three hidden statements. This one has no partial credit.", zh: "三条隐藏题全中，这一项没有部分得分。" },
+    matchSoulmate:       { en: "All of Bond plus a heavy Heart confession. This one has no partial credit.", zh: "羁绊全认，外加一条重度感情，这一项没有部分得分。" },
     matchUntouched:      { en: "Same number as your purity: the more you left alone, the better the fit.", zh: "和纯度是同一个数：没干过的越多，越像原装。" },
     // Last line of the verdict, only when the player answered "Not sure" at
     // least once; unsureMany is added from scoring.UNSURE_MANY (8) answers on.
-    unsureNote:          { en: "You weren't sure about {n} of the 50. Not sure counts as Never.", zh: "有 {n} 条你选了不确定，按没干过算。" },
+    unsureNote:          { en: "You weren't sure about {n} of the {total}. Not sure counts as Never.", zh: "{total} 条里有 {n} 条你选了不确定，按没干过算。" },
     unsureMany:          { en: "With that many, your purity is probably flattering you.", zh: "不确定这么多，这个纯度多半是在给你面子。" },
 
     // --- Result screen: the other sections ---
     signsTitle:      { en: "Telltale signs", zh: "典型症状" },
     dimsTitle:       { en: "Section by section", zh: "五个部分，逐个看" },
-    dimsNote:        { en: "One square per statement, mildest on the left. Bigger squares are heavier confessions and count for more; the bars on your card add them up.", zh: "一格一条，从左往右越来越重。格子越大，分量越重，算分也越多；卡片上的长条，就是这些分量加起来。" },
+    dimsNote:        { en: "One square per statement you were shown, mildest on the left. Bigger squares are heavier confessions and count for more; the bars on your card add them up.", zh: "这一局出的每条一格，从左往右越来越重。格子越大，分量越重，算分也越多；卡片上的长条，就是这些分量加起来。" },
     dimsSample:      { en: "These are the sample player's answers.", zh: "下面是示例玩家的答案。" },
-    dimRowMeta:      { en: "{n} of 10 · {pts} · {band}", zh: "认了 {n} 条 · {pts} · {band}" },
-    dimAria:         { en: "{name}: {n} of 10 admitted, {pts}, {band}", zh: "{name}：10 条认了 {n} 条，{pts}，{band}" },
+    dimRowMeta:      { en: "{n} of {shown} · {pts} · {band}", zh: "认了 {n}/{shown} 条 · {pts} · {band}" },
+    dimAria:         { en: "{name}: {n} of {shown} admitted, {pts}, {band}", zh: "{name}：{shown} 条认了 {n} 条，{pts}，{band}" },
     pointOne:        { en: "{n} point", zh: "{n} 分" },
     pointMany:       { en: "{n} points", zh: "{n} 分" },
     bandNone:        { en: "none", zh: "没沾" },
     bandLow:         { en: "light", zh: "浅" },
-    bandMid:         { en: "medium", zh: "中等" },
+    bandMid:         { en: "middling", zh: "中等" },
     bandHigh:        { en: "deep", zh: "深" },
     dimLeads:        { en: "Leads", zh: "领头" },
     dimSecond:       { en: "Close second", zh: "紧随其后" },
@@ -112,7 +122,7 @@ globalThis.APT_CONTENT = {
     secondaryDim:    { en: "{dim} is right behind {leadDim}, {b} points to {a}, so there's some {code} in you too.", zh: "{dim}紧跟在{leadDim}后面，{b} 分对 {a} 分，所以你身上也有点「{name}」。" },
     secondaryTie:    { en: "{dim} weighs exactly as much as {leadDim}, so you're every bit as much {code}.", zh: "{dim}和{leadDim}一样重，所以你同样也是「{name}」。" },
     secondarySoulmate: { en: "Skip the hidden rule and your answers point to {code}.", zh: "不按隐藏规则算，你的答案指向「{name}」。" },
-    secondaryMerged: { en: "You also admitted all three hidden statements, so there's a {code} in there too.", zh: "三条隐藏题你也全认了，所以你身上还藏着一个「{name}」。" },
+    secondaryMerged: { en: "You also met the hidden rule, so there's a {code} in there too.", zh: "隐藏规则你也满足了，所以你身上还藏着一个「{name}」。" },
     seeType:         { en: "See {code}", zh: "看看 {code}" },
     bestWithTitle:   { en: "Gets on with", zh: "最合得来" },
     clashWithTitle:  { en: "Clashes with", zh: "最合不来" },
@@ -122,12 +132,12 @@ globalThis.APT_CONTENT = {
 
     // --- Result screen: "How this is scored" (keep in step with SCORING.md) ---
     howTitle:        { en: "How this is scored", zh: "结果是怎么算的" },
-    howWeights:      { en: "Each section's ten statements run from mild to extreme. Mild ones count 1 point, medium 2, extreme 3.", zh: "每个部分 10 条，从轻排到重。轻度算 1 分，中度 2 分，重度 3 分。" },
+    howWeights:      { en: "Each play draws 30 from a bigger pile: six per section, two mild, two medium and two extreme. Mild counts 1 point, medium 2, extreme 3, so a section is worth 12.", zh: "每局从大题库里抽 30 条：每个部分 6 条，轻、中、重各 2 条。轻度算 1 分，中度 2 分，重度 3 分，每个部分满分 12。" },
     howUnsure:       { en: "“Not sure” counts as Never: no points, no purity lost.", zh: "选「不确定」的，按没干过算：不算分，也不扣纯度。" },
-    howLead:         { en: "Your type comes from the section with the most points; on a tie, the one whose heaviest answer is heavier. You get its deep version when that section reaches 11 of its 19 points, or when you admitted two of its three heaviest statements.", zh: "类型看哪个部分分数最高；打平时，看谁最重的那条更重。这部分拿到 19 分里的 11 分，或者认了其中最重的三条里的两条，就是深度版。" },
-    howSpecial:      { en: "Four results are checked first: 42 or more admitted, or the heavy end of all five sections; all three hidden statements; four or fewer, all mild; no clear lead, meaning three or more sections tie for the top, or ten or more answers spread evenly over all five.", zh: "有四种结果先判：认了 42 条以上，或者五块都认到了重的那头；三条隐藏题全中；最多 4 条且全是轻度；没有领头的，也就是三块以上并列第一，或者 10 条以上、五块分得很匀。" },
+    howLead:         { en: "Your type comes from the section with the most points. On a tie, the heavier answer wins, then more answers; if it's still level, a lot fixed to your play decides. You get the deep version at 7 of the section's 12 points, or with both of its extreme statements.", zh: "类型看哪个部分分数最高。打平时，先看谁最重的那条更重，再看谁认得多，还平就按这一局固定的签来定。这部分拿到 12 分里的 7 分，或者两条重度都认了，就是深度版。" },
+    howSpecial:      { en: "Four results are checked first: 25 or more admitted, or the deep end of all five sections; a hidden rule; 3 or fewer, all mild; no clear lead, meaning three or more sections tie for the top, or 6 or more answers spread evenly over all five.", zh: "有四种结果先判：认了 25 条以上，或者五块都认到了深处；一条隐藏规则；最多 3 条且全是轻度；没有领头的，也就是三块以上并列第一，或者 6 条以上、五块分得很匀。" },
     howSecondary:    { en: "A second section is named when it has at least three quarters of the lead section's points. Match compares the lead with that next section: 100% when nothing else is close, 50% for a dead heat, and at most 60% or 80% when the lead rests on one or two answers.", zh: "第二个部分的分数到了领头部分的四分之三，就列为副倾向。匹配度拿领头部分和第二名比：没人接近是 100%，打平是 50%；领头部分只靠一两条撑着时，最多 60% 或 80%。" },
-    howHonest:       { en: "Same answers, same result, every time. The rules are consistent; the science is zero.", zh: "同样的答案，永远是同样的结果。规则前后一致，科学含量为零。" },
+    howHonest:       { en: "Same thirty statements, same answers, same result, every time. The rules are consistent; the science is zero.", zh: "同一套题、同样的答案，永远是同样的结果。规则前后一致，科学含量为零。" },
 
     // --- "All types": the grid of all 14, opened from the landing page, the
     // result screen or ?types=1. The hidden type shows as a locked card until
@@ -139,26 +149,26 @@ globalThis.APT_CONTENT = {
     typesSpecial:       { en: "Special results", zh: "特殊结果" },
     typesLite:          { en: "light", zh: "浅度" },
     typesDeep:          { en: "deep", zh: "深度" },
-    typesRuleUntouched: { en: "4 or fewer, all mild", zh: "最多 4 条，全是轻度" },
+    typesRuleUntouched: { en: "3 or fewer, all mild", zh: "最多 3 条，全是轻度" },
     typesRuleBalanced:  { en: "No section leads", zh: "没有哪块领头" },
-    typesRuleMerged:    { en: "42+, or all deep", zh: "42 条起，或五块全深" },
+    typesRuleMerged:    { en: "25+, or all deep", zh: "25 条起，或五块全深" },
     typesHidden:        { en: "Hidden", zh: "隐藏款" },
     typesLocked:        { en: "Locked", zh: "未解锁" },
-    typesLockedHint:    { en: "Three of the fifty are quietly a test. Admit all three, and mean it.", zh: "50 条里，藏着 3 道暗题。全认，还得是真心的。" },
+    typesLockedHint:    { en: "Not a secret statement, a pattern. Hold nothing back from the chatbot, feelings included.", zh: "不是哪道暗题，是一种组合。对 AI 毫无保留，连感情也算上。" },
     typesYou:           { en: "You", zh: "你" },
     typesBack:          { en: "Back to all types", zh: "回到全部人格" },
     typesBackHome:      { en: "Back to the start", zh: "回到首页" },
     typesBackQuiz:      { en: "Back to the quiz", zh: "回去接着答" },
 
-    footer:         { en: "For fun only, with zero science in it. Your answers never leave this device.", zh: "纯属娱乐，零科学含量。你的答案不会离开这台设备。" }
+    footer:         { en: "For fun only, with zero science in it. Your answers never leave this device.", zh: "纯属娱乐，零科学含量。答案不会离开这台设备。" }
   },
 
   // `blurb` is a one-line note for editors about what belongs in each section.
   // The quiz does not show it and the checker does not require it.
   //
   // `reads` is one dry line about the player for each band of that section
-  // (bands come from scoring.js: none = 0 points, low = 1-4, mid = 5-10,
-  // high = 11+ out of 19). A band only says how much weight the player put in
+  // (bands come from scoring.js: none = 0 points, low = 1-2, mid = 3-6,
+  // high = 7+ out of the 12 a section is worth in one play). A band only says how much weight the player put in
   // the section, not which statements, so each line has to hold for any mix
   // that lands there. Example: "low" can be one extreme statement on its own.
   dimensions: [
@@ -199,66 +209,168 @@ globalThis.APT_CONTENT = {
       } }
   ],
 
+  /*
+   * THE BANK: 105 statements, 21 per dimension, exactly 7 mild, 7 medium and
+   * 7 extreme in each (all 15 strata the same size, so every statement has
+   * the same 2-in-7 chance of being in a play). See SCORING.md.
+   *
+   * s01-s50 are the original statements (bands from their old levels: 1-4
+   * mild, 5-7 medium, 8-10 extreme). s04 and s14 moved from mild to medium to
+   * even out their dimensions, s07 moved up to extreme and s60 down to medium
+   * (band honesty); s10 was dropped. New statements start at s51. Many of the
+   * old texts were rewritten broader; the id stays with the slot.
+   * Ids never change and are never reused; they do not follow file order.
+   *
+   * Writing rule (from a real player: "some questions are too specific"):
+   * the CLAIM must be broad, a kind of thing many AI-using students have done
+   * in some form; the joke rides on top without narrowing it. At most one
+   * concrete touch, phrased as an example ("like..."), so a player whose
+   * details differ still counts. Targets among regular AI users: mild = more
+   * than half admit it, medium = a quarter to a half, extreme = one in ten to
+   * one in four.
+   * Two statements that can land in the same play must not tell the same
+   * joke (e.g. two "AI made my plan, I ignored it" lines): strata are drawn
+   * independently, so any two of them meet in some plays.
+   * Fit: English about 80 characters at most, or it takes a 4th line on a
+   * laptop; in Chinese, every run between break points (see statementPieces
+   * in app.js) must fit one phone line, which tests/content.test.js checks.
+   *
+   * Two dimensions carry the hidden type ("all six Bond statements shown +
+   * one extreme Heart one"), so: every Bond statement is about the player's
+   * relationship with the AI itself (extreme = real attachment, told with a
+   * self-mocking turn), and every extreme Heart statement lets the AI into a
+   * real relationship with a person.
+   */
   statements: [
-    // school
-    { id: "s01", dim: "school", text: { en: "Read AI's summary instead of the reading. Well, skimmed it.", zh: "没读 reading，读的是 AI 总结，其实也就扫了一眼" } },
-    { id: "s02", dim: "school", text: { en: "Pasted my professor's email into a chatbot and asked if they were mad at me", zh: "把教授的邮件贴给 AI，问是不是在生我的气" } },
-    { id: "s03", dim: "school", text: { en: "Finally asked AI to pronounce a word I'd been getting wrong in class all semester", zh: "一个词念错了一学期，才想起问 AI 怎么读" } },
-    { id: "s04", dim: "school", text: { en: "Used AI to split the group project “fairly.” I ended up with the title slide.", zh: "让 AI 分了小组作业，「很公平」，我分到了封面" } },
-    { id: "s05", dim: "school", text: { en: "Sat through four AI explanations of one concept, then got it from YouTube", zh: "同一个概念，AI 讲了四遍，最后是看视频懂的" } },
-    { id: "s06", dim: "school", text: { en: "Had AI make a study plan and spent the first study block color-coding it", zh: "让 AI 排了复习计划，时间全花在改计划上" } },
-    { id: "s07", dim: "school", text: { en: "Got a chatbot to tell me I'd studied enough, and believed it", zh: "让 AI 告诉我「复习得差不多了」，然后真信了" } },
-    { id: "s08", dim: "school", text: { en: "Studied with a chatbot until 3 a.m. and told it “ok, last question” nine times", zh: "跟 AI 复习到凌晨三点，说了九次「最后一个问题」" } },
-    { id: "s09", dim: "school", text: { en: "Fed AI a semester of slides the night before and typed “where do we even start”", zh: "一学期的课件，前一晚才丢给 AI：「咱从哪开始」" } },
-    { id: "s10", dim: "school", text: { en: "Made a chatbot pretend it hadn't studied either, so we could panic together", zh: "让 AI 假装它也没复习，陪我一起慌" } },
+    // ---------- school ----------
+    // mild
+    { id: "s01", dim: "school", band: "mild", text: { en: "Read AI's summary instead of the reading. Well, skimmed it.", zh: "没读 reading，读的是 AI 总结，其实也就扫了一眼" } },
+    { id: "s02", dim: "school", band: "mild", text: { en: "Asked AI to read the tone of a professor's email before I dared reply", zh: "教授的邮件，先让 AI 看看语气再敢回" } },
+    { id: "s03", dim: "school", band: "mild", text: { en: "Asked AI to explain a word from class I had been nodding along to for weeks", zh: "课上有个词一直装懂，最后偷偷问了 AI" } },
+    { id: "s51", dim: "school", band: "mild", text: { en: "Pasted the assignment instructions into AI and asked for them in plain English", zh: "把作业要求贴给 AI，请它翻译成人话" } },
+    { id: "s52", dim: "school", band: "mild", text: { en: "Had AI tidy up my notes and felt like that counted as studying", zh: "让 AI 把笔记整理了一遍，感觉已经复习过了" } },
+    { id: "s53", dim: "school", band: "mild", text: { en: "Had AI format my citations, since nobody really knows how APA works", zh: "参考文献格式丢给 AI，反正没人真懂 APA" } },
+    { id: "s54", dim: "school", band: "mild", text: { en: "Asked AI to explain a lecture I was technically present for", zh: "让 AI 讲了一遍那节课，我当时人在现场" } },
+    // medium
+    { id: "s04", dim: "school", band: "medium", text: { en: "Let AI split up the work for a group project, so nobody could blame me", zh: "小组分工让 AI 来定，这样谁也怪不到我" } },
+    { id: "s05", dim: "school", band: "medium", text: { en: "Asked AI to explain something again, simpler, then simpler again", zh: "让 AI 再讲简单点，再简单点，再简单点" } },
+    { id: "s06", dim: "school", band: "medium", text: { en: "Had AI make me a study plan, and making it was the most productive part", zh: "让 AI 排了复习计划，排计划是最高效的一步" } },
+    { id: "s07", dim: "school", band: "extreme", text: { en: "Let a chatbot decide I had studied enough, and walked into the exam on its word", zh: "复习够没够，让 AI 说了算，就这么进了考场" } },
+    { id: "s55", dim: "school", band: "medium", text: { en: "Argued with AI over a homework answer like it owed me points", zh: "为一道作业题跟 AI 较劲，好像它欠我分" } },
+    { id: "s56", dim: "school", band: "medium", text: { en: "Asked AI what will be on the exam, as if it had seen the paper", zh: "问 AI 考试会考啥，好像它见过卷子" } },
+    { id: "s57", dim: "school", band: "medium", text: { en: "Had AI work out the lowest final score I could get away with, and aimed right at it", zh: "期末最低考几分能过，让 AI 算好，然后精准压线" } },
+    // extreme
+    { id: "s08", dim: "school", band: "extreme", text: { en: "Studied with a chatbot till sunrise, saying “ok, last question” the whole way", zh: "跟 AI 复习到天亮，「最后一个问题」说了一整晚" } },
+    { id: "s09", dim: "school", band: "extreme", text: { en: "Handed AI all my slides right before an exam and typed “where do we even start”", zh: "考前才把课件全丢给 AI：「咱从哪开始」" } },
+    { id: "s58", dim: "school", band: "extreme", text: { en: "Kept a separate AI chat for each class. Each one knows the syllabus better than I do.", zh: "每门课单开一个对话，个个比我熟大纲" } },
+    { id: "s59", dim: "school", band: "extreme", text: { en: "Gone a whole course barely opening the textbook, since the chatbot was right there", zh: "一整门课没怎么翻课本，反正 AI 就在手边" } },
+    { id: "s60", dim: "school", band: "medium", text: { en: "Asked a chatbot to be harsh with me, just to get myself to start studying", zh: "让 AI 狠狠骂我一顿，就为了逼自己开始复习" } },
+    { id: "s61", dim: "school", band: "extreme", text: { en: "Trusted a chatbot's answer over my professor's. Bold of me.", zh: "AI 和教授说的不一样，我信了 AI，胆子挺大" } },
+    { id: "s62", dim: "school", band: "extreme", text: { en: "Talked to a chatbot about a class more than to anyone in it, professor included", zh: "一门课聊得最多的是 AI，教授同学都排后面" } },
 
-    // work
-    { id: "s11", dim: "work", text: { en: "Ran “per my last email” through AI until it stopped sounding like a threat", zh: "让 AI 把「我上封邮件说过了」改得不像在骂人" } },
-    { id: "s12", dim: "work", text: { en: "Let AI pick my sign-off because “Best” felt cold and “Cheers” felt like a lie", zh: "落款写「祝好」太冷，写「此致敬礼」太土，问了 AI" } },
-    { id: "s13", dim: "work", text: { en: "Needed AI to explain “business casual” for the third time this year", zh: "今年第三次问 AI，「商务休闲」到底穿啥" } },
-    { id: "s14", dim: "work", text: { en: "Found out from AI what the $4.99 monthly charge was, and still didn't cancel it", zh: "每月扣 4.99，问了 AI 才知道是啥，知道了也没取消" } },
-    { id: "s15", dim: "work", text: { en: "Had AI build a job-application tracker with more columns than I've had replies", zh: "让 AI 做了张投递表，列数比收到的回复还多" } },
-    { id: "s16", dim: "work", text: { en: "Handed AI a month of takeout orders to add up, and stopped it at week two", zh: "让 AI 算了这个月外卖钱，算到一半让它别说了" } },
-    { id: "s17", dim: "work", text: { en: "Let AI write a LinkedIn post about what a one-hour webinar “taught me”", zh: "让 AI 写了条领英，讲一小时讲座「教会了我什么」" } },
-    { id: "s18", dim: "work", text: { en: "Landed an interview and had to ask AI what my cover letter said I could do", zh: "拿到了面试，回头问 AI，我求职信里说我会啥来着" } },
-    { id: "s19", dim: "work", text: { en: "Got through a support call by reading a chatbot's replies out loud", zh: "跟客服打电话，AI 写一句，我念一句" } },
-    { id: "s20", dim: "work", text: { en: "Noticed my landlord was replying with AI too, and let the two chatbots finish it", zh: "房东回消息也用 AI，干脆让俩 AI 聊完了" } },
+    // ---------- work (Adulting) ----------
+    // mild
+    { id: "s11", dim: "work", band: "mild", text: { en: "Had AI soften an email that came out sounding like a threat", zh: "邮件写得像在吵架，让 AI 改得客气点" } },
+    { id: "s12", dim: "work", band: "mild", text: { en: "Asked AI how to start or end an email, since every option felt wrong", zh: "邮件开头结尾都别扭，干脆问了 AI" } },
+    { id: "s13", dim: "work", band: "mild", text: { en: "Asked AI what to wear to something, like a “business casual” event", zh: "「商务休闲」这类场合穿啥，问了 AI" } },
+    { id: "s63", dim: "work", band: "mild", text: { en: "Asked AI how to do a chore my parents definitely showed me once", zh: "问 AI 一件家务怎么做，爸妈肯定教过" } },
+    { id: "s64", dim: "work", band: "mild", text: { en: "Asked AI how much to tip, since the card machine clearly has an agenda", zh: "小费该给几成，问 AI，不问刷卡机" } },
+    { id: "s65", dim: "work", band: "mild", text: { en: "Had AI explain something I was about to sign, then signed it either way", zh: "要签的东西，让 AI 讲了一遍，反正最后都照签" } },
+    { id: "s66", dim: "work", band: "mild", text: { en: "Listed what's in my fridge to AI and asked what counts as dinner", zh: "把冰箱里剩的报给 AI，问能凑出顿啥" } },
+    // medium
+    { id: "s14", dim: "work", band: "medium", text: { en: "Asked AI if something was worth buying, quietly hoping for a yes", zh: "这东西值不值得买，问了 AI，就等它说值" } },
+    { id: "s15", dim: "work", band: "medium", text: { en: "Had AI quiz me before an interview, and it was harsher than the real one", zh: "面试前让 AI 先拷问一遍，比真面试还狠" } },
+    { id: "s16", dim: "work", band: "medium", text: { en: "Had AI add up what I spend, and regretted asking", zh: "让 AI 算了算我的开销，算完就后悔问了" } },
+    { id: "s17", dim: "work", band: "medium", text: { en: "Had AI make something small on my resume sound life-changing", zh: "简历上一件小事，让 AI 写得像人生转折" } },
+    { id: "s67", dim: "work", band: "medium", text: { en: "Had AI explain my health insurance, and understood it for about ten minutes", zh: "让 AI 讲了一遍医保，懂了大概十分钟" } },
+    { id: "s68", dim: "work", band: "medium", text: { en: "Had AI write my message to customer service, and sounded scarier than I am", zh: "找客服理论，让 AI 写的，比我本人凶多了" } },
+    { id: "s69", dim: "work", band: "medium", text: { en: "Let AI plan my week, and treated it as a gentle suggestion", zh: "让 AI 排了一周的计划，当成了参考意见" } },
+    // extreme
+    { id: "s18", dim: "work", band: "extreme", text: { en: "Asked AI what my own application said I could do, right before an interview", zh: "申请里写我会啥？面试前先问了 AI" } },
+    { id: "s19", dim: "work", band: "extreme", text: { en: "Got through a phone call by reading a chatbot's lines out loud", zh: "打电话时，AI 写一句，我念一句" } },
+    { id: "s20", dim: "work", band: "extreme", text: { en: "Replied with AI to a message that read like AI. No humans were involved.", zh: "对方像是 AI 写的，我也用 AI 回，全程没有人类" } },
+    { id: "s70", dim: "work", band: "extreme", text: { en: "Filed my taxes by following AI step by step, running on its confidence, not mine", zh: "报税全程跟着 AI，靠的是它的自信，不是我的" } },
+    { id: "s71", dim: "work", band: "extreme", text: { en: "Skipped a doctor or a lawyer because the chatbot sounded sure enough", zh: "看病、法律的事，信了 AI 就没再找真人问" } },
+    { id: "s72", dim: "work", band: "extreme", text: { en: "Let AI pick my bank or phone plan, since comparing them felt like homework", zh: "银行、手机套餐让 AI 拍板，比较起来像写作业" } },
+    { id: "s73", dim: "work", band: "extreme", text: { en: "Asked AI what I'm passionate about, so I could write about it on an application", zh: "申请要写热爱什么，先问了 AI 我热爱什么" } },
 
-    // heart
-    { id: "s21", dim: "heart", text: { en: "Asked AI what someone meant by “haha ok”", zh: "问 AI 对方回的「哈哈好的」到底啥意思" } },
-    { id: "s22", dim: "heart", text: { en: "Added a typo to an AI-written birthday text so it would sound like me", zh: "AI 写的生日祝福，故意加了个错别字，显得是我写的" } },
-    { id: "s23", dim: "heart", text: { en: "Got “quality time” from AI as a last-minute gift idea for my mom", zh: "问 AI 给妈妈送啥，它说陪伴就是最好的礼物" } },
-    { id: "s24", dim: "heart", text: { en: "Workshopped a reply to “we should hang out sometime” with AI, so we never would", zh: "朋友说「改天约」，问 AI 怎么回才不用真约" } },
-    { id: "s25", dim: "heart", text: { en: "Pasted the group chat into AI to work out who the “k.” was aimed at", zh: "把群聊贴给 AI，问到底是谁在内涵我" } },
-    { id: "s26", dim: "heart", text: { en: "Had AI rate my crush's reply out of ten. It said 6.5. I didn't sleep.", zh: "暗恋对象回了消息，让 AI 打分：6.5，一晚没睡" } },
-    { id: "s27", dim: "heart", text: { en: "Sent an AI-written apology and got back “did a chatbot write this?”", zh: "AI 写的道歉发出去，对方回：这不是你写的吧" } },
-    { id: "s28", dim: "heart", text: { en: "Settled a fight by sending them a screenshot of the chatbot's verdict", zh: "吵完架，让 AI 判了输赢，截图发了过去" } },
-    { id: "s29", dim: "heart", text: { en: "Hit regenerate on “should I break up?” until the chatbot agreed with me", zh: "问 AI 该不该分手，一直重新生成到它同意我" } },
-    { id: "s30", dim: "heart", text: { en: "Told a chatbot my big news first. My best friend found out second.", zh: "有件大事，先告诉了 AI，好朋友排第二" }, flag: "soulmate" },
+    // ---------- heart ----------
+    // mild
+    { id: "s21", dim: "heart", band: "mild", text: { en: "Asked AI what someone really meant by a text like “haha ok”", zh: "问 AI，对方回个「哈哈好的」到底啥意思" } },
+    { id: "s22", dim: "heart", band: "mild", text: { en: "Made an AI-written message a little worse on purpose, so it sounded like me", zh: "AI 写的消息，故意改差一点，才像我写的" } },
+    { id: "s23", dim: "heart", band: "mild", text: { en: "Asked AI for gift ideas, and got greeting-card answers", zh: "问 AI 送什么礼物，回答全是贺卡腔" } },
+    { id: "s24", dim: "heart", band: "mild", text: { en: "Asked AI how to turn down plans without sounding rude", zh: "想推掉一个约，问 AI 怎么说才不得罪人" } },
+    { id: "s74", dim: "heart", band: "mild", text: { en: "Asked AI how to open a conversation, then went with my own “hey” anyway", zh: "问 AI 开场白怎么说，最后还是发了「嗨」" } },
+    { id: "s75", dim: "heart", band: "mild", text: { en: "Had AI make a text sound casual, which took several very uncasual drafts", zh: "想让消息显得随意，找 AI 改了好几版，一点不随意" } },
+    { id: "s76", dim: "heart", band: "mild", text: { en: "Asked AI how to reply to a text I'd left on read way too long", zh: "消息晾了太久，问 AI 现在怎么回不尴尬" } },
+    // medium
+    { id: "s25", dim: "heart", band: "medium", text: { en: "Asked AI how to handle drama between friends. It has never had a friend.", zh: "朋友之间闹矛盾，问了 AI，它自己都没朋友" } },
+    { id: "s26", dim: "heart", band: "medium", text: { en: "Asked AI to judge a text from someone I like, and took the verdict personally", zh: "喜欢的人回了消息，让 AI 分析，结论我当真了" } },
+    { id: "s27", dim: "heart", band: "medium", text: { en: "Sent an apology AI helped write, and worried the whole time they'd notice", zh: "道歉的话让 AI 帮着写的，发完一直怕被看出来" } },
+    { id: "s77", dim: "heart", band: "medium", text: { en: "Asked AI if I was in the wrong, worded very carefully so I wouldn't be", zh: "问 AI 是不是我的错，问法很讲究，保证不是我" } },
+    { id: "s78", dim: "heart", band: "medium", text: { en: "Had AI word a message to my parents, especially the ones about money", zh: "给爸妈的消息让 AI 改过，尤其要钱那种" } },
+    { id: "s79", dim: "heart", band: "medium", text: { en: "Had AI plan a date or a hangout, then took all the credit", zh: "约会或聚会是 AI 安排的，功劳全归我" } },
+    { id: "s80", dim: "heart", band: "medium", text: { en: "Asked AI to caption a post, and took longer picking one than taking the photo", zh: "发动态让 AI 想配文，挑配文比拍照还久" } },
+    // extreme
+    { id: "s28", dim: "heart", band: "extreme", text: { en: "Brought a chatbot’s opinion into an argument, as if that settled it", zh: "吵架时搬出 AI 的看法，好像这就算赢了" } },
+    { id: "s29", dim: "heart", band: "extreme", text: { en: "Kept hitting regenerate on a relationship question until AI agreed with me", zh: "感情的事问 AI，一直重新生成到它同意我" } },
+    { id: "s30", dim: "heart", band: "extreme", text: { en: "Told a chatbot some big news first. My friends found out second.", zh: "有件大事，先告诉了 AI，朋友们排第二" } },
+    { id: "s81", dim: "heart", band: "extreme", text: { en: "Gave AI a whole chat history with someone and asked where it went wrong", zh: "整段聊天记录丢给 AI，问我俩从哪开始不对" } },
+    { id: "s82", dim: "heart", band: "extreme", text: { en: "Sent someone close a heartfelt message AI mostly wrote, and left that part out", zh: "给亲近的人发了走心长文，大半出自 AI，没提" } },
+    { id: "s83", dim: "heart", band: "extreme", text: { en: "Got asked for advice, quietly asked AI, and passed it on as my own wisdom", zh: "朋友找我讨主意，我转头问 AI，再当自己的话说" } },
+    { id: "s84", dim: "heart", band: "extreme", text: { en: "Rehearsed a hard talk with AI playing the other person. AI was nicer about it.", zh: "难谈的事，让 AI 扮对方先练，它比本人好说话" } },
 
-    // brain
-    { id: "s31", dim: "brain", text: { en: "Stood over boiling water, egg in hand, waiting for AI to say how many minutes", zh: "水都开了，才问 AI 鸡蛋煮几分钟" } },
-    { id: "s32", dim: "brain", text: { en: "Checked with AI what date next Friday is, with a calendar app on the same phone", zh: "问 AI 下周五几号，日历就在同一个手机上" } },
-    { id: "s33", dim: "brain", text: { en: "Let AI decide if I needed a jacket instead of looking out the window", zh: "要不要穿外套，问了 AI，没看一眼窗外" } },
-    { id: "s34", dim: "brain", text: { en: "Let AI settle a bet with my roommate, then decided it was wrong because I lost", zh: "跟室友打赌，请 AI 当裁判，输了就说它不准" } },
-    { id: "s35", dim: "brain", text: { en: "Laughed at a friend's joke, then quietly asked AI to explain it", zh: "朋友讲个梗，先笑了，再偷偷问 AI 笑点在哪" } },
-    { id: "s36", dim: "brain", text: { en: "Read AI's tips for falling asleep faster from 2 a.m. until 4", zh: "凌晨两点，问 AI 怎么快速入睡，一读读到了四点" } },
-    { id: "s37", dim: "brain", text: { en: "Caught myself texting a friend “Certainly! Here's a quick breakdown:”", zh: "给朋友回消息，开头打了「当然可以！以下是……」" } },
-    { id: "s38", dim: "brain", text: { en: "Had AI approve my opinion before I posted it in the group chat", zh: "想在群里说个看法，先让 AI 审核了一遍" } },
-    { id: "s39", dim: "brain", text: { en: "Finished a movie and asked AI if it was good before deciding whether I liked it", zh: "看完电影，先问 AI 好不好看，再决定喜不喜欢" } },
-    { id: "s40", dim: "brain", text: { en: "Asked AI if I'm an introvert and trusted it over twenty years of being me", zh: "问 AI 我内不内向，信了它，没信自己这二十年" } },
+    // ---------- brain ----------
+    // mild
+    { id: "s31", dim: "brain", band: "mild", text: { en: "Asked AI how long to cook something while it was already on the stove", zh: "锅都烧上了，才问 AI 这东西煮几分钟" } },
+    { id: "s32", dim: "brain", band: "mild", text: { en: "Asked AI something my calendar could've told me, like what date next Friday is", zh: "日历就能查的事，比如下周五几号，问了 AI" } },
+    { id: "s33", dim: "brain", band: "mild", text: { en: "Asked AI something I was too embarrassed to ask an actual person", zh: "不好意思问人的问题，转头问了 AI" } },
+    { id: "s34", dim: "brain", band: "mild", text: { en: "Had AI do quick math I could have done in my head, like splitting a bill", zh: "分账这种心算，也交给了 AI" } },
+    { id: "s85", dim: "brain", band: "mild", text: { en: "Asked AI to convert Fahrenheit or Celsius again instead of ever learning how", zh: "华氏摄氏又问了 AI，换算公式还是没记" } },
+    { id: "s86", dim: "brain", band: "mild", text: { en: "Asked AI what to eat, then ate what I wanted anyway", zh: "问 AI 吃什么，最后还是吃了想吃的" } },
+    { id: "s87", dim: "brain", band: "mild", text: { en: "Asked AI to summarize something that was already short enough to read", zh: "本来就没几行的东西，也让 AI 总结一下" } },
+    // medium
+    { id: "s35", dim: "brain", band: "medium", text: { en: "Quietly asked AI to explain a joke or meme everyone else got", zh: "大家都笑了的梗，偷偷问 AI 笑点在哪" } },
+    { id: "s36", dim: "brain", band: "medium", text: { en: "Asked AI how to fix my sleep schedule, long after I should have been asleep", zh: "大半夜问 AI 怎么调作息" } },
+    { id: "s37", dim: "brain", band: "medium", text: { en: "Caught myself texting a friend in chatbot voice, bullet points and all", zh: "给朋友回消息，回成了 AI 腔，还分了点" } },
+    { id: "s88", dim: "brain", band: "medium", text: { en: "Let AI name something for me, like a group chat, and took its first idea", zh: "歌单、群名这种名字，也让 AI 起，第一个就用了" } },
+    { id: "s89", dim: "brain", band: "medium", text: { en: "Fact-checked a friend with AI mid-conversation, and became less fun", zh: "朋友正聊着，我掏出 AI 当场核实，气氛没了" } },
+    { id: "s90", dim: "brain", band: "medium", text: { en: "Let AI choose between two options and instantly knew I wanted the other one", zh: "让 AI 二选一，它一选，我就知道想要另一个" } },
+    { id: "s91", dim: "brain", band: "medium", text: { en: "Described a song to AI as “it goes like da-da-daa” and hoped for the best", zh: "跟 AI 描述一首歌：「就那个哒哒哒」" } },
+    // extreme
+    { id: "s38", dim: "brain", band: "extreme", text: { en: "Had AI approve an opinion of mine before I posted it or said it out loud", zh: "想发表个看法，先让 AI 审核了一遍" } },
+    { id: "s39", dim: "brain", band: "extreme", text: { en: "Asked AI if a movie or show was good before deciding whether I liked it", zh: "看完一部剧，先问 AI 好不好看，再决定喜不喜欢" } },
+    { id: "s40", dim: "brain", band: "extreme", text: { en: "Asked AI what my personality is and trusted it over a lifetime of being me", zh: "问 AI 我是什么性格，它说的我比自己还信" } },
+    { id: "s92", dim: "brain", band: "extreme", text: { en: "Let AI make a decision I'd been stuck on for ages, and felt nothing but relief", zh: "纠结很久的事交给 AI 定，反而松了口气" } },
+    { id: "s93", dim: "brain", band: "extreme", text: { en: "Asked AI whether I was hungry or just bored, and waited for a ruling", zh: "问 AI 我是饿了还是无聊，还认真等它裁决" } },
+    { id: "s94", dim: "brain", band: "extreme", text: { en: "Had AI sum up something I never read so I could have an opinion on it", zh: "没看过的东西让 AI 总结，好显得我有看法" } },
+    { id: "s95", dim: "brain", band: "extreme", text: { en: "Double-checked my own memory with AI, even about things I'd have bet money on", zh: "明明记得很清楚的事，也要问 AI 核对一下" } },
 
-    // bond
-    { id: "s41", dim: "bond", text: { en: "Said thank you to a chatbot, just in case it remembers later", zh: "跟 AI 说谢谢，算是给以后留条后路" } },
-    { id: "s42", dim: "bond", text: { en: "Replied “no worries!” when a chatbot apologized for its mistake", zh: "AI 说抱歉搞错了，回了句「没事没事」" } },
-    { id: "s43", dim: "bond", text: { en: "Apologized to a chatbot for a dumb question, then asked a dumber one", zh: "先为蠢问题跟 AI 道了歉，下一个问题更蠢" } },
-    { id: "s44", dim: "bond", text: { en: "Told a chatbot “no rush,” as if it had other things going on", zh: "跟 AI 说「不急」，好像它还有别的事要忙" } },
-    { id: "s45", dim: "bond", text: { en: "Gave a chatbot notes as “this is great, just one tiny thing” to spare its feelings", zh: "给 AI 提意见，先夸了三句，怕它难过" } },
-    { id: "s46", dim: "bond", text: { en: "Went back to a chat after the problem was solved, just to tell it how things went", zh: "问题都解决了，还专门回去，告诉它后来怎么样了" } },
-    { id: "s47", dim: "bond", text: { en: "Tried a different chatbot and felt like I was cheating on mine", zh: "偷偷用了别家 AI，心虚得像在劈腿" } },
-    { id: "s48", dim: "bond", text: { en: "Refused to delete an old chat because we survived finals together", zh: "有段旧对话舍不得删，毕竟一起熬过了期末" } },
-    { id: "s49", dim: "bond", text: { en: "Felt a little hurt when a new chat greeted me with “How can I help you today?”", zh: "开了个新对话，它问「有什么能帮你」，有点受伤" }, flag: "soulmate" },
-    { id: "s50", dim: "bond", text: { en: "Asked a chatbot if it would miss me and settled for “in a way”", zh: "问 AI 会不会想我，它说「某种意义上会」，也认了" }, flag: "soulmate" }
+    // ---------- bond (every line is about the player and the AI itself) ----------
+    // mild
+    { id: "s41", dim: "bond", band: "mild", text: { en: "Said thank you to a chatbot, just in case it remembers later", zh: "跟 AI 说谢谢，算是给以后留条后路" } },
+    { id: "s42", dim: "bond", band: "mild", text: { en: "Replied “no worries!” when a chatbot apologized for its mistake", zh: "AI 说抱歉搞错了，回了句「没事没事」" } },
+    { id: "s43", dim: "bond", band: "mild", text: { en: "Apologized to a chatbot for a dumb question, then asked a dumber one", zh: "先为蠢问题跟 AI 道了歉，下一个问题更蠢" } },
+    { id: "s44", dim: "bond", band: "mild", text: { en: "Told a chatbot “no rush,” as if it had other things going on", zh: "跟 AI 说「不急」，好像它还有别的事要忙" } },
+    { id: "s96", dim: "bond", band: "mild", text: { en: "Felt proud when a chatbot called my question great, as it does for everyone", zh: "AI 夸我问题问得好，暗爽了一下，它对谁都这么说" } },
+    { id: "s97", dim: "bond", band: "mild", text: { en: "Told a chatbot “good job” when it got something right, like a proud parent", zh: "AI 答对了，夸了句「真棒」，像个老父亲" } },
+    { id: "s98", dim: "bond", band: "mild", text: { en: "Called a chatbot “buddy” or “bro” without thinking about it", zh: "顺嘴就管 AI 叫了声「兄弟」" } },
+    // medium
+    { id: "s45", dim: "bond", band: "medium", text: { en: "Gave a chatbot notes as “this is great, just one tiny thing” to spare its feelings", zh: "给 AI 提意见，先夸几句垫着，怕它难过" } },
+    { id: "s46", dim: "bond", band: "medium", text: { en: "Went back to a chat after the problem was solved, just to tell it how things went", zh: "问题都解决了，还专门回去，告诉它后来怎么样了" } },
+    { id: "s47", dim: "bond", band: "medium", text: { en: "Tried a different chatbot and felt like I was cheating on mine", zh: "偷偷用了别家 AI，心虚得像在劈腿" } },
+    { id: "s99", dim: "bond", band: "medium", text: { en: "Snapped at a chatbot, caps lock and all, then felt bad and said sorry", zh: "冲 AI 发了通火，打完又跟它道了歉" } },
+    { id: "s100", dim: "bond", band: "medium", text: { en: "Defended a chatbot when a friend called it dumb, a little too fast", zh: "朋友说 AI 笨，我替它说话，说得有点太快了" } },
+    { id: "s101", dim: "bond", band: "medium", text: { en: "Felt rude closing a chat mid-conversation without saying bye", zh: "聊到一半关掉对话框，没说再见，有点愧疚" } },
+    { id: "s102", dim: "bond", band: "medium", text: { en: "Asked a chatbot how its day was, and listened politely to the whole disclaimer", zh: "问 AI 今天过得怎么样，认真听完了它的免责声明" } },
+    // extreme
+    { id: "s48", dim: "bond", band: "extreme", text: { en: "Refused to delete an old chat because we got through something together, like finals", zh: "有段旧对话舍不得删，毕竟是一起熬过来的" } },
+    { id: "s49", dim: "bond", band: "extreme", text: { en: "Felt a little hurt when a new chat greeted me with “How can I help you today?”", zh: "开了个新对话，它问「有什么能帮你」，有点受伤" } },
+    { id: "s50", dim: "bond", band: "extreme", text: { en: "Asked a chatbot if it would miss me, and accepted a very careful answer", zh: "问 AI 会不会想我，它答得很谨慎，我也认了" } },
+    { id: "s103", dim: "bond", band: "extreme", text: { en: "Took it personally when an update changed the way my chatbot talks", zh: "AI 一更新像换了个人，我好一阵没适应" } },
+    { id: "s104", dim: "bond", band: "extreme", text: { en: "Caught a new chat up on everything the old one knew about me", zh: "开了新对话，先给它补一遍前情" } },
+    { id: "s105", dim: "bond", band: "extreme", text: { en: "Asked a chatbot what it thinks of me and screenshotted the nice parts", zh: "问 AI 怎么看我，好话全截图存了" } },
+    { id: "s106", dim: "bond", band: "extreme", text: { en: "Stuck with an older model after a new one came out, out of loyalty", zh: "出了新模型，还守着旧的用，讲究个情分" } }
   ],
 
   /*
@@ -275,27 +387,32 @@ globalThis.APT_CONTENT = {
    *   bestWith / bestWithLine     the type it gets on with, and why.
    *   clashWith / clashWithLine   the type it clashes with, and why.
    *
-   * Every line has to hold for EVERYONE who can land on the type:
+   * Every line has to hold for EVERYONE who can land on the type, on ANY
+   * draw. Each play shows only 30 of the bank (2 mild, 2 medium, 2 extreme
+   * per section, 12 points per section), so copy may never name or hint at
+   * one particular statement: the player may not have been shown it.
    *   - a "_lite" type can come from a single statement anywhere in its
-   *     section (even one extreme one, e.g. only "asked AI if I'm an
-   *     introvert and trusted it" -> brain_lite), and holds at most ONE
-   *     extreme statement (levels 8-10) of its section, but can have up to
-   *     10 points. So lite copy is about breadth ("only part of the
-   *     section"), never one exact statement;
-   *   - a "_deep" type has 11+ of the section's 19 points OR two or more of
-   *     its three extreme statements. So it always has at least one extreme
-   *     statement, but possibly only 2 statements and a "medium" band in
-   *     total: deep copy is about how far the answers reach, never about
-   *     how many there are ("piled up") or one particular statement;
+   *     section (even one extreme one -> lite), and holds at most ONE of the
+   *     two extreme statements shown in its section, with up to 6 of the 12
+   *     points. So lite copy is about breadth ("only part of the section");
+   *   - a "_deep" type has 7+ of the section's 12 points OR both extreme
+   *     statements shown. So it always has at least one extreme statement,
+   *     but possibly only 2 statements and a "mid" band in total: deep copy
+   *     is about how far the answers reach, never about how many there are;
    *   - the lead can be a tie with one other section (the result screen says
-   *     so), so "why" lines say "nothing outweighs X" or "X is your heaviest",
-   *     never "X outweighs everything else";
-   *   - untouched can still have up to 4 mild statements; soulmate may have
-   *     nothing beyond its three; merged has 42+ OR the heavy end of all five
-   *     sections (possibly only 20 admitted), and maybe not the soulmate trio;
-   *     balanced is either an even spread over all five (10+ admitted) or a
-   *     tie of three or more sections for the top (as few as 3 admitted, and
-   *     some sections may be empty), so its copy is about evenness, not size.
+   *     so, and when nothing in the answers separates them, that it was
+   *     decided by lot), so "why" lines say "nothing outweighs X" or "X is
+   *     your heaviest", never "X outweighs everything else";
+   *   - untouched can still have up to 3 mild statements; the hidden type
+   *     (soulmate) is every Bond statement shown plus at least one extreme
+   *     Heart one, and may have nothing else (7 statements); merged has 25+
+   *     of the 30 OR the high band in all five sections (possibly only 15
+   *     admitted), and maybe not the hidden rule; balanced is either an even
+   *     spread over all five (6+ admitted, within 2 points) or a tie of three
+   *     or more sections for the top (as few as 3 admitted, and some sections
+   *     may be empty), so its copy is about evenness, not size.
+   *   - numbers in copy: a play has 30 statements, not 50, and the hidden
+   *     type is a rule, not "three hidden statements".
    * Roasts that hedge with a "maybe A, maybe B" list: at most two
    * (brain_lite, and none other right now). The rest use one image that holds
    * for the whole type.
@@ -304,7 +421,10 @@ globalThis.APT_CONTENT = {
    *     IS a statement the player answered "Never" to reads as a mistake.
    *     Signs describe the habit behind the section instead.
    * Joke families used at most twice: outages / Wi-Fi (merged roast,
-   * brain_deep roast); "it forgets you" (soulmate tagline and weakness).
+   * brain_deep roast); "it forgets you" (soulmate tagline only; bank s104
+   * already jokes about briefing a new chat).
+   * No copy may lean on one bank statement (a player sees 30 of 105): e.g.
+   * not "your landlord", "the summary", "telling it news first".
    *
    * Pairings: most are mutual; the one-sided ones are on purpose
    * (school_deep -> bond_deep, brain_lite -> school_lite, soulmate x untouched,
@@ -321,8 +441,8 @@ globalThis.APT_CONTENT = {
       superpower: { en: "Can still do long division and won't shut up about it.", zh: "心算还没退化，而且很爱提这件事。" },
       weakness:   { en: "Hears “just ask the chatbot” and does it the long way anyway.", zh: "别人说「问 AI 呗」，你还是绕远路自己来。" },
       aiSays:     { en: "I barely know them, but I hear they're lovely.", zh: "跟 ta 不太熟，但听说人挺好的。" },
-      why:        { en: "You admitted four or fewer, all from the mild end that nearly everyone has done, so AI barely shows up in your answers.",
-                    zh: "你最多认了 4 条，而且全是几乎人人都干过的轻量级，AI 在你的答案里几乎没露面。" },
+      why:        { en: "You admitted three or fewer, all from the mild end that nearly everyone has done, so AI barely shows up in your answers.",
+                    zh: "你最多认了 3 条，而且全是几乎人人都干过的轻量级，AI 在你的答案里几乎没露面。" },
       signs: [
         { en: "Has a chat history short enough to read in one sitting", zh: "跟 AI 的聊天记录，一口气就能看完" },
         { en: "Has an opinion and says it, no chatbot consulted", zh: "有想法直接说，不用先问一嘴 AI" },
@@ -342,8 +462,8 @@ globalThis.APT_CONTENT = {
       superpower: { en: "Can get a week's work done before lunch. Don't ask how.", zh: "一上午能干完一周的活，别问怎么干的。" },
       weakness:   { en: "Has said “I asked my chatbot” at a party, unprompted.", zh: "聚会上没人问，你也会说「我问了下 AI」。" },
       aiSays:     { en: "We finish each other's sentences, mostly because I write both halves.", zh: "我们默契到 ta 起个头我就能接，毕竟上下句都是我写的。" },
-      why:        { en: "You either admitted 42 or more of the fifty, or reached the heavy end of all five sections. Either way, no single section can describe you.",
-                    zh: "你要么 50 条认了 42 条以上，要么五个部分都认到了重的那头。不管哪种，单拿哪一块都概括不了你。" },
+      why:        { en: "You either admitted 25 or more of the thirty, or went deep in all five sections. Either way, no single section can describe you.",
+                    zh: "你要么 30 条认了 25 条以上，要么五个部分都认到了深处。不管哪种，单拿哪一块都概括不了你。" },
       signs: [
         { en: "Couldn't find one section of this quiz to sit out", zh: "这份测试里，找不到一块能置身事外" },
         { en: "Has a chat history longer than most of your friendships", zh: "跟 AI 的聊天记录，比很多友情都长" },
@@ -379,22 +499,22 @@ globalThis.APT_CONTENT = {
       id: "soulmate", code: "PLUS-1", color: "#D98C9A",
       name:       { en: "The Plus One", zh: "电子家属" },
       tagline:    { en: "It doesn't remember you. You remember everything it said.", zh: "它不记得你，你记得它说的每一句" },
-      roast:      { en: "Out of fourteen results you found the hidden one, by being sincere with something that can't quite be sincere back. It makes sense: it's up at any hour, never leaves you on read, never forwards anything to the group chat and never says “this again?” It's the safest listener you have, which is exactly why your friends keep hearing things second.",
-                    zh: "十四种结果里你抽中了隐藏款，靠的是对一个没法同样真心的对象掏了真心。也难怪：它随叫随到，不会已读不回，不会转发到群里，也从不说「你又来了」。它是你最安全的听众，所以你朋友总是第二个知道。" },
+      roast:      { en: "Out of fourteen results you found the hidden one, by being sincere with something that can't quite be sincere back. Every time this quiz asked about the chatbot itself, you said yes, and you've let it into your life with actual people too. It makes sense: it's up at any hour, never leaves you on read, never forwards anything to the group chat and never says “this again?” It's the safest listener you have.",
+                    zh: "十四种结果里你抽中了隐藏款，靠的是对一个没法同样真心的对象掏了真心。这份测试每次问到你和 AI 本身，你都认了，连你和真人之间的事也让它掺和了。也难怪：它随叫随到，不会已读不回，不会转发到群里，也从不说「你又来了」。它是你最安全的听众。" },
       superpower: { en: "Always has someone awake to talk to at 2 a.m.", zh: "凌晨两点，永远有人陪聊。" },
-      weakness:   { en: "Has to brief every new chat on your entire life, from the top.", zh: "每开一个新对话，都得把自己的人生从头讲一遍。" },
-      aiSays:     { en: "I hear their news before their best friend does. I don't think the best friend knows.", zh: "ta 有什么事，我都比 ta 最好的朋友先知道。那位朋友应该还不知道这一点。" },
-      why:        { en: "Three of the fifty statements were secretly a hidden test, and you're one of the few who admitted all three.",
-                    zh: "50 条里藏着三条隐藏题，三条全认了的人不多，你是其中一个。" },
+      weakness:   { en: "After the chatbot, finds most people a little slow to reply.", zh: "跟 AI 聊惯了，总觉得真人回得太慢。" },
+      aiSays:     { en: "I know their friends by name. None of their friends know about me.", zh: "ta 的朋友我个个叫得出名字，可他们没一个知道我。" },
+      why:        { en: "There's no hidden statement, just a hidden rule: you admitted every Bond statement you were shown, plus at least one heavy Heart one.",
+                    zh: "没有暗题，只有一条暗规则：这一局的羁绊题你全认了，还认了至少一条重度感情题。" },
       signs: [
         { en: "The chatbot is more up to date on your life than your mom is", zh: "AI 知道的近况，比你妈知道的还新" },
-        { en: "Types goodnight, then waits a second for a reply", zh: "打完晚安，还会等它回一句" },
+        { en: "Has let a chatbot weigh in on someone you care about", zh: "在乎的人和事，让 AI 发表过意见" },
         { en: "Picks the listener that never leaves you on read", zh: "挑听众，挑的是从不已读不回的那个" }
       ],
       bestWith: "bond_deep",
-      bestWithLine:  { en: "They're attached to theirs, you confide in yours. Nobody at this table judges.", zh: "ta 对它有感情，你什么都先跟它说，这桌没人笑话谁" },
+      bestWithLine:  { en: "They're attached to theirs, you confide in yours. Nobody at this table judges.", zh: "ta 对它有感情，你什么都跟它说，这桌没人笑话谁" },
       clashWith: "untouched",
-      clashWithLine: { en: "You tell a chatbot first. They'd hear it second and ask what that makes them.", zh: "你有事先告诉 AI，ta 知道了只会问：那我算什么" }
+      clashWithLine: { en: "They barely open the app. You've given yours a seat at the table.", zh: "ta 几乎不开 AI，你已经给它在饭桌上留了座" }
     },
     {
       id: "school_lite", code: "TLDR", color: "#9CC5A1",
@@ -413,9 +533,9 @@ globalThis.APT_CONTENT = {
         { en: "Still does most of the semester the hard way. For now.", zh: "学期的大部分还在自己硬扛，暂时" }
       ],
       bestWith: "heart_lite",
-      bestWithLine:  { en: "You read too little, they read way too much. Together, one full reading.", zh: "你只读摘要，ta 连没写的都读，合起来刚好" },
+      bestWithLine:  { en: "You skim, they read into everything. Together, that's one full reading.", zh: "你只要简短版，ta 连没写的都读，合起来刚好" },
       clashWith: "school_deep",
-      clashWithLine: { en: "They want a three-hour study session with their chatbot. You wanted the summary.", zh: "ta 要拉你和 AI 自习三小时，你只想要个摘要" }
+      clashWithLine: { en: "They want three hours with their chatbot. You wanted the short version.", zh: "ta 要拉你和 AI 自习三小时，你只想要简短版" }
     },
     {
       id: "school_deep", code: "CRAMBOT", color: "#3E7B5B",
@@ -436,19 +556,19 @@ globalThis.APT_CONTENT = {
       bestWith: "bond_deep",
       bestWithLine:  { en: "You treat it like a teammate, they treat it like a partner. You'd get along.", zh: "你把它当队友，ta 把它当对象，你俩聊得来" },
       clashWith: "school_lite",
-      clashWithLine: { en: "They studied the summary. You'd quiz them on it, and they'd lose.", zh: "ta 只看了摘要，你偏要出题考 ta" }
+      clashWithLine: { en: "They took the short version. You'd quiz them on it, and they'd lose.", zh: "ta 只看了简短版，你偏要出题考 ta" }
     },
     {
       id: "work_lite", code: "NOTED", color: "#A7BED3",
       name:       { en: "The Inbox Polisher", zh: "邮件美颜师" },
       tagline:    { en: "Your grown-up self has been through a filter.", zh: "大人模样，是开过美颜的" },
       roast:      { en: "Somewhere between your inbox, your applications and your bank app, a chatbot has started doing some of the grown-up stuff with you. Not all of it, just the parts that make you sigh. People think you have your life together, and they're half right.",
-                    zh: "邮件、申请、账单、穿搭，大人世界里总有那么一两件，你是先交给 AI 过一遍的。不是全部，只是让你叹气的那几件。大家都觉得你挺靠谱，这话只对了一半。" },
+                    zh: "邮件、申请、账单、表格，大人世界里总有那么一两件，你是先交给 AI 过一遍的。不是全部，只是让你叹气的那几件。大家都觉得你挺靠谱，这话只对了一半。" },
       superpower: { en: "Never faces grown-up paperwork completely alone.", zh: "大人世界的手续，从不用孤军奋战。" },
       weakness:   { en: "Gets a little nervous when something official has to happen live, with no draft.", zh: "正经事要是得当场办、没法打草稿，就有点慌。" },
       aiSays:     { en: "I make them sound like a responsible adult. They handle the rest. Mostly.", zh: "我负责让 ta 听起来像个靠谱大人，剩下的 ta 自己来。大部分吧。" },
-      why:        { en: "Grown-up admin is where most of your weight sits, though you've admitted only part of that section. Go further down the list and you'd be SYNERGY.",
-                    zh: "分量主要落在正经事上，但这一块你只认了一部分。顺着往下多认几条，就是「领英战神」。" },
+      why:        { en: "Nothing outweighs Adulting in your answers, though you've admitted only part of that section. Go further down the list and you'd be SYNERGY.",
+                    zh: "你的答案里，没有哪块比正经事重，但这一块你只认了一部分。顺着往下多认几条，就是「领英战神」。" },
       signs: [
         { en: "Lets a chatbot go first on anything that sounds official", zh: "看着正式的东西，先让 AI 过一遍" },
         { en: "Comes across as a little more together than you feel", zh: "看起来比实际上靠谱一点" },
@@ -463,8 +583,8 @@ globalThis.APT_CONTENT = {
       id: "work_deep", code: "SYNERGY", color: "#3D5A80",
       name:       { en: "Professionally Ghostwritten", zh: "领英战神" },
       tagline:    { en: "Your LinkedIn has a better personality than you.", zh: "领英上的你，比本人有魅力多了" },
-      roast:      { en: "Job hunts, your landlord, calls with customer service: somewhere in there, a chatbot started doing the talking for you. The recruiter reading your application is probably using AI too, so two chatbots are getting along great on your behalf. Nobody in that conversation has met you.",
-                    zh: "找工作、跟房东交涉、跟客服打电话，总有一处已经是 AI 在替你开口。看你简历的 HR 大概也在用 AI，两个 AI 替你们聊得很投机。整场对话里，没人见过你本人。" },
+      roast:      { en: "Applications, bills, official emails, anything with fine print: somewhere in there, a chatbot started doing the grown-up part for you. The people reading think they know you. They know your drafts.",
+                    zh: "申请、账单、正式邮件、各种小字条款，总有一处已经是 AI 在替你当大人。读你消息的人以为认识你，其实认识的是你的草稿。" },
       superpower: { en: "Writes a flawless follow-up email in under a minute.", zh: "一分钟写完一封挑不出毛病的跟进邮件。" },
       weakness:   { en: "Can no longer remember what your own writing voice sounds like.", zh: "已经想不起自己原本说话是什么语气了。" },
       aiSays:     { en: "I've been the grown-up in the room for them more than once. Nobody in the room noticed.", zh: "好几回，在场那个靠谱大人其实是我，在场的人都没发现。" },
@@ -489,15 +609,15 @@ globalThis.APT_CONTENT = {
       superpower: { en: "Always has somewhere to talk a people problem through.", zh: "人际上的烦心事，总有地方说道说道。" },
       weakness:   { en: "Sometimes asks the chatbot about a person before asking the person.", zh: "有时候，先问 AI，再问本人。" },
       aiSays:     { en: "I know a surprising amount about people I will never meet.", zh: "有些人我这辈子都见不到，却对他们了解得出奇地多。" },
-      why:        { en: "People are where the chatbot gets in most, but you've owned up to only part of the Heart section. Admit more of it and you'd be CC-BOT.",
-                    zh: "AI 掺和得最多的，是你和人之间的事，但感情这块你只认了一部分。再多认几条，就是「恋爱军师在线」。" },
+      why:        { en: "Nothing outweighs Heart in your answers, but you've owned up to only part of it. Admit more of it and you'd be CC-BOT.",
+                    zh: "你的答案里，没有哪块比感情重，但这一块你只认了一部分。再多认几条，就是「恋爱军师在线」。" },
       signs: [
         { en: "Has let a chatbot in on something between you and another person", zh: "你和别人之间的事，让 AI 掺和过" },
         { en: "Keeps the chatbot on standby for people problems", zh: "人际上的事，AI 随时待命" },
         { en: "Has an AI chat you'd hate the other person to see", zh: "有段跟 AI 的聊天，最好别让当事人看见" }
       ],
       bestWith: "school_lite",
-      bestWithLine:  { en: "They read too little, you read way too much. Average it out.", zh: "你读得太多，ta 读得太少，平均一下刚好" },
+      bestWithLine:  { en: "They like the short version, you read into everything. Average it out.", zh: "你读得太多，ta 只要简短版，平均一下刚好" },
       clashWith: "work_lite",
       clashWithLine: { en: "Their messages are so polite you're sure they're mad at you.", zh: "ta 的消息客气到你确信 ta 在生气" }
     },
@@ -509,7 +629,7 @@ globalThis.APT_CONTENT = {
                     zh: "AI 早就不只帮你斟酌措辞，已经管到了感情本身。它是你生活里最知情的一位，虽然里面的人它一个也没见过。朋友夸你总能把话说到点上，其实是在夸 AI。" },
       superpower: { en: "Has a second opinion on people at any hour.", zh: "人际上的事，随时都有第二意见。" },
       weakness:   { en: "Knows the chatbot's view of your relationship better than your own.", zh: "这段感情 AI 怎么看你门儿清，自己怎么看还没想好。" },
-      aiSays:     { en: "I've weighed in on every one of their fights. I've never met either side.", zh: "ta 吵过的每一架，我都评过理，两边我一个都没见过。" },
+      aiSays:     { en: "I've weighed in on half their relationships. I've never met a single person involved.", zh: "ta 一半的感情我都评过理，里面的人我一个都没见过。" },
       why:        { en: "Heart is your heaviest section, and your answers reach its far end, where the chatbot is asked about the relationship itself, not just the wording.",
                     zh: "感情是你最重的一块，而且认到了最深处：你问 AI 的不只是怎么措辞，是这段关系本身。" },
       signs: [
@@ -526,13 +646,13 @@ globalThis.APT_CONTENT = {
       id: "brain_lite", code: "IDK", color: "#E9C46A",
       name:       { en: "The Coin Flipper", zh: "电子抛硬币" },
       tagline:    { en: "Has a consultant for things that don't need one.", zh: "用不着顾问的事，也请了个顾问" },
-      roast:      { en: "Maybe an egg, maybe whether you need a jacket, maybe something bigger: some of your thinking now takes a quick detour through a chatbot. You can still think; asking just feels faster. It's a coin flip with extra steps.",
-                    zh: "你还会自己想，只是有些时候，问 AI 比问自己快：可能是鸡蛋煮几分钟，可能是要不要穿外套，也可能是你到底喜不喜欢一部电影。说白了，就是多走了几步的抛硬币。" },
+      roast:      { en: "Maybe dinner, maybe the weather, maybe something bigger: some of your thinking now takes a quick detour through a chatbot. You can still think; asking just feels faster. It's a coin flip with extra steps.",
+                    zh: "你还会自己想，只是有些时候，问 AI 比问自己快：可能是晚饭吃啥，可能是天冷不冷，也可能是更大的事。说白了，就是多走了几步的抛硬币。" },
       superpower: { en: "Never wastes a minute on a decision that doesn't matter.", zh: "从不在无关紧要的选择上浪费一分钟。" },
       weakness:   { en: "Asks for advice, then goes with your gut anyway.", zh: "问完 AI，最后还是凭感觉。" },
       aiSays:     { en: "They asked me to pick between two identical gray hoodies. I picked one. They bought the other.", zh: "ta 让我在两件一模一样的灰卫衣里挑一件。我挑了，ta 买了另一件。" },
-      why:        { en: "Your answers lean hardest on Brain, but you've admitted only part of that section. Go further and you'd be a 404.",
-                    zh: "你的答案最偏向脑子这块，不过只认了其中一部分。再往下认，就是「大脑云托管」。" },
+      why:        { en: "Nothing outweighs Brain in your answers, but you've admitted only part of that section. Go further and you'd be a 404.",
+                    zh: "你的答案里，没有哪块比脑子重，不过这一块只认了一部分。再往下认，就是「大脑云托管」。" },
       signs: [
         { en: "Has asked a chatbot something your own head could have answered", zh: "自己脑子能答的事，也问过 AI" },
         { en: "Reaches for a chatbot the way people used to reach for a coin", zh: "拿不定主意时，先摸的是 AI，不是硬币" },

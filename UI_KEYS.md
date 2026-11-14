@@ -3,12 +3,12 @@
 Every key below must exist in `APT_CONTENT.ui` in content.js, each as `{ en, zh }`.
 The current wording lives only in content.js (it is not copied here, so it cannot drift).
 Words in `{braces}` are filled in by app.js and must be kept (they may move within the sentence):
-`fromFriend` {name}; `progress` {n} {total}; `cardTicks` {n};
+`fromFriend` {name}; `progress` {n} {total}; `cardTicks` {n} {total};
 `barAria` {name} {n}; `shareText` {code} {name} {purity};
-`evidenceLeadSpread` / `evidenceLeadSome` {n}; `exhibitLabel` {n}; `exhibitMeta` {dim} {level} {weight};
-`matchHeading` {n}; `matchDim` / `matchTieTop` / `matchTieCount` / `matchTieOrder` {dim} {dim2} {a} (and {b} in `matchDim`);
-`matchDimAlone` {dim}; `matchCapOne` / `matchCapTwo` {cap}; `matchBalanced` {gap} (already "3 points"); `unsureNote` {n};
-`dimRowMeta` {n} {pts} {band}; `dimAria` {name} {n} {pts} {band}; `pointOne` / `pointMany` {n};
+`evidenceLeadSpread` / `evidenceLeadSome` {n}; `exhibitLabel` {n}; `exhibitMeta` {dim} {weight} {pts};
+`matchHeading` {n}; `matchDim` / `matchTieTop` / `matchTieCount` / `matchTieLot` {dim} {dim2} {a} (and {b} in `matchDim`);
+`matchDimAlone` {dim}; `matchCapOne` / `matchCapTwo` {cap}; `matchBalanced` {gap} (already "3 points"); `unsureNote` {n} {total};
+`dimRowMeta` {n} {shown} {pts} {band}; `dimAria` {name} {n} {shown} {pts} {band}; `pointOne` / `pointMany` {n};
 `secondaryDim` {dim} {leadDim} {a} {b} {code} {name}; `secondaryTie` {dim} {leadDim} {code} {name};
 `secondarySoulmate` / `secondaryMerged` {code} {name};
 `seeType` {code}; `peekNote` {code}; `peekBackTo` {code}.
@@ -20,13 +20,16 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 |---|---|
 | `appName` | Top bar, landing headline, card, page title |
 | `intro` | Landing, under the headline |
-| `meta` | Landing, small line under intro. Don't promise only two answers: every statement also offers `answerUnsure` |
+| `meta` | Landing, small line under intro: 30 taps, and that the 30 are drawn from a bigger pile and change every time. Don't promise only two answers: every statement also offers `answerUnsure` |
+| `closeEnough` | Landing, the one house rule under `meta` (with an ink tick on the left): if you've done something like it, it counts |
+| `seedFromLink` | Landing, one quiet line when the seed came from a link: these are the sender's 30 statements, so the scores compare. Second line of the `fromFriend` banner, or on its own above the title when the link had a seed but no type |
 | `start` | Landing button |
 | `fromFriend` | Landing banner when opened from a shared link ({name} = type name) |
 | `typesTeaser` | Landing, caption under the sticker cluster |
 | `langSwitch` | Language button label (name of the OTHER language) |
 | `langSwitchLabel` | Language button: hidden hint read after the visible word ("中文 – Switch to Chinese") |
-| `progress` | Question screen, read out by screen readers before each statement ({n}, {total}). The visible "12 / 50" is plain numbers and needs no text. |
+| `progress` | Question screen, read out by screen readers before each statement ({n}, {total}). The visible "12 / 30" is plain numbers and needs no text. |
+| `closeEnoughHint` | Question screen, statements 1-3 of a play only: short form of `closeEnough` at the right end of the section label. It shares that line, so keep it ≤ 22 characters / 8 Chinese characters (a test checks) |
 | `liveLabel` | Question screen, small label before the running purity; also the small label above the score on the card (capitalised in English) |
 | `back` | Back button on the question screen (icon only; this is its accessible name) |
 | `answerYes` | Answer button: I have done this. Keep it short, it shares a phone-width row with `answerNo` |
@@ -35,7 +38,7 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `keysHint` | Line under the answer buttons, only on devices with a mouse/keyboard. Names Y / N / → / ← / ↓ / Backspace; keep them in step with app.js |
 | `resultHeading` | Result screen, screen-reader label |
 | `previewBadge` | Badge shown only with ?preview= |
-| `cardTicks` | Card top-right ({n}) |
+| `cardTicks` | Card top-right ({n} admitted of {total} shown) |
 | `cardNote` | Card bottom line (also in the PNG) |
 | `barsLabel` | Card bars, screen-reader label (the bars show weight, not counts) |
 | `barAria` | Each bar, screen-reader text ({name}, {n} = filled squares out of 10) |
@@ -45,7 +48,7 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `saveImage` | Result button, right under the card |
 | `copyLink` | Result button, under Save image |
 | `share` | Result button, under Save image (only where the browser can share) |
-| `startOver` | Result link-button, at the bottom of the page |
+| `newQuestions` | Result link-button at the bottom of the page: a new seed (a new set of 30), straight to statement 1 |
 | `imageSaved` | Toast after saving |
 | `imageFailed` | Toast if the card image could not be made |
 | `saveHint` | Under the full-screen image on phones and in-app browsers |
@@ -60,31 +63,31 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | **Why you got this** | |
 | `whyTitle` | Heading of the verdict block, right under the card |
 | `evidenceLead` | Before the exhibits, for section types |
-| `evidenceLeadHidden` | Before the exhibits, for the soulmate type (the three hidden statements) |
+| `evidenceLeadHidden` | Before the exhibits, for the soulmate type (its rule: every Bond statement shown plus an extreme Heart one) |
 | `evidenceLeadOnly` | Before the exhibits, for the untouched type when they are everything admitted |
-| `evidenceLeadSome` | Same, when 4 were admitted and only 3 are shown ({n}) |
+| `evidenceLeadSome` | Same, if more were admitted than the 3 exhibits shown ({n}); cannot happen with today's rules (untouched = at most 3) |
 | `evidenceLeadSpread` | Before the exhibits, for merged and balanced ({n} = statements admitted) |
 | `evidenceLeadSample` | Before the exhibits on a preview or a peek (sample answers, not the player's) |
 | `evidenceNone` | In place of the exhibits when nothing was admitted |
 | `exhibitLabel` | Hidden label read before each exhibit ({n} = A, B, C) |
-| `exhibitMeta` | Small line over each exhibit: section, level, weight word |
-| `levelMild` / `levelMedium` / `levelExtreme` | The weight word in `exhibitMeta` (levels 1-4, 5-7, 8-10) |
+| `exhibitMeta` | Small line over each exhibit: section, band word, points ("School · extreme · 3 points"). Never a level number |
+| `levelMild` / `levelMedium` / `levelExtreme` | The statement's band word in `exhibitMeta`: mild / medium / extreme, 轻度 / 中度 / 重度 (the key names are historical) |
 | `matchHeading` | Bold start of the last line of the verdict ("Match 62%.") |
 | `matchDim` | Section type: the lead beats the runner-up ({a} points to {b}) |
 | `matchDimAlone` | Section type, no other section touched |
-| `matchTieTop` / `matchTieCount` / `matchTieOrder` | Section type tied with one other: which tie-break decided |
+| `matchTieTop` / `matchTieCount` / `matchTieLot` | Section type tied with one other: which tie-break decided. `matchTieLot` says plainly that nothing in the answers separated them and it was decided by lot (`tieBreak: 'lot'`) |
 | `matchCapOne` / `matchCapTwo` | Added after the above when one or two answers capped the match ({cap}) |
 | `matchBalanced` / `matchBalancedExact` | Balanced: the gap between the heaviest and lightest touched section, or "exactly the same" |
 | `matchMerged` / `matchSoulmate` / `matchUntouched` | What the match number means for those types |
 | `matchSample` | In place of the above on a preview or peek |
-| `unsureNote` | Last line of the verdict, only when the player answered "Not sure" at least once ({n} = how many, can be 1, so no plural pronoun). Never on the card, a preview or a peek |
+| `unsureNote` | Last line of the verdict, only when the player answered "Not sure" at least once ({n} = how many, can be 1, so no plural pronoun; {total} = statements in the play). Never on the card, a preview or a peek |
 | `unsureMany` | Added after `unsureNote` from 8 "Not sure" answers on (`UNSURE_MANY` in scoring.js): the purity is probably flattering |
 | **Other result sections** | |
 | `signsTitle` | Heading over the three telltale signs |
 | `dimsTitle` | Heading over the section-by-section list |
 | `dimsNote` | One-line legend under it (squares grow with weight; the card's bars add them up) |
 | `dimsSample` | Extra line on a preview or peek: these are sample answers |
-| `dimRowMeta` | Right side of each section row ({n} of 10, {pts}, band word) |
+| `dimRowMeta` | Right side of each section row ({n} of {shown} = 6, {pts}, band word) |
 | `dimAria` | Screen-reader text for each row's squares |
 | `pointOne` / `pointMany` | "1 point" / "8 points", used for {pts} and {gap} |
 | `bandNone` / `bandLow` / `bandMid` / `bandHigh` | Band words used in `dimRowMeta` and `dimAria` |
@@ -101,7 +104,7 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `howWeights` / `howUnsure` / `howLead` / `howSpecial` / `howSecondary` / `howHonest` | Its six sentences, in this order (`howUnsure`: "Not sure" counts as Never) |
 
 | **All types** (the grid of the 14 cards; `?types=1`) | |
-| `typesLink` | Link that opens the grid: landing (under the sticker caption), result (above the pairing cards, and next to Start over). Says 14; tests check the number matches |
+| `typesLink` | Link that opens the grid: landing (under the sticker caption), result (above the pairing cards, and next to New questions). Says 14; tests check the number matches |
 | `typesTitle` | The grid's heading (focus lands here) |
 | `typesIntro` | One line under the heading |
 | `typesSections` / `typesSpecial` | Small headings over the ten section types and the four special ones |
@@ -109,7 +112,7 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `typesRuleUntouched` / `typesRuleBalanced` / `typesRuleMerged` | Top line of those three special cards: how the result is reached, in a few words (≤ 24 chars / 11 characters) |
 | `typesHidden` | Top line of the hidden type's card, locked or not |
 | `typesLocked` | Screen-reader word on the locked card |
-| `typesLockedHint` | The locked card's one dry hint. Must not quote the three hidden statements (a test checks) |
+| `typesLockedHint` | The locked card's one dry hint about the hidden rule (a pattern, not one statement). Must not quote any statement (a test checks) |
 | `typesYou` | Tag on the player's own card (one short word) |
 | `typesBack` | Back button on a type opened from the grid |
 | `typesBackHome` / `typesBackQuiz` | The grid's back button when the screen underneath is the landing page / a question (on a result it reuses `peekBack`, on a preview `peekBackTo`) |

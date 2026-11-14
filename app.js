@@ -3,10 +3,20 @@
  * globalThis.APT_SCORING (scoring.js). No framework: each screen is rebuilt
  * from `state` by a render function.
  *
- * Screens: landing -> question 1..50 (one statement per screen) -> result
+ * Screens: landing -> question 1..30 (one statement per screen) -> result
  * On top of any screen: "all types" (the grid of the 14 cards), and a peek
  * at one type's full result (see "Moving between layers" below).
- * URL params: ?lang=en|zh  ?preview=<typeId>  ?from=<typeId>  ?types=1
+ * URL params: ?lang=en|zh  ?preview=<typeId>  ?from=<typeId>  ?seed=<seed>  ?types=1
+ *
+ * A play is a seed. scoring.drawStatements(content, seed) turns it into the
+ * 30 statements this play asks, in order (2 mild, 2 medium, 2 extreme per
+ * section, mild ones first). The seed is saved with the answers
+ * (sessionStorage) and in history.state, so a refresh or the language button
+ * never changes the set. It is NOT written into the address bar: a copied
+ * address, a bookmark or the browser's own share button would otherwise hand
+ * out one fixed set and claim it came from a friend. Only the share link
+ * (?from=...&seed=...) carries it, and a ?seed= that arrived in a link stays
+ * in the address for as long as that play lasts.
  */
 (function () {
   'use strict';
@@ -35,31 +45,23 @@
 
   const INK = '#1C2541';
   const WHITE = '#FFFFFF';
-  // v2: answers are { statementId: 'yes' | 'no' | 'unsure' } plus a position.
-  // 'unsure' arrived later under the same key: an older v2 save only holds
-  // 'yes' / 'no', which still load as they are. A v1 save (ticks per
-  // section) lives under another key and is simply ignored.
-  const STORE_KEY = 'apt-state-v2';
+  // v3: { seed, seedFromLink, answers: { statementId: 'yes' | 'no' |
+  // 'unsure' }, screen, index }. Saves from the 50-statement version
+  // (apt-state-v2, no seed, a fixed order) cannot be mapped onto a drawn set
+  // of 30, so they are not read; restoreState removes the old key.
+  const STORE_KEY = 'apt-state-v3';
+  const OLD_STORE_KEYS = ['apt-state-v2'];
   const params = new URLSearchParams(location.search);
   const typesById = {};
   content.types.forEach((t) => { if (t && t.id) typesById[t.id] = t; });
   const dimsByKey = {};
   content.dimensions.forEach((d) => { if (d && d.key) dimsByKey[d.key] = d; });
-
-  // Each statement's level inside its dimension (1 = mildest, 10 = most
-  // extreme). scoring.js derives levels the same way: from the order in content.js.
   const statementsById = {};
-  const LEVELS = {};
-  const levelCounter = {};
-  content.statements.forEach((s) => {
-    if (!s || !s.id) return;
-    statementsById[s.id] = s;
-    levelCounter[s.dim] = (levelCounter[s.dim] || 0) + 1;
-    LEVELS[s.id] = levelCounter[s.dim];
-  });
+  content.statements.forEach((s) => { if (s && s.id) statementsById[s.id] = s; });
 
-  // The 50 statements in the order they are asked (mixed rounds, see scoring.js).
-  const ORDER = scoring.questionOrder(content);
+  // How many statements at the start of a play quietly say "close enough
+  // counts" (people were answering too literally).
+  const CLOSE_ENOUGH_FOR = 3;
 
   // ---------------------------------------------------------------------
   // State
@@ -67,7 +69,14 @@
   const state = {
     lang: pickLanguage(),
     screen: 'landing',   // 'landing' | 'question' | 'result'
-    index: 0,            // position in ORDER while on the question screen
+    // This play: its seed and the 30 statement ids it draws, in asking order
+    // (filled in by startPlay / restoreState before the first render).
+    seed: null,
+    drawn: [],
+    // True when the seed came from someone's link: the landing page then says
+    // these are the same statements the sender answered.
+    seedFromLink: false,
+    index: 0,            // position in state.drawn while on the question screen
     // Every answer given so far: { s01: 'yes', s11: 'no', s23: 'unsure' }.
     // "no" and "unsure" are kept too, so going back can show what was picked;
     // only "yes" ever reaches scoring (see yesIds).
@@ -90,6 +99,10 @@
   function answeredCount() {
     return Object.keys(state.answers).length;
   }
+  // The statement objects of this play, in asking order.
+  function playOrder() {
+    return state.drawn.map((id) => statementsById[id]);
+  }
 
   function pickLanguage() {
     const forced = params.get('lang');
@@ -105,6 +118,8 @@
     if (state.preview) return; // previews never overwrite a real run
     try {
       sessionStorage.setItem(STORE_KEY, JSON.stringify({
+        seed: state.seed,
+        seedFromLink: state.seedFromLink,
         answers: state.answers,
         screen: state.screen,
         index: state.index
@@ -112,15 +127,38 @@
     } catch (e) { /* storage unavailable: fine */ }
   }
 
+  // Picks this tab's play: the link's seed, the saved play, or a new one
+  // (the rules live in scoring.resumePlay, which the tests cover).
   function restoreState() {
+    let saved = null;
     try {
-      const saved = JSON.parse(sessionStorage.getItem(STORE_KEY));
-      if (!saved) return;
-      // Keep only answers that still match a statement and say yes, no or unsure.
-      state.answers = scoring.cleanAnswers(saved.answers, content);
-      if (['landing', 'question', 'result'].includes(saved.screen)) state.screen = saved.screen;
-      if (Number.isInteger(saved.index) && saved.index >= 0 && saved.index < ORDER.length) state.index = saved.index;
-    } catch (e) { /* nothing saved or storage blocked */ }
+      saved = JSON.parse(sessionStorage.getItem(STORE_KEY));
+      OLD_STORE_KEYS.forEach((key) => sessionStorage.removeItem(key));
+    } catch (e) { /* nothing saved, junk, or storage blocked: start fresh */ }
+    // Storage blocked: history.state still remembers this tab's seed across
+    // a refresh (the answers are lost, but the 30 statements stay the same).
+    if (!(saved && typeof saved === 'object' && saved.seed)) {
+      const entry = history.state;
+      if (entry && typeof entry.aptSeed === 'string') {
+        saved = { seed: entry.aptSeed, seedFromLink: entry.aptSeedFromLink === true };
+      }
+    }
+    const play = scoring.resumePlay(saved, params.get('seed'), content);
+    state.seed = play.seed;
+    state.drawn = play.drawn;
+    state.seedFromLink = play.seedFromLink;
+    state.answers = play.answers;
+    state.screen = play.screen;
+    state.index = play.index;
+  }
+
+  // A new play with a new seed ("New questions" on the result, via startOver).
+  function startPlay() {
+    state.seed = scoring.makeSeed();
+    state.drawn = scoring.drawStatements(content, state.seed);
+    state.seedFromLink = false;
+    state.answers = {};
+    state.index = 0;
   }
 
   // localStorage holds exactly one thing: whether the hidden type has been
@@ -208,8 +246,21 @@
     try {
       // Keep history.state: it records which layers an entry shows (see
       // "Moving between layers"), and the language toggle must not erase that.
-      history.replaceState(history.state, '', urlWith(changes));
+      // It also carries this play's seed (see seedState).
+      history.replaceState(Object.assign({}, history.state, seedState()), '', urlWith(changes));
     } catch (e) { /* some file:// setups refuse; not important */ }
+  }
+
+  // The seed lives in history.state, which survives a refresh but is never
+  // copied by a share sheet, a bookmark or address-bar autocomplete.
+  function seedState() {
+    return { aptSeed: state.seed, aptSeedFromLink: state.seedFromLink };
+  }
+
+  // What ?seed= should say: the seed only when it came from a link (so a
+  // refresh of a friend's link stays on it), otherwise nothing.
+  function seedParam() {
+    return state.seedFromLink ? state.seed : null;
   }
 
   // ---------------------------------------------------------------------
@@ -221,7 +272,9 @@
     document.documentElement.lang = state.lang === 'zh' ? 'zh-Hans' : 'en';
     document.title = t('appName');
     document.getElementById('brand').textContent = t('appName');
-    document.getElementById('footerNote').textContent = t('footer');
+    // statementPieces: in Chinese the footer breaks after "，" or "。", never
+    // inside a word ("这台 / 设备"); styles.css sets keep-all on it.
+    document.getElementById('footerNote').replaceChildren(...statementPieces(t('footer')));
 
     // The toggle shows the other language's name in that language. Its
     // accessible name starts with that visible word, then a hidden hint in
@@ -266,7 +319,7 @@
 
   // ---------- Landing ----------
   // Which type codes appear as stickers on the landing page, and their tilt.
-  // Six stickers fill two even rows on a phone and two on a laptop.
+  // Six stickers: two rows of three on a phone, two columns on a laptop.
   // Never the hidden type (soulmate): the grid one tap away shows it locked,
   // so a sticker with its code and colour would give the secret away.
   const TEASER_TYPES = ['bond_deep', 'work_deep', 'brain_lite', 'heart_lite', 'school_lite', 'heart_deep'];
@@ -281,26 +334,34 @@
   }
 
   // "A friend got {name}. What are you?" with the name kept on one line.
+  // The text around the name goes through statementPieces, so in Chinese
+  // "你呢？" never splits as "你 / 呢？" (styles.css sets keep-all on it).
   function fromFriendText(friend) {
     const parts = t('fromFriend').split('{name}');
-    const children = [parts[0]];
+    const children = statementPieces(parts[0]);
     for (let i = 1; i < parts.length; i++) {
-      children.push(el('span', { class: 'nowrap', text: L(friend.name) }), parts[i]);
+      children.push(el('span', { class: 'nowrap', text: L(friend.name) }), ...statementPieces(parts[i]));
     }
     return el('span', { class: 'from-friend-text' }, children);
   }
 
   function renderLanding() {
     const friend = state.from ? typesById[state.from] : null;
+    // When the seed came from a link, one quiet line says these are the
+    // sender's statements: inside the friend banner when there is one,
+    // otherwise on its own above the title.
+    const sameSet = state.seedFromLink && el('span', { class: 'seed-note', text: t('seedFromLink') });
 
     const copy = el('div', { class: 'landing-copy' }, [
-      friend && el('p', { class: 'from-friend' }, [
+      friend && el('div', { class: 'from-friend' }, [
         sticker(friend, 'sticker-small', -4),
-        fromFriendText(friend)
+        el('p', { class: 'from-friend-copy' }, [fromFriendText(friend), sameSet])
       ]),
+      !friend && sameSet && el('p', { class: 'seed-note-alone' }, [sameSet]),
       el('h1', { class: 'landing-title', tabindex: '-1', 'data-focus': true, text: t('appName') }),
       el('p', { class: 'lede', text: t('intro') }),
       el('p', { class: 'meta', text: t('meta') }),
+      el('p', { class: 'close-enough', text: t('closeEnough') }),
       el('button', {
         class: 'btn btn-primary btn-big',
         type: 'button',
@@ -344,10 +405,10 @@
 
   // enter: 'next' | 'prev' | undefined — which side the card slides in from.
   function renderQuestion(enter) {
-    const statement = ORDER[state.index];
+    const statement = statementsById[state.drawn[state.index]];
     const dim = dimsByKey[statement.dim];
     const n = state.index + 1;
-    const total = ORDER.length;
+    const total = state.drawn.length;
     const given = state.answers[statement.id]; // 'yes' | 'no' | 'unsure' | undefined
 
     const backBtn = el('button', {
@@ -369,7 +430,7 @@
     });
 
     // Progress and purity are for the eyes; the statement heading below
-    // carries "Statement 12 of 50" for screen readers instead.
+    // carries "Statement 12 of 30" for screen readers instead.
     const head = el('div', { class: 'q-head' }, [
       backBtn,
       el('div', { class: 'q-progress', 'aria-hidden': 'true' }, [
@@ -382,8 +443,14 @@
       ])
     ]);
 
+    // On the first few statements, a quiet "close enough counts" sits at the
+    // right end of the section label: it uses space the label leaves empty,
+    // so the card and the buttons do not move when it goes away.
     const card = el('div', { class: 'q-card' + (enter ? ' enter-' + enter : '') }, [
-      el('p', { class: 'q-dim', 'aria-hidden': 'true', text: L(dim.name) }),
+      el('p', { class: 'q-dim', 'aria-hidden': 'true' }, [
+        el('span', { text: L(dim.name) }),
+        state.index < CLOSE_ENOUGH_FOR && el('span', { class: 'q-hint', text: t('closeEnoughHint') })
+      ]),
       el('h1', { class: 'q-text', tabindex: '-1', 'data-focus': true }, [
         el('span', { class: 'visually-hidden', text: t('progress', { n: n, total: total }) + ', ' + L(dim.name) + ': ' }),
         el('span', { id: 'qStatement' }, statementPieces(L(statement.text)))
@@ -436,7 +503,24 @@
     const pieces = [];
     let run = '';
     let inQuote = false;
-    const flush = () => { pieces.push(run, el('wbr')); run = ''; };
+    // When a run between break points is too long for the line, the safety
+    // net (overflow-wrap: anywhere) breaks at its last possible spot, which
+    // is right before the closing "，", so the next line would start with a
+    // comma. Keeping the last character and its punctuation in one no-wrap
+    // span moves that emergency break one character earlier ("对话 / 框，").
+    // Content should still keep clauses short enough that it never happens
+    // (tests/content.test.js checks the runs).
+    const pushRun = (r) => {
+      const m = r.match(/^([\s\S]*[^\s])([，。！？、；：」』）》…]+)$/);
+      if (m && Array.from(m[1]).length > 1) {
+        const head = Array.from(m[1]);
+        const last = head.pop();
+        pieces.push(head.join(''), el('span', { class: 'nowrap', text: last + m[2] }));
+      } else {
+        pieces.push(r);
+      }
+    };
+    const flush = () => { pushRun(run); pieces.push(el('wbr')); run = ''; };
     chars.forEach((ch, i) => {
       if (ch === '「') {
         if (run) flush();
@@ -452,7 +536,7 @@
       if (next && !inQuote && ZH_BREAK_AFTER.test(ch) && !NO_LINE_START.test(next) &&
           !/\s/.test(next) && !NO_LINE_START.test(afterNext)) flush();
     });
-    if (run) pieces.push(run);
+    if (run) pushRun(run);
     return pieces;
   }
 
@@ -487,7 +571,7 @@
 
   function answer(value) {
     if (busy || state.screen !== 'question') return;
-    const statement = ORDER[state.index];
+    const statement = statementsById[state.drawn[state.index]];
     state.answers[statement.id] = value;
     saveState();
     busy = true;
@@ -514,7 +598,7 @@
       setTimeout(() => {
         busy = false;
         if (state.screen !== 'question') return; // e.g. a preview link took over
-        if (state.index >= ORDER.length - 1) {
+        if (state.index >= state.drawn.length - 1) {
           go('result');
         } else {
           state.index += 1;
@@ -574,8 +658,10 @@
     }
   });
 
+  // The player's result so far, on this play's drawn statements (purity =
+  // round(100 * (1 - admitted / 30))).
   function currentScore() {
-    return scoring.score(yesIds(), content);
+    return scoring.score(yesIds(), content, state.drawn);
   }
 
   // Updates the running purity number in place after an answer.
@@ -594,39 +680,40 @@
 
   /*
    * Sample players, used by ?preview=<typeId> and when someone taps another
-   * type on the result screen to look at it. Each is a believable set of
-   * "Guilty" answers (statement numbers: school 1-10, adulting 11-20,
-   * heart 21-30, brain 31-40, bond 41-50) that scoring.js really scores as
-   * that type. So a preview shows real evidence, a real match and, for
-   * school_lite, soulmate and merged, a real secondary type, instead of
-   * numbers made up to look right. If a rule change ever moves one of them,
-   * the console says so (see renderResult).
+   * type on the result screen to look at it. Every play draws different
+   * statements, so a sample cannot be a list of ids. Each one is written as
+   * band counts per section, like the personas in tools/personas.js:
+   * { school: [mild, medium, extreme] } = how many of the shown statements of
+   * each band it admits (0, 1 or 2). scoring.admitByCounts turns that into
+   * real ids on this play's draw, and scoring.js really scores them as that
+   * type on every draw (tests/gallery.test.js checks it), so a preview shows
+   * real evidence, a real match and, for school_lite and soulmate, a real
+   * secondary type. None of them ends in a tie decided by lot. If a rule
+   * change ever moves one, the console says so (see renderResult).
+   * The object below is plain data: the tests read it straight from this file.
    */
-  function numbersFrom(a, b) {
-    const out = [];
-    for (let n = a; n <= b; n++) out.push(n);
-    return out;
-  }
-  const SAMPLE_ANSWERS = {
-    untouched:   [1, 32],
-    // Leaves out s30 on purpose: with all three hidden statements the sample
-    // would show the locked hidden type as its "Also" chip.
-    merged:      [].concat(numbersFrom(1, 9), numbersFrom(11, 19), numbersFrom(21, 28), numbersFrom(31, 38), numbersFrom(41, 50)),
-    balanced:    [1, 2, 3, 5, 11, 12, 13, 15, 21, 22, 23, 24, 31, 32, 33, 35, 41, 42, 43, 44],
-    soulmate:    [30, 49, 50, 41, 43, 21],
-    school_lite: [1, 2, 3, 4, 5, 6, 11, 21, 22, 23, 24, 25, 41],
-    school_deep: [1, 2, 3, 4, 5, 6, 7, 8, 21, 22, 32, 41],
-    work_lite:   [11, 12, 13, 14, 16, 18, 1, 32],
-    work_deep:   [].concat(numbersFrom(11, 20), [1, 21, 33]),
-    heart_lite:  [21, 23, 25, 28, 41, 1],
-    heart_deep:  [].concat(numbersFrom(21, 29), [11, 12, 41, 31]),
-    brain_lite:  [31, 32, 33, 34, 35, 36, 1, 21, 41],
-    brain_deep:  [].concat(numbersFrom(31, 38), [40, 1, 11, 41, 42]),
-    bond_lite:   [41, 42, 44, 45, 1, 32],
-    bond_deep:   [].concat(numbersFrom(41, 48), [21, 1, 2, 31])
+  const SAMPLE_COUNTS = {
+    untouched:   { school: [1, 0, 0], brain: [1, 0, 0] },
+    // One extreme Bond and both extreme Heart statements left out on purpose:
+    // with the hidden rule met, the sample would show the locked hidden type
+    // as its "Also" chip.
+    merged:      { school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 0], brain: [2, 2, 2], bond: [2, 2, 1] },
+    balanced:    { school: [2, 0, 0], work: [2, 0, 0], heart: [2, 0, 0], brain: [2, 0, 0], bond: [1, 0, 0] },
+    soulmate:    { bond: [2, 2, 2], heart: [1, 0, 1], school: [1, 0, 0] },
+    school_lite: { school: [2, 2, 0], heart: [1, 2, 0], work: [1, 0, 0], bond: [1, 0, 0] },
+    school_deep: { school: [2, 2, 1], heart: [1, 0, 0], bond: [1, 0, 0] },
+    work_lite:   { work: [2, 2, 0], school: [1, 0, 0], brain: [1, 0, 0] },
+    work_deep:   { work: [2, 2, 2], school: [1, 0, 0], heart: [1, 0, 0] },
+    heart_lite:  { heart: [2, 0, 1], bond: [1, 0, 0] },
+    heart_deep:  { heart: [2, 2, 2], work: [1, 0, 0], bond: [1, 0, 0], brain: [0, 1, 0] },
+    brain_lite:  { brain: [2, 2, 0], school: [1, 0, 0], work: [2, 0, 0], heart: [1, 0, 0], bond: [1, 0, 0] },
+    brain_deep:  { brain: [2, 2, 2], school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0], bond: [1, 0, 0] },
+    bond_lite:   { bond: [2, 1, 0], school: [1, 0, 0] },
+    bond_deep:   { bond: [2, 2, 1], heart: [1, 0, 0], school: [1, 0, 0] }
   };
+  // The sample player's "Guilty" ids on this play's draw.
   function sampleIds(typeId) {
-    return (SAMPLE_ANSWERS[typeId] || []).map((n) => 's' + String(n).padStart(2, '0'));
+    return scoring.admitByCounts(content, state.drawn, SAMPLE_COUNTS[typeId] || {});
   }
 
   // "school_lite" -> "school"; null for the four special types.
@@ -634,16 +721,15 @@
     return typeId && typeId.indexOf('_') > 0 ? typeId.split('_')[0] : null;
   }
 
-  // Word for a statement's weight class, from its level (thresholds from scoring.js).
-  function weightWord(level) {
-    if (level >= scoring.RULES.extremeFrom) return t('levelExtreme');
-    if (level >= scoring.RULES.mediumFrom) return t('levelMedium');
+  // Word for a statement's band (mild / medium / extreme), and the class
+  // that sizes its square in "Section by section".
+  function weightWord(band) {
+    if (band === 'extreme') return t('levelExtreme');
+    if (band === 'medium') return t('levelMedium');
     return t('levelMild');
   }
-  function weightClass(level) {
-    if (level >= scoring.RULES.extremeFrom) return 'w3';
-    if (level >= scoring.RULES.mediumFrom) return 'w2';
-    return 'w1';
+  function weightClass(band) {
+    return 'w' + (scoring.BAND_WEIGHTS[band] || 1);
   }
 
   function bandWord(band) {
@@ -691,7 +777,7 @@
   }
 
   function historyEntry(depth) {
-    return { aptDepth: depth, aptGallery: state.gallery, aptPeek: state.peek };
+    return Object.assign({ aptDepth: depth, aptGallery: state.gallery, aptPeek: state.peek }, seedState());
   }
 
   // While the grid (or a type opened from it) shows, the address carries
@@ -804,8 +890,9 @@
     steppingBack = false;
     showLayers(gallery, peek);
     // The entry's address may still carry an older ?lang= if the language
-    // was switched further up.
-    setUrlParams({ lang: state.lang });
+    // was switched further up, or a link's ?seed= if "New questions" was
+    // used further up. The address must match the play on screen.
+    setUrlParams({ lang: state.lang, seed: seedParam() });
   });
 
   // Label of a button that returns to the screen underneath everything.
@@ -849,10 +936,10 @@
     // A sample player stands in for ?preview= and while peeking at another type.
     const sampleType = state.peek || state.preview;
     const ticked = sampleType ? sampleIds(sampleType) : yesIds();
-    const result = scoring.score(ticked, content);
+    const result = scoring.score(ticked, content, state.drawn);
     if (sampleType && result.typeId !== sampleType) {
       console.warn('[AI Purity Test] the sample answers for "' + sampleType + '" now score as "' +
-        result.typeId + '". Update SAMPLE_ANSWERS in app.js.');
+        result.typeId + '". Update SAMPLE_COUNTS in app.js.');
     }
     const typeId = sampleType || result.typeId;
     const type = typesById[typeId];
@@ -876,15 +963,15 @@
 
     const body = el('div', { class: 'result-body', style: typeVars }, [
       renderVerdict(type, result, isSample),
-      el('p', { class: 'roast', text: L(type.roast) }),
+      el('p', { class: 'roast' }, keepQuotes(L(type.roast))),
       renderSigns(type),
       el('dl', { class: 'traits' }, [
-        el('div', {}, [el('dt', { text: t('superpower') }), el('dd', { text: L(type.superpower) })]),
-        el('div', {}, [el('dt', { text: t('weakness') }), el('dd', { text: L(type.weakness) })])
+        el('div', {}, [el('dt', { text: t('superpower') }), el('dd', {}, keepQuotes(L(type.superpower)))]),
+        el('div', {}, [el('dt', { text: t('weakness') }), el('dd', {}, keepQuotes(L(type.weakness)))])
       ]),
       el('figure', { class: 'ai-says' }, [
         el('figcaption', { text: t('aiSays') }),
-        el('blockquote', { class: 'bubble', text: L(type.aiSays) })
+        el('blockquote', { class: 'bubble' }, keepQuotes(L(type.aiSays)))
       ]),
       renderDimensions(type, result, new Set(ticked), isSample),
       renderSecondary(type, result),
@@ -892,7 +979,7 @@
       state.peek
         ? renderPeekBack('peek-back-bottom')
         : el('div', { class: 'result-end' }, [
-          el('button', { class: 'btn-text', type: 'button', onclick: startOver }, [t('startOver')]),
+          el('button', { class: 'btn-text', type: 'button', onclick: startOver }, [t('newQuestions')]),
           typesLink('types-end')
         ]),
       renderHowScored()
@@ -919,7 +1006,8 @@
     if (isSample) lead = t('evidenceLeadSample');
     else if (type.id === 'soulmate') lead = t('evidenceLeadHidden');
     else if (type.id === 'untouched') {
-      // Up to 4 mild answers, but only 3 exhibits: say so instead of "everything".
+      // Up to 3 mild answers and up to 3 exhibits today, but if the limits
+      // ever differ, say "three of them" instead of "everything".
       lead = result.total > evidence.length ? t('evidenceLeadSome', { n: result.total }) : t('evidenceLeadOnly');
     } else if (type.id === 'merged' || type.id === 'balanced') lead = t('evidenceLeadSpread', { n: result.total });
     else lead = t('evidenceLead');
@@ -927,13 +1015,12 @@
     const letters = ['A', 'B', 'C', 'D', 'E'];
     const exhibits = evidence.length
       ? el('ol', { class: 'exhibits' }, evidence.map((s, i) => {
-        const level = LEVELS[s.id];
         return el('li', { class: 'exhibit' }, [
           el('span', { class: 'exhibit-tag', 'aria-hidden': 'true', text: letters[i] }),
           el('div', { class: 'exhibit-body' }, [
             el('p', { class: 'exhibit-meta' }, [
               el('span', { class: 'visually-hidden', text: t('exhibitLabel', { n: letters[i] }) + ': ' }),
-              t('exhibitMeta', { dim: L(dimsByKey[s.dim].name), level: level, weight: weightWord(level) })
+              t('exhibitMeta', { dim: L(dimsByKey[s.dim].name), weight: weightWord(s.band), pts: pts(scoring.statementWeight(s)) })
             ]),
             // Same line-break rules as the big statement on the question screen.
             el('p', { class: 'exhibit-text' }, statementPieces(L(s.text)))
@@ -944,8 +1031,8 @@
 
     return el('section', { class: 'verdict' }, [
       kicker(t('whyTitle')),
-      el('p', { class: 'verdict-why', text: L(type.why) }),
-      el('p', { class: 'exhibits-lead', text: lead }),
+      el('p', { class: 'verdict-why' }, keepQuotes(L(type.why))),
+      el('p', { class: 'exhibits-lead' }, keepQuotes(lead)),
       exhibits,
       el('p', { class: 'verdict-match' }, [
         el('strong', { text: t('matchHeading', { n: result.match }) }),
@@ -963,7 +1050,7 @@
   function unsureLine() {
     const n = scoring.unsureCount(state.answers);
     if (n === 0) return null;
-    let text = t('unsureNote', { n: n });
+    let text = t('unsureNote', { n: n, total: state.drawn.length });
     if (n >= scoring.UNSURE_MANY) text += (state.lang === 'zh' ? '' : ' ') + t('unsureMany');
     return el('p', { class: 'verdict-unsure', text: text });
   }
@@ -1000,7 +1087,9 @@
     if (!next) text = t('matchDimAlone', vars);
     else if (result.tieBreak === 'top') text = t('matchTieTop', vars);
     else if (result.tieBreak === 'count') text = t('matchTieCount', vars);
-    else if (result.tieBreak === 'order') text = t('matchTieOrder', vars);
+    // Nothing in the answers separates the two: scoring.js decided it by the
+    // play's lot (fixed per play, fair across players). Say so plainly.
+    else if (result.tieBreak === 'lot') text = t('matchTieLot', vars);
     else text = t('matchDim', vars);
     // One or two answers cannot prove much: scoring.js capped the number.
     if (result.matchCap) {
@@ -1017,12 +1106,13 @@
     if (!Array.isArray(type.signs) || !type.signs.length) return null;
     return el('section', { class: 'r-section' }, [
       kicker(t('signsTitle')),
-      el('ul', { class: 'signs' }, type.signs.map((sign) => el('li', { text: L(sign) })))
+      el('ul', { class: 'signs' }, type.signs.map((sign) => el('li', {}, keepQuotes(L(sign)))))
     ]);
   }
 
-  // 6. Each section: its ten statements as squares that grow with their
-  // weight (filled = admitted), its points, and the one-line read for its band.
+  // 6. Each section: the six statements this play showed from it, as squares
+  // that grow with their weight (mildest on the left, filled = admitted), its
+  // points, and the one-line read for its band.
   // On a sample (preview or peek) the reads are left out: they talk to "you".
   function renderDimensions(type, result, ticked, isSample) {
     // Tag the sections that decided a section type and its secondary. Every
@@ -1039,8 +1129,13 @@
       const n = result.perDim[d.key] || 0;
       const p = result.points[d.key] || 0;
       const band = result.band[d.key];
-      const squares = content.statements.filter((s) => s.dim === d.key).map((s) =>
-        el('i', { class: weightClass(LEVELS[s.id]) + (ticked.has(s.id) ? ' on' : '') }));
+      // This section's drawn statements, lightest first (sort is stable, so
+      // statements of one band keep the order they were asked in).
+      const shownHere = playOrder().filter((s) => s.dim === d.key)
+        .sort((a, b) => scoring.statementWeight(a) - scoring.statementWeight(b));
+      const squares = shownHere.map((s) =>
+        el('i', { class: weightClass(s.band) + (ticked.has(s.id) ? ' on' : '') }));
+      const shown = result.shown[d.key] || shownHere.length;
       let tag = null;
       if (d.key === leadDim) tag = el('span', { class: 'dim-tag is-lead', text: t('dimLeads') });
       else if (tied.has(d.key)) tag = el('span', { class: 'dim-tag', text: t('dimTied') });
@@ -1050,11 +1145,11 @@
         el('div', { class: 'dim-top' }, [
           el('span', { class: 'dim-name', text: L(d.name) }),
           tag,
-          el('span', { class: 'dim-meta', 'aria-hidden': 'true', text: t('dimRowMeta', { n: n, pts: pts(p), band: bandWord(band) }) })
+          el('span', { class: 'dim-meta', 'aria-hidden': 'true', text: t('dimRowMeta', { n: n, shown: shown, pts: pts(p), band: bandWord(band) }) })
         ]),
         el('span', {
           class: 'dim-squares', role: 'img',
-          'aria-label': t('dimAria', { name: L(d.name), n: n, pts: pts(p), band: bandWord(band) })
+          'aria-label': t('dimAria', { name: L(d.name), n: n, shown: shown, pts: pts(p), band: bandWord(band) })
         }, squares),
         !isSample && d.reads && d.reads[band] && el('p', { class: 'dim-read', text: L(d.reads[band]) })
       ]);
@@ -1083,6 +1178,14 @@
       });
     });
     return nodes.filter((n) => n !== '');
+  }
+
+  // Long result text (the why line, signs, roast, pairings): a short
+  // 「quoted」 type name or phrase never splits across two lines
+  // (「大 / 脑云托管」). The rest of the text wraps normally.
+  function keepQuotes(text) {
+    const quotes = String(text).match(/「[^「」]{1,12}」/g) || [];
+    return keepWhole(String(text), Array.from(new Set(quotes)));
   }
 
   // A type code as a small coloured label, like the stickers on the landing page.
@@ -1148,7 +1251,7 @@
       return el('button', { class: 'pair', type: 'button', 'data-nav': 'pair-' + otherId, onclick: () => peekAt(otherId) }, [
         el('span', { class: 'pair-kicker', text: kind }),
         el('span', { class: 'pair-head' }, [chip(other), el('span', { class: 'pair-name', text: L(other.name) })]),
-        el('span', { class: 'pair-line', text: L(line) }),
+        el('span', { class: 'pair-line' }, keepQuotes(L(line))),
         el('span', { class: 'pair-go', 'aria-hidden': 'true', text: '→' })
       ]);
     }
@@ -1157,7 +1260,7 @@
     if (!best && !clash) return null;
     return el('section', { class: 'r-section' }, [
       // The way to all fourteen sits just above the two pairings (not under
-      // them: the second link, next to Start over, follows right after).
+      // them: the second link, next to New questions, follows right after).
       // Left out on a peek, where the way back is the bar on top.
       !state.peek && el('p', { class: 'types-more' }, [typesLink('types-pairs')]),
       el('div', { class: 'pairs' }, [best, clash])
@@ -1165,7 +1268,7 @@
   }
 
   // 1b. Under the card: Save image is the main action; Copy link and Share
-  // sit side by side under it. (Start over lives at the bottom of the page.)
+  // sit side by side under it. ("New questions" lives at the bottom of the page.)
   function renderActions(model) {
     const row = [el('button', { class: 'btn btn-ghost', type: 'button', onclick: copyLink }, [t('copyLink')])];
     if (navigator.share) {
@@ -1310,15 +1413,16 @@
     ]);
   }
 
+  // "New questions" on the result: a new seed, so a new set of 30, straight
+  // to the first statement (the landing page has nothing new to say).
   function startOver() {
-    state.answers = {};
-    state.index = 0;
+    startPlay();
     state.preview = null;
     state.from = null;
     state.peek = null;
     state.gallery = false;
-    setUrlParams({ preview: null, from: null, types: null });
-    go('landing');
+    setUrlParams({ preview: null, from: null, types: null, seed: seedParam() });
+    go('question');
   }
 
   // ---------------------------------------------------------------------
@@ -1340,7 +1444,8 @@
    *   PURITY label, score, five bars, note — pinned to the bottom
    *
    * The five bars show WEIGHT, not counts: each section fills depth / 10 of
-   * its ten squares (depth = points out of 19, as 0..100; see scoring.js).
+   * its ten squares (depth = points out of the 12 a section can score in one
+   * play, as 0..100; see scoring.js). 1 point fills one square, 12 all ten.
    * The type is decided by weight, so the longest bar always belongs to the
    * section that decided it. Counting statements instead would let six mild
    * School answers draw a longer bar than three extreme Heart answers on a
@@ -1494,7 +1599,7 @@
     const C = CARD;
     const inner = C.width - C.pad * 2;
     // fill = how many of the ten squares to fill: the section's depth in tenths.
-    // Any admitted statement is worth at least 1 point (depth 5), so a touched
+    // Any admitted statement is worth at least 1 point (depth 8), so a touched
     // section always shows at least one square.
     const dims = content.dimensions.map((d) => ({ name: L(d.name), fill: Math.round((result.depth[d.key] || 0) / 10) }));
 
@@ -1547,7 +1652,7 @@
       fg: textColorOn(type.color),
       fonts: fonts,
       appName: t('appName'),
-      ticks: t('cardTicks', { n: result.total }),
+      ticks: t('cardTicks', { n: result.total, total: result.drawnCount }),
       code: code,
       headTop: headTop,
       name: name,
@@ -1882,10 +1987,13 @@
     }, 250);
   }
 
+  // ?from=<type>&seed=<seed>&lang=<lang>: the friend who opens it sees what
+  // you got and plays the same 30 statements, so the two results compare.
   function shareUrl() {
     const typeId = state.preview || currentScore().typeId;
     const base = location.href.split(/[?#]/)[0];
-    return base + '?from=' + encodeURIComponent(typeId) + '&lang=' + state.lang;
+    return base + '?from=' + encodeURIComponent(typeId) + '&seed=' + encodeURIComponent(state.seed) +
+      '&lang=' + state.lang;
   }
 
   async function copyLink() {
@@ -1929,13 +2037,29 @@
     render(); // focus stays on the toggle
   });
 
+  // Pick the play (a link's seed, this tab's saved play, or a new seed). A
+  // preview needs a draw too, for its sample player, but never saves.
+  try {
+    restoreState();
+  } catch (e) {
+    // Only a broken bank gets here (a stratum with fewer than 2 statements):
+    // validateContent has already listed the problem in the console.
+    console.error('[AI Purity Test] could not draw a play:', e);
+    app.innerHTML = '<p class="load-error">The quiz content is broken: no set of statements could be drawn.<br>' +
+      '题库有问题，抽不出题。</p>';
+    return;
+  }
   if (state.preview) {
     state.screen = 'result';
-  } else {
-    restoreState();
+  } else if (state.from && answeredCount() === 0) {
     // A shared link (?from=) opens on the landing page unless a run is underway.
-    if (state.from && answeredCount() === 0) state.screen = 'landing';
+    state.screen = 'landing';
   }
+  // Only a seed that came from a link stays in the address (in its standard
+  // form: it may have been typed in capitals). An invalid ?seed= is removed,
+  // and a play the page picked itself never shows up there; history.state
+  // and sessionStorage keep it through a refresh.
+  setUrlParams({ seed: seedParam() });
 
   render();
 

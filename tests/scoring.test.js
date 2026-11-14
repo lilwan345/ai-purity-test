@@ -4,581 +4,619 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const {
-  score, questionOrder, validateContent, validateProfiles,
-  DIM_KEYS, TIE_ORDER, TYPE_IDS, UI_KEYS, BANDS, RULES
+  score, validateContent, validateProfiles, bankReport, questionOrder, admitByCounts, tieLotOrder,
+  drawStatements, DIM_KEYS, TYPE_IDS, UI_KEYS, BANDS, STATEMENT_BANDS, RULES, BANK_TARGET
 } = require('../scoring.js');
 
-// ---------- a small, valid fixture ----------
-// Statement ids: school s01-s10, work s11-s20, heart s21-s30, brain s31-s40, bond s41-s50.
-// Level = position inside the dimension: s01 is school level 1, s18 is work level 8.
-// Weights: levels 1-4 = 1 point, 5-7 = 2 points, 8-10 = 3 points; 19 points per dimension.
-// The three soulmate flags sit on the LAST three bond statements (s48-s50).
-const SOULMATE_IDS = ['s48', 's49', 's50'];
-
+// ---------- a small, valid fixture: the full-size bank ----------
+// 7 statements in every dimension x band (105 in all), ids s01..s105:
+// school s01-s21 (mild s01-s07, medium s08-s14, extreme s15-s21), work s22-s42, ...
 function pair(text) {
   return { en: text, zh: '中文' + text };
 }
 
-function makeContent() {
+function makeContent(perStratum = 7) {
   const ui = {};
   UI_KEYS.forEach((key) => { ui[key] = pair(key); });
-
   const dimensions = DIM_KEYS.map((key) => ({
     key,
     name: pair(key),
     reads: { none: pair('none'), low: pair('low'), mid: pair('mid'), high: pair('high') }
   }));
-
   const statements = [];
-  for (let i = 1; i <= 50; i++) {
-    const id = 's' + String(i).padStart(2, '0');
-    const s = { id, dim: DIM_KEYS[Math.floor((i - 1) / 10)], text: pair('Did thing ' + i) };
-    if (SOULMATE_IDS.includes(id)) s.flag = 'soulmate';
-    statements.push(s);
-  }
-
+  DIM_KEYS.forEach((dim) => {
+    STATEMENT_BANDS.forEach((band) => {
+      for (let i = 0; i < perStratum; i++) {
+        const id = 's' + String(statements.length + 1).padStart(2, '0');
+        statements.push({ id, dim, band, text: pair('Did thing ' + id) });
+      }
+    });
+  });
   const types = TYPE_IDS.map((id, i) => ({
     id,
     code: 'T-' + String(i).padStart(2, '0'),
-    name: pair(id),
-    tagline: pair('tag'),
-    roast: pair('roast'),
-    superpower: pair('power'),
-    weakness: pair('weak'),
-    aiSays: pair('says'),
+    name: pair(id), tagline: pair('tag'), roast: pair('roast'),
+    superpower: pair('power'), weakness: pair('weak'), aiSays: pair('says'),
     color: '#F2C14E',
     why: pair('why'),
     signs: [pair('sign 1'), pair('sign 2'), pair('sign 3')],
-    bestWith: TYPE_IDS[(i + 1) % TYPE_IDS.length],
-    bestWithLine: pair('best'),
-    clashWith: TYPE_IDS[(i + 2) % TYPE_IDS.length],
-    clashWithLine: pair('clash')
+    bestWith: TYPE_IDS[(i + 1) % TYPE_IDS.length], bestWithLine: pair('best'),
+    clashWith: TYPE_IDS[(i + 2) % TYPE_IDS.length], clashWithLine: pair('clash')
   }));
-
   return { ui, dimensions, statements, types };
 }
 
 const content = makeContent();
 
-// Statement id for (dimension, level), e.g. id('work', 8) -> 's18'.
-function id(dim, level) {
-  return 's' + String(DIM_KEYS.indexOf(dim) * 10 + level).padStart(2, '0');
+// A fixed, valid "draw": the first two statements of every stratum, mild
+// group first, then medium, then extreme (the order a real draw uses).
+const DRAWN = [];
+STATEMENT_BANDS.forEach((band) => {
+  DIM_KEYS.forEach((dim) => {
+    content.statements.filter((s) => s.dim === dim && s.band === band).slice(0, 2).forEach((s) => DRAWN.push(s.id));
+  });
+});
+const byId = Object.fromEntries(content.statements.map((s) => [s.id, s]));
+
+// The k-th (0 or 1) drawn statement of a stratum.
+function pick(dim, band, k = 0) {
+  return DRAWN.filter((id) => byId[id].dim === dim && byId[id].band === band)[k];
 }
-// Ids for a list of levels in one dimension.
-function levels(dim, list) {
-  return list.map((level) => id(dim, level));
+// Admitted ids from counts like { school: [mild, medium, extreme] }.
+function adm(counts) {
+  return admitByCounts(content, DRAWN, counts);
 }
-// Ids for the first n levels of a dimension.
-function firstN(dim, n) {
-  return levels(dim, Array.from({ length: n }, (_, i) => i + 1));
+// Score counts on the fixed draw.
+function sc(counts, rules) {
+  return score(adm(counts), content, DRAWN, rules);
 }
-// Ticks from counts like { school: 3, bond: 5 } (the first n of each).
-function tick(counts) {
-  return Object.keys(counts).flatMap((dim) => firstN(dim, counts[dim]));
-}
+const ALL = (counts) => ({ school: counts, work: counts, heart: counts, brain: counts, bond: counts });
 
 // ---------- basic numbers ----------
-test('total, purity and perDim', () => {
-  const r = score(tick({ school: 2, work: 3, bond: 1 }), content);
+test('the fixture draw is a valid draw: 30, six per dimension, two per band', () => {
+  assert.strictEqual(DRAWN.length, 30);
+  assert.strictEqual(new Set(DRAWN).size, 30);
+  DIM_KEYS.forEach((dim) => STATEMENT_BANDS.forEach((band) => {
+    assert.strictEqual(DRAWN.filter((id) => byId[id].dim === dim && byId[id].band === band).length, 2);
+  }));
+});
+
+test('total, purity, perDim, shown and maxPoints', () => {
+  const r = sc({ school: [2, 0, 0], work: [1, 1, 1], bond: [1, 0, 0] });
   assert.strictEqual(r.total, 6);
-  assert.strictEqual(r.purity, 88);
+  assert.strictEqual(r.drawnCount, 30);
+  assert.strictEqual(r.purity, 80); // 100 * (1 - 6/30)
   assert.deepStrictEqual(r.perDim, { school: 2, work: 3, heart: 0, brain: 0, bond: 1 });
+  assert.deepStrictEqual(r.shown, { school: 6, work: 6, heart: 6, brain: 6, bond: 6 });
+  assert.deepStrictEqual(r.maxPoints, { school: 12, work: 12, heart: 12, brain: 12, bond: 12 });
 });
 
-test('weights: levels 1-4 = 1, 5-7 = 2, 8-10 = 3', () => {
-  const pointsOf = (level) => score([id('school', level)], content).points.school;
-  assert.deepStrictEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(pointsOf), [1, 1, 1, 1, 2, 2, 2, 3, 3, 3]);
-  assert.strictEqual(score(firstN('work', 10), content).points.work, 19);
+test('purity = round(100 * (1 - admitted / 30))', () => {
+  assert.strictEqual(score([], content, DRAWN).purity, 100);
+  assert.strictEqual(sc({ school: [1, 0, 0] }).purity, 97); // 96.67
+  assert.strictEqual(sc({ school: [2, 0, 0] }).purity, 93); // 93.33
+  assert.strictEqual(sc(ALL([2, 2, 2])).purity, 0);
 });
 
-test('depth is points out of 19, as 0..100, rounded', () => {
-  const r = score([].concat(firstN('school', 4), firstN('work', 7), firstN('heart', 8), firstN('brain', 10)), content);
-  assert.deepStrictEqual(r.points, { school: 4, work: 10, heart: 13, brain: 19, bond: 0 });
-  assert.deepStrictEqual(r.depth, { school: 21, work: 53, heart: 68, brain: 100, bond: 0 });
+test('weights: mild 1, medium 2, extreme 3; a full dimension is 12', () => {
+  assert.strictEqual(sc({ school: [1, 0, 0] }).points.school, 1);
+  assert.strictEqual(sc({ school: [0, 1, 0] }).points.school, 2);
+  assert.strictEqual(sc({ school: [0, 0, 1] }).points.school, 3);
+  assert.strictEqual(sc({ work: [2, 2, 2] }).points.work, 12);
 });
 
-test('bands: 0 none, 1-4 points low, 5-10 mid, 11+ high', () => {
-  const bandFor = (ids) => score(ids, content).band.school;
-  assert.strictEqual(bandFor([]), 'none');
-  assert.strictEqual(bandFor(levels('school', [1])), 'low');
-  assert.strictEqual(bandFor(firstN('school', 4)), 'low');              // 4 points, depth 21
-  assert.strictEqual(bandFor(levels('school', [1, 2, 3, 5])), 'mid');   // 5 points, depth 26
-  assert.strictEqual(bandFor(firstN('school', 7)), 'mid');              // 10 points, depth 53
-  assert.strictEqual(bandFor(levels('school', [1, 2, 3, 4, 5, 6, 8])), 'high'); // 11 points, depth 58
-  // Every band name the scoring returns is one content.js writes a line for.
-  const r = score(firstN('school', 9).concat(firstN('work', 5), firstN('heart', 1)), content);
+test('depth is points out of 12, as 0..100, rounded', () => {
+  const r = sc({ school: [2, 0, 0], work: [2, 1, 0], heart: [2, 2, 1], brain: [2, 2, 2] });
+  assert.deepStrictEqual(r.points, { school: 2, work: 4, heart: 9, brain: 12, bond: 0 });
+  assert.deepStrictEqual(r.depth, { school: 17, work: 33, heart: 75, brain: 100, bond: 0 });
+});
+
+test('bands: 0 none, 1-2 points low, 3-6 mid, 7+ high', () => {
+  const bandFor = (counts) => sc({ school: counts }).band.school;
+  assert.strictEqual(bandFor([0, 0, 0]), 'none');
+  assert.strictEqual(bandFor([1, 0, 0]), 'low');   // 1 point
+  assert.strictEqual(bandFor([2, 0, 0]), 'low');   // 2 points, depth 17
+  assert.strictEqual(bandFor([0, 1, 0]), 'low');   // 2 points
+  assert.strictEqual(bandFor([1, 1, 0]), 'mid');   // 3 points, depth 25
+  assert.strictEqual(bandFor([2, 2, 0]), 'mid');   // 6 points, depth 50
+  assert.strictEqual(bandFor([0, 2, 1]), 'high');  // 7 points, depth 58
+  assert.strictEqual(bandFor([1, 0, 2]), 'high');  // 7 points
+  const r = sc({ school: [2, 2, 2], work: [1, 1, 0], heart: [1, 0, 0] });
   Object.values(r.band).forEach((b) => assert.ok(BANDS.includes(b)));
 });
 
-test('high band needs an extreme statement: all of levels 1-7 is still mid', () => {
-  const r = score(firstN('school', 7), content);
-  assert.strictEqual(r.points.school, 10);
+test('high band needs an extreme statement: every mild and medium one is still mid', () => {
+  const r = sc({ school: [2, 2, 0] });
+  assert.strictEqual(r.points.school, 6);
   assert.strictEqual(r.band.school, 'mid');
   assert.strictEqual(r.typeId, 'school_lite');
 });
 
-test('unknown and duplicate ids are ignored; a Set works too', () => {
-  const r = score(['s01', 's01', 'nope', 's02'], content);
+test('unknown, duplicate and not-drawn ids are ignored; a Set works too', () => {
+  const notDrawn = content.statements.find((s) => !DRAWN.includes(s.id)).id;
+  const r = score([pick('school', 'mild'), pick('school', 'mild'), 'nope', notDrawn, pick('work', 'mild')], content, DRAWN);
   assert.strictEqual(r.total, 2);
-  assert.strictEqual(score(new Set(['s01', 's02', 's03', 's04']), content).total, 4);
+  assert.strictEqual(score(new Set(adm({ school: [2, 2, 0] })), content, DRAWN).total, 4);
 });
 
 test('pure and deterministic: same answers in any order give the same result; nothing is changed', () => {
-  const answers = ['s05', 's21', 's22', 's08', 's41', 's33', 's12'];
+  const answers = adm({ school: [1, 1, 0], heart: [2, 0, 1], bond: [1, 0, 0] });
   const before = JSON.stringify(content);
-  const a = score(answers, content);
-  const b = score(answers.slice().reverse(), content);
+  const drawnBefore = DRAWN.slice();
+  const a = score(answers, content, DRAWN);
+  const b = score(answers.slice().reverse(), content, DRAWN);
   assert.deepStrictEqual(a, b);
-  assert.deepStrictEqual(answers, ['s05', 's21', 's22', 's08', 's41', 's33', 's12']);
   assert.strictEqual(JSON.stringify(content), before);
+  assert.deepStrictEqual(DRAWN, drawnBefore);
 });
 
-test('content without the new profile fields still scores (the app must not crash)', () => {
+test('without drawnIds, the whole bank counts as shown (old callers do not crash)', () => {
+  const r = score([pick('school', 'extreme')], content);
+  assert.strictEqual(r.drawnCount, 105);
+  assert.strictEqual(r.maxPoints.school, 42);
+  assert.strictEqual(r.typeId, 'school_lite');
+});
+
+test('content without the profile fields still scores (the app must not crash)', () => {
   const c = makeContent();
   c.dimensions.forEach((d) => { delete d.reads; });
   c.types.forEach((t) => { delete t.why; delete t.signs; delete t.bestWith; delete t.clashWith; });
-  assert.strictEqual(score(firstN('heart', 9), c).typeId, 'heart_deep');
+  assert.strictEqual(score(adm({ heart: [2, 2, 2] }), c, DRAWN).typeId, 'heart_deep');
 });
 
 // ---------- untouched ----------
 test('untouched: nothing admitted', () => {
-  const r = score([], content);
+  const r = score([], content, DRAWN);
   assert.deepStrictEqual(
-    [r.total, r.purity, r.typeId, r.secondaryTypeId, r.evidenceIds, r.match, r.dominantDim],
-    [0, 100, 'untouched', null, [], 100, null]
+    [r.total, r.purity, r.typeId, r.secondaryTypeId, r.evidenceIds, r.match, r.dominantDim, r.tieBreak],
+    [0, 100, 'untouched', null, [], 100, null, null]
   );
 });
 
-test('untouched: up to 4 mild statements; a 5th is not untouched', () => {
-  assert.strictEqual(score(['s01', 's11', 's21', 's31'], content).typeId, 'untouched');
-  assert.strictEqual(score(firstN('school', 4), content).typeId, 'untouched');
-  assert.notStrictEqual(score(['s01', 's11', 's21', 's31', 's41'], content).typeId, 'untouched');
+test('untouched: up to 3 mild statements; a 4th is not untouched', () => {
+  assert.strictEqual(sc({ school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0] }).typeId, 'untouched');
+  assert.strictEqual(sc({ school: [2, 0, 0], bond: [1, 0, 0] }).typeId, 'untouched');
+  // Four mild in four sections: a four-way tie, so balanced.
+  assert.strictEqual(sc({ school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0] }).typeId, 'balanced');
+  // Four mild, school leading: school_lite.
+  assert.strictEqual(sc({ school: [2, 0, 0], work: [1, 0, 0], heart: [1, 0, 0] }).typeId, 'school_lite');
 });
 
 test('untouched: one medium or extreme statement is already a direction', () => {
-  assert.strictEqual(score([id('school', 5)], content).typeId, 'school_lite');
-  assert.strictEqual(score(['s01', 's02', 's11', id('brain', 10)], content).typeId, 'brain_lite');
+  assert.strictEqual(sc({ school: [0, 1, 0] }).typeId, 'school_lite');
+  assert.strictEqual(sc({ school: [1, 0, 0], work: [1, 0, 0], brain: [0, 0, 1] }).typeId, 'brain_lite');
 });
 
-test('untouched: evidence is whatever was admitted, most extreme first; match = purity', () => {
-  const r = score(['s01', 's23', 's32'], content);
+test('untouched: evidence is whatever was admitted, heaviest first; match = purity; no tie-break', () => {
+  const r = sc({ school: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0] });
   assert.strictEqual(r.typeId, 'untouched');
-  assert.deepStrictEqual(r.evidenceIds, ['s23', 's32', 's01']);
-  assert.strictEqual(r.match, 94);
+  assert.strictEqual(r.evidenceIds.length, 3);
+  assert.strictEqual(r.match, 90);
+  assert.strictEqual(r.tieBreak, null); // a tie that decides nothing is not reported
 });
 
-// ---------- soulmate ----------
-test('soulmate: all three flagged statements, even with nothing else', () => {
-  const r = score(SOULMATE_IDS, content);
+// ---------- the hidden type (soulmate) ----------
+test('soulmate: every Bond statement shown plus one extreme Heart statement, even with nothing else', () => {
+  const r = sc({ bond: [2, 2, 2], heart: [0, 0, 1] });
   assert.strictEqual(r.typeId, 'soulmate');
+  assert.strictEqual(r.hiddenRule, true);
   assert.strictEqual(r.match, 100);
+  assert.strictEqual(r.secondaryTypeId, 'bond_deep');
 });
 
-test('soulmate: two of three is not enough', () => {
-  const r = score(['s48', 's49', 's01', 's02', 's03'], content);
-  assert.notStrictEqual(r.typeId, 'soulmate');
+test('soulmate: five of six Bond, or no extreme Heart, is not enough', () => {
+  assert.strictEqual(sc({ bond: [2, 2, 1], heart: [0, 0, 2] }).typeId, 'bond_deep'); // 9 vs 6 points
+  assert.strictEqual(sc({ bond: [2, 2, 1], heart: [0, 0, 2] }).hiddenRule, false);
+  assert.strictEqual(sc({ bond: [2, 2, 2], heart: [2, 2, 0] }).typeId, 'bond_deep');
+  assert.strictEqual(sc({ bond: [2, 2, 2], heart: [2, 2, 0] }).hiddenRule, false);
+  // Extreme statements of other sections do not count for the hidden rule.
+  assert.strictEqual(sc({ bond: [2, 2, 2], school: [0, 0, 1] }).typeId, 'bond_deep');
 });
 
-test('soulmate: evidence is the three flagged statements, most extreme first', () => {
-  const r = score(SOULMATE_IDS.concat(firstN('heart', 9)), content);
-  assert.deepStrictEqual(r.evidenceIds, ['s50', 's49', 's48']);
+test('soulmate: evidence is the two extreme Bond statements, then the extreme Heart one', () => {
+  const r = sc({ bond: [2, 2, 2], heart: [2, 2, 2] });
+  assert.strictEqual(r.typeId, 'soulmate');
+  assert.strictEqual(r.evidenceIds.length, 3);
+  const dims = r.evidenceIds.map((id) => byId[id].dim).sort();
+  assert.deepStrictEqual(dims, ['bond', 'bond', 'heart']);
+  r.evidenceIds.forEach((id) => assert.strictEqual(byId[id].band, 'extreme'));
 });
 
-test('soulmate: secondary is the type the player would get without the soulmate rule', () => {
-  // Just the trio: two of the three are extreme Bond statements -> bond_deep.
-  assert.strictEqual(score(SOULMATE_IDS, content).secondaryTypeId, 'bond_deep');
-  // A full heart section on top: heart 19 points is deeper -> heart_deep.
-  assert.strictEqual(score(SOULMATE_IDS.concat(firstN('heart', 10)), content).secondaryTypeId, 'heart_deep');
-  // The trio plus an even spread across everything -> balanced.
-  const even = [].concat(firstN('school', 7), firstN('work', 7), firstN('heart', 7), firstN('brain', 7), SOULMATE_IDS, firstN('bond', 2));
-  const r = score(even, content);
+test('soulmate: secondary is the type the player would get without the hidden rule', () => {
+  assert.strictEqual(sc({ bond: [2, 2, 2], heart: [0, 0, 1] }).secondaryTypeId, 'bond_deep');
+  // Bond, Heart and School all full: a three-way tie at the top -> balanced underneath.
+  const r = sc({ bond: [2, 2, 2], heart: [2, 2, 2], school: [2, 2, 2] });
   assert.strictEqual(r.typeId, 'soulmate');
   assert.strictEqual(r.secondaryTypeId, 'balanced');
 });
 
 test('soulmate: merged wins when nearly everything is admitted, and soulmate becomes the secondary', () => {
-  const all = content.statements.map((s) => s.id);
-  const r = score(all, content);
+  const r = sc(ALL([2, 2, 2]));
   assert.strictEqual(r.typeId, 'merged');
   assert.strictEqual(r.secondaryTypeId, 'soulmate');
+  assert.strictEqual(r.hiddenRule, true);
 });
 
 // ---------- merged ----------
-test('merged: 42 admitted is merged, 41 is not', () => {
-  const r42 = score(tick({ school: 10, work: 10, heart: 10, brain: 10, bond: 2 }), content);
-  assert.strictEqual(r42.total, 42);
-  assert.strictEqual(r42.typeId, 'merged');
-  assert.strictEqual(r42.secondaryTypeId, null); // no soulmate trio
-  assert.strictEqual(r42.match, 82);             // average depth: (100 x 4 + 100 x 2/19) / 5
-
-  const r41 = score(tick({ school: 10, work: 10, heart: 10, brain: 10, bond: 1 }), content);
-  assert.strictEqual(r41.total, 41);
-  assert.notStrictEqual(r41.typeId, 'merged');
+test('merged: 25 admitted is merged, 24 is not', () => {
+  const r25 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2], bond: [1, 0, 0] });
+  assert.strictEqual(r25.total, 25);
+  assert.strictEqual(r25.typeId, 'merged');
+  assert.strictEqual(r25.secondaryTypeId, null);
+  assert.strictEqual(r25.match, 82); // average depth: (100 x 4 + 100/12) / 5 = 81.7
+  const r24 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2] });
+  assert.strictEqual(r24.total, 24);
+  assert.notStrictEqual(r24.typeId, 'merged');
 });
 
-test('merged: evidence is the most extreme statement of each dimension, top three', () => {
-  const r = score(content.statements.map((s) => s.id), content);
-  // All five dimensions are full and tied, so the dimension ranking (TIE_ORDER) orders them.
-  assert.deepStrictEqual(r.evidenceIds, ['s50', 's30', 's40']);
-});
-
-test('merged: every section in the high band is merged, even well below 42', () => {
-  // Levels 1-8 everywhere: 13 points (high) in all five, 40 admitted.
-  const r = score(tick({ school: 8, work: 8, heart: 8, brain: 8, bond: 8 }), content);
-  assert.strictEqual(r.total, 40);
+test('merged: every section in the high band is merged, even well below 25', () => {
+  const r = sc(ALL([2, 1, 1])); // 7 points (high) everywhere, 20 admitted
+  assert.strictEqual(r.total, 20);
   assert.strictEqual(r.typeId, 'merged');
-  assert.strictEqual(r.match, 68); // every section at depth 68
-  // The thinnest way in: levels 7-10 in every section (2+3+3+3 = 11 points each), 20 admitted.
-  const thin = [].concat(...DIM_KEYS.map((d) => levels(d, [7, 8, 9, 10])));
-  assert.strictEqual(score(thin, content).typeId, 'merged');
+  assert.strictEqual(r.match, 58);
+  // The thinnest way in: one mild and both extreme everywhere, 15 admitted.
+  assert.strictEqual(sc(ALL([1, 0, 2])).typeId, 'merged');
   // One section short of high is not enough.
-  const short = tick({ school: 8, work: 8, heart: 8, brain: 8, bond: 7 });
-  assert.notStrictEqual(score(short, content).typeId, 'merged');
+  assert.notStrictEqual(sc({ school: [2, 1, 1], work: [2, 1, 1], heart: [2, 1, 1], brain: [2, 1, 1], bond: [2, 2, 0] }).typeId, 'merged');
+});
+
+test('merged: evidence is the heaviest statement of each dimension, top three', () => {
+  const r = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2], bond: [2, 2, 0] });
+  assert.strictEqual(r.typeId, 'merged');
+  assert.strictEqual(r.evidenceIds.length, 3);
+  r.evidenceIds.forEach((id) => assert.strictEqual(byId[id].band, 'extreme'));
+  assert.strictEqual(new Set(r.evidenceIds.map((id) => byId[id].dim)).size, 3);
 });
 
 // ---------- balanced ----------
-test('balanced: 2 mild in every dimension (10 in total)', () => {
-  const r = score(tick({ school: 2, work: 2, heart: 2, brain: 2, bond: 2 }), content);
+test('balanced: both mild statements in every dimension (10 in total)', () => {
+  const r = sc(ALL([2, 0, 0]));
   assert.strictEqual(r.typeId, 'balanced');
   assert.strictEqual(r.secondaryTypeId, null);
   assert.strictEqual(r.match, 100);
+  assert.strictEqual(r.tieBreak, null);
 });
 
-test('balanced (even spread): needs at least 10 admitted', () => {
-  // 9 admitted, all five touched, within 2 points, but only School on top: not balanced.
-  const r = score(tick({ school: 3, work: 2, heart: 2, brain: 1, bond: 1 }), content);
-  assert.strictEqual(r.total, 9);
-  assert.strictEqual(r.typeId, 'school_lite');
+test('balanced (even spread): needs at least 6 admitted', () => {
+  // 5 admitted, all five touched, School alone on top: not balanced.
+  const five = sc({ school: [0, 1, 0], work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] });
+  assert.strictEqual(five.total, 5);
+  assert.strictEqual(five.typeId, 'school_lite');
+  // One more mild Adulting statement: 6 admitted, within 1 point, balanced.
+  const six = sc({ school: [0, 1, 0], work: [2, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] });
+  assert.strictEqual(six.total, 6);
+  assert.strictEqual(six.typeId, 'balanced');
 });
 
 test('balanced (even spread): every dimension must be touched', () => {
-  const r = score(tick({ school: 4, work: 3, heart: 3, brain: 3 }), content);
+  const r = sc({ school: [1, 1, 0], work: [2, 0, 0], heart: [2, 0, 0], brain: [2, 0, 0] });
   assert.strictEqual(r.typeId, 'school_lite');
 });
 
+test('balanced: deepest and shallowest at most 2 points apart; 3 apart is a leaning', () => {
+  const others = { work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] }; // 1 point each
+  const two = sc(Object.assign({ school: [1, 1, 0] }, others));   // school 3 points
+  assert.strictEqual(two.typeId, 'balanced');
+  assert.strictEqual(two.match, 83);                              // 100 - 100 * 2 / 12
+  const three = sc(Object.assign({ school: [1, 0, 1] }, others)); // school 4 points
+  assert.strictEqual(three.typeId, 'school_lite');
+});
+
 test('balanced (tie): three or more sections sharing the top points is balanced', () => {
-  // Four sections at 3 points, Bond empty: no section can claim this player.
-  const four = score(tick({ school: 3, work: 3, heart: 3, brain: 3 }), content);
+  const four = sc({ school: [2, 1, 0], work: [2, 1, 0], heart: [2, 1, 0], brain: [2, 1, 0] });
   assert.strictEqual(four.typeId, 'balanced');
-  assert.deepStrictEqual(four.tiedDims, ['heart', 'brain', 'work', 'school']);
-  assert.strictEqual(four.match, 100); // empty sections are left out of the evenness
+  assert.strictEqual(four.tiedDims.length, 4);
+  assert.strictEqual(four.match, 100);
   assert.strictEqual(four.secondaryTypeId, null);
-  // Fewer than 10 admitted still counts: 2 + 2 + 2 + 2 + 1.
-  assert.strictEqual(score(tick({ school: 2, work: 2, heart: 2, brain: 2, bond: 1 }), content).typeId, 'balanced');
+  assert.strictEqual(four.tieBreak, null);
   // Three medium statements in three sections, nothing else.
-  assert.strictEqual(score([id('school', 5), id('work', 5), id('heart', 5)], content).typeId, 'balanced');
-  // Three full sections, two empty: still a three-way tie.
-  const heavy = score(tick({ school: 10, heart: 10, brain: 10 }), content);
-  assert.strictEqual(heavy.typeId, 'balanced');
-  assert.strictEqual(heavy.match, 100);
-  // A two-way tie is not balanced: it stays a section type with the other as secondary.
-  const two = score(tick({ school: 5, heart: 5 }), content);
-  assert.deepStrictEqual([two.typeId, two.secondaryTypeId], ['heart_lite', 'school_lite']);
+  assert.strictEqual(sc({ school: [0, 1, 0], work: [0, 1, 0], heart: [0, 1, 0] }).typeId, 'balanced');
+  // Three full sections, two empty.
+  assert.strictEqual(sc({ school: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2] }).typeId, 'balanced');
+  // A two-way tie is not balanced: a section type with the other as secondary.
+  const two = sc({ school: [2, 1, 0], heart: [2, 1, 0] });
+  assert.ok(['school_lite', 'heart_lite'].includes(two.typeId));
+  assert.ok(['school_lite', 'heart_lite'].includes(two.secondaryTypeId));
+  assert.notStrictEqual(two.typeId, two.secondaryTypeId);
 });
 
 test('balanced (tie): untouched is checked first', () => {
-  // s01, s11, s21: three-way tie at 1 point, but three mild statements is the Analog.
-  assert.strictEqual(score(['s01', 's11', 's21'], content).typeId, 'untouched');
-  // One mild statement in each of the five sections (5 admitted) is a five-way tie.
-  assert.strictEqual(score(['s01', 's11', 's21', 's31', 's41'], content).typeId, 'balanced');
-});
-
-test('balanced: deepest and shallowest at most 4 points apart; 5 apart is a leaning', () => {
-  const others = tick({ work: 2, heart: 2, brain: 2, bond: 2 }); // 2 points each
-  const four = score(firstN('school', 5).concat(others), content); // school 6 points
-  assert.strictEqual(four.typeId, 'balanced');
-  assert.strictEqual(four.match, 79); // 100 - (100 * 4 / 19)
-
-  const five = score(levels('school', [1, 2, 3, 5, 6]).concat(others), content); // school 7 points
-  assert.strictEqual(five.typeId, 'school_lite');
+  assert.strictEqual(sc({ school: [1, 0, 0], work: [1, 0, 0], heart: [1, 0, 0] }).typeId, 'untouched');
+  assert.strictEqual(sc(ALL([1, 0, 0])).typeId, 'balanced');
 });
 
 test('balanced: one clear obsession is never balanced', () => {
-  const r = score(firstN('heart', 10).concat(tick({ school: 3, work: 3, brain: 3, bond: 3 })), content);
+  const r = sc({ heart: [2, 2, 2], school: [2, 1, 0], work: [2, 1, 0], brain: [2, 1, 0], bond: [2, 1, 0] });
   assert.strictEqual(r.typeId, 'heart_deep');
 });
 
-test('balanced: evidence is one statement per dimension, most extreme first', () => {
-  const r = score([].concat(firstN('school', 3), firstN('work', 2), firstN('heart', 4), firstN('brain', 2), firstN('bond', 3)), content);
+test('balanced: evidence is one statement per dimension, heaviest first', () => {
+  const r = sc({ school: [2, 0, 0], work: [1, 0, 0], heart: [1, 1, 0], brain: [2, 0, 0], bond: [1, 0, 0] });
   assert.strictEqual(r.typeId, 'balanced');
-  // heart level 4, then bond and school at level 3 (bond ranks higher: same depth and level, TIE_ORDER).
-  assert.deepStrictEqual(r.evidenceIds, ['s24', 's43', 's03']);
+  assert.strictEqual(byId[r.evidenceIds[0]].dim, 'heart');
+  assert.strictEqual(byId[r.evidenceIds[0]].band, 'medium');
+  assert.strictEqual(new Set(r.evidenceIds.map((id) => byId[id].dim)).size, 3);
 });
 
 // ---------- dimension types ----------
 test('dimension types: each dimension can lead', () => {
   DIM_KEYS.forEach((dim) => {
-    assert.strictEqual(score(firstN(dim, 6), content).typeId, dim + '_lite');
-    assert.strictEqual(score(firstN(dim, 8), content).typeId, dim + '_deep');
+    assert.strictEqual(sc({ [dim]: [2, 2, 0] }).typeId, dim + '_lite');
+    assert.strictEqual(sc({ [dim]: [2, 2, 1] }).typeId, dim + '_deep');
   });
 });
 
-test('lite vs deep: decided by the leading dimension, 10 points lite, 11 points deep', () => {
-  assert.strictEqual(score(firstN('work', 7), content).typeId, 'work_lite');                     // 10 points
-  assert.strictEqual(score(levels('work', [1, 2, 3, 4, 5, 6, 8]), content).typeId, 'work_deep'); // 11 points
+test('lite vs deep: 6 points lite, 7 points deep; both extremes alone are deep', () => {
+  assert.strictEqual(sc({ work: [2, 2, 0] }).typeId, 'work_lite');  // 6 points
+  assert.strictEqual(sc({ work: [0, 2, 1] }).typeId, 'work_deep');  // 7 points
+  assert.strictEqual(sc({ work: [0, 0, 2] }).typeId, 'work_deep');  // 6 points, both extremes
+  assert.strictEqual(sc({ work: [2, 0, 1] }).typeId, 'work_lite');  // 5 points, one extreme
 });
 
 test('lite vs deep: not decided by the overall total', () => {
-  // A full school section and nothing else: only 10 admitted, but deep.
-  assert.strictEqual(score(firstN('school', 10), content).typeId, 'school_deep');
-  // 22 admitted (more than the full school section above), but school only reaches medium: lite.
-  const r = score(firstN('school', 7).concat(tick({ work: 4, heart: 4, brain: 4, bond: 3 })), content);
-  assert.strictEqual(r.total, 22);
+  assert.strictEqual(sc({ school: [2, 2, 2] }).typeId, 'school_deep'); // 6 admitted
+  const r = sc({ school: [2, 2, 0], work: [2, 0, 0], heart: [2, 0, 0], brain: [2, 0, 0], bond: [2, 0, 0] });
+  assert.strictEqual(r.total, 12);
   assert.strictEqual(r.typeId, 'school_lite');
 });
 
 test('a few mild statements are never "deep"', () => {
-  assert.strictEqual(score(['s01', 's02', 's03', 's04', 's11'], content).typeId, 'school_lite');
+  assert.strictEqual(sc({ school: [2, 0, 0], work: [1, 0, 0], heart: [1, 0, 0] }).typeId, 'school_lite');
 });
 
-test('tie-break 1: higher depth wins, even against a more extreme statement', () => {
-  // work: 4 mild = 4 points; school: one level-8 = 3 points.
-  assert.strictEqual(score(firstN('work', 4).concat([id('school', 8)]), content).typeId, 'work_lite');
+test('tie-break 1: more points win, even against a heavier statement', () => {
+  assert.strictEqual(sc({ work: [2, 1, 0], school: [0, 0, 1] }).typeId, 'work_lite'); // 4 vs 3
 });
 
-test('tie-break 2: equal depth -> the more extreme statement wins', () => {
-  // school: s08 alone = 3 points; work: three mild = 3 points.
-  const r = score([id('school', 8)].concat(firstN('work', 3)), content);
+test('tie-break 2: equal points -> the heavier admitted statement wins', () => {
+  const r = sc({ school: [0, 0, 1], work: [1, 1, 0] }); // 3 vs 3, extreme vs medium
   assert.strictEqual(r.typeId, 'school_lite');
-  assert.strictEqual(r.dominantDim, 'school');
+  assert.strictEqual(r.tieBreak, 'top');
 });
 
-test('tie-break 3: equal depth and top level -> more statements wins', () => {
-  // bond: levels 5+6 = 4 points, top 6, 2 statements.
-  // school: levels 1+2+6 = 4 points, top 6, 3 statements. School wins despite TIE_ORDER.
-  const r = score(levels('bond', [5, 6]).concat(levels('school', [1, 2, 6])), content);
-  assert.strictEqual(r.typeId, 'school_lite');
+test('tie-break 3: equal points and heaviest band -> more statements wins', () => {
+  const r = sc({ school: [2, 1, 1], heart: [0, 2, 1] }); // 7 vs 7, both reach extreme, 4 vs 3 statements
+  assert.strictEqual(r.typeId, 'school_deep');
+  assert.strictEqual(r.secondaryTypeId, 'heart_deep');
+  assert.strictEqual(r.tieBreak, 'count');
 });
 
-test('tie-break 4: a full tie follows bond > heart > brain > work > school', () => {
-  for (let i = 0; i < TIE_ORDER.length; i++) {
-    for (let j = i + 1; j < TIE_ORDER.length; j++) {
-      const winner = TIE_ORDER[i];
-      const loser = TIE_ORDER[j];
-      const r = score(tick({ [winner]: 5, [loser]: 5 }), content);
-      assert.strictEqual(r.typeId, winner + '_lite', winner + ' should beat ' + loser);
-      const reversed = score(tick({ [loser]: 5, [winner]: 5 }), content);
-      assert.strictEqual(reversed.typeId, winner + '_lite');
+test('tie-break 4: a mirror image is decided by this play\'s lot, the same way every time', () => {
+  const r = sc({ school: [2, 1, 0], heart: [2, 1, 0] });
+  const lot = tieLotOrder(DRAWN);
+  const winner = lot.indexOf('school') < lot.indexOf('heart') ? 'school' : 'heart';
+  assert.strictEqual(r.tieBreak, 'lot');
+  assert.strictEqual(r.dominantDim, winner);
+  assert.strictEqual(r.typeId, winner + '_lite');
+  assert.deepStrictEqual(sc({ school: [2, 1, 0], heart: [2, 1, 0] }), r);
+});
+
+test('tie-break 4: across plays the lot gives every section its share of mirror ties', () => {
+  // 400 real draws of the same mirror tie between each pair: both sides win.
+  const real = makeContent(3);
+  for (let i = 0; i < DIM_KEYS.length; i++) {
+    for (let j = i + 1; j < DIM_KEYS.length; j++) {
+      const a = DIM_KEYS[i], b = DIM_KEYS[j];
+      let winsA = 0;
+      for (let n = 0; n < 400; n++) {
+        const drawn = drawStatements(real, 'seed' + String(n).padStart(2, '0'));
+        const r = score(admitByCounts(real, drawn, { [a]: [2, 1, 0], [b]: [2, 1, 0] }), real, drawn);
+        if (r.dominantDim === a) winsA += 1;
+      }
+      // 400 coin flips: 50% +- 4 standard deviations (10 points).
+      assert.ok(winsA > 120 && winsA < 280, a + ' vs ' + b + ': ' + winsA + ' of 400');
     }
   }
 });
 
-test('dimension types: evidence is the leading dimension, most extreme first, at most 3', () => {
-  const r = score(levels('heart', [1, 2, 5, 9]).concat(['s01', 's02', 's41']), content);
-  assert.strictEqual(r.typeId, 'heart_lite');
-  assert.deepStrictEqual(r.evidenceIds, ['s29', 's25', 's22']);
-  // Fewer than 3 admitted in the leading dimension -> fewer ids.
-  assert.deepStrictEqual(score([id('brain', 10)], content).evidenceIds, ['s40']);
+test('tie-break 4: rules.fixedTieOrder (tools only) restores a fixed order', () => {
+  const rules = Object.assign({}, RULES, { fixedTieOrder: ['bond', 'heart', 'brain', 'work', 'school'] });
+  assert.strictEqual(sc({ school: [2, 1, 0], heart: [2, 1, 0] }, rules).dominantDim, 'heart');
+  assert.strictEqual(RULES.fixedTieOrder, undefined);
+});
+
+test('dimension types: evidence is the leading dimension, heaviest first, at most 3', () => {
+  const r = sc({ heart: [2, 1, 1], school: [1, 0, 0], bond: [1, 0, 0] });
+  assert.strictEqual(r.typeId, 'heart_deep');
+  assert.deepStrictEqual(r.evidenceIds.map((id) => byId[id].band), ['extreme', 'medium', 'mild']);
+  r.evidenceIds.forEach((id) => assert.strictEqual(byId[id].dim, 'heart'));
+  assert.deepStrictEqual(sc({ brain: [0, 0, 1] }).evidenceIds, [pick('brain', 'extreme')]);
+  // Equal weight: the one asked first comes first.
+  assert.deepStrictEqual(sc({ brain: [2, 0, 0] }).evidenceIds, [pick('brain', 'mild', 0), pick('brain', 'mild', 1)]);
 });
 
 test('dimension types: match = lead / (lead + runner-up), 50 for a dead heat, 100 alone', () => {
-  assert.strictEqual(score(firstN('brain', 8), content).match, 100);
-  // work 8 points, school 8 points: 50.
-  assert.strictEqual(score(firstN('school', 6).concat(firstN('work', 6)), content).match, 50);
-  // school 8 points, heart 4 points, bond 1: 8 / 12 = 67. Bond does not count.
-  assert.strictEqual(score(firstN('school', 6).concat(firstN('heart', 4), ['s41']), content).match, 67);
-  // A heavy player with lots everywhere is not punished: 19 vs 10.
-  const heavy = score(firstN('brain', 10).concat(firstN('school', 7), firstN('work', 7), firstN('heart', 7), firstN('bond', 7)), content);
+  assert.strictEqual(sc({ brain: [2, 2, 1] }).match, 100);
+  assert.strictEqual(sc({ school: [2, 2, 0], work: [2, 2, 0] }).match, 50);
+  // school 6 points, heart 3 points, bond 1: 6 / 9 = 67. Bond does not count.
+  assert.strictEqual(sc({ school: [2, 2, 0], heart: [1, 1, 0], bond: [1, 0, 0] }).match, 67);
+  // A heavy player with lots everywhere is not punished: 12 vs 6.
+  const heavy = sc({ brain: [2, 2, 2], school: [2, 2, 0], work: [2, 2, 0], heart: [2, 2, 0], bond: [2, 2, 0] });
   assert.strictEqual(heavy.typeId, 'brain_deep');
-  assert.strictEqual(heavy.match, 66);
+  assert.strictEqual(heavy.match, 67);
   assert.strictEqual(heavy.matchCap, null);
 });
 
 test('dimension types: match is capped at 60 for one answer, 80 for two', () => {
-  const one = score([id('brain', 10)], content);
+  const one = sc({ brain: [0, 0, 1] });
   assert.deepStrictEqual([one.typeId, one.match, one.matchCap], ['brain_lite', 60, 60]);
-  const two = score([id('school', 5), id('school', 6)], content);
+  const two = sc({ school: [0, 2, 0] });
   assert.deepStrictEqual([two.match, two.matchCap], [80, 80]);
-  // The cap only applies when it lowers the number: two answers in a tie stay at 50.
-  const tie = score([id('school', 5), id('school', 6), id('heart', 5), id('heart', 6)], content);
+  const tie = sc({ school: [0, 2, 0], heart: [0, 2, 0] });
   assert.deepStrictEqual([tie.match, tie.matchCap], [50, null]);
-  // Three answers: no cap.
-  assert.strictEqual(score(levels('heart', [5, 6, 7]), content).match, 100);
+  assert.strictEqual(sc({ heart: [1, 1, 1] }).match, 100);
 });
 
 test('tie extras: runnerUpDim, tiedDims and tieBreak say how the lead was picked', () => {
-  const alone = score(firstN('brain', 3), content);
+  const alone = sc({ brain: [2, 1, 0] });
   assert.deepStrictEqual([alone.runnerUpDim, alone.tiedDims, alone.tieBreak], [null, [], null]);
-  // school s08 (3 points, top level 8) vs work s11-s13 (3 points, top level 3).
-  const top = score([id('school', 8)].concat(firstN('work', 3)), content);
+  const top = sc({ school: [0, 0, 1], work: [1, 1, 0] });
   assert.deepStrictEqual([top.dominantDim, top.runnerUpDim, top.tiedDims, top.tieBreak], ['school', 'work', ['school', 'work'], 'top']);
-  // bond 5+6 (4 points, top 6, 2 statements) vs school 1+2+6 (4 points, top 6, 3 statements).
-  assert.strictEqual(score(levels('bond', [5, 6]).concat(levels('school', [1, 2, 6])), content).tieBreak, 'count');
-  // A mirror image: only the fixed order can decide.
-  assert.strictEqual(score(tick({ school: 5, heart: 5 }), content).tieBreak, 'order');
-  // No tie: null.
-  assert.strictEqual(score(firstN('school', 5).concat(firstN('heart', 4)), content).tieBreak, null);
+  assert.strictEqual(sc({ school: [2, 1, 0], heart: [2, 0, 0] }).tieBreak, null);
 });
 
 // ---------- secondary type ----------
 test('secondary: runner-up at 75% of the leader counts (8 vs 6 points); 8 vs 5 does not', () => {
-  const close = score(firstN('school', 6).concat(firstN('heart', 5)), content); // 8 vs 6
-  assert.strictEqual(close.typeId, 'school_lite');
-  assert.strictEqual(close.secondaryTypeId, 'heart_lite');
-
-  const far = score(firstN('school', 6).concat(levels('heart', [1, 2, 3, 5])), content); // 8 vs 5
-  assert.strictEqual(far.typeId, 'school_lite');
-  assert.strictEqual(far.secondaryTypeId, null);
+  const close = sc({ school: [2, 0, 2], heart: [2, 2, 0] }); // 8 vs 6
+  assert.deepStrictEqual([close.typeId, close.secondaryTypeId], ['school_deep', 'heart_lite']);
+  const far = sc({ school: [2, 0, 2], heart: [1, 2, 0] });   // 8 vs 5
+  assert.deepStrictEqual([far.typeId, far.secondaryTypeId], ['school_deep', null]);
 });
 
 test('secondary: the runner-up gets its own lite or deep', () => {
-  // school 19 points (deep), heart 16 points (deep).
-  const both = score(firstN('school', 10).concat(firstN('heart', 9)), content);
+  const both = sc({ school: [2, 2, 2], heart: [2, 2, 1] }); // 12 vs 9
   assert.deepStrictEqual([both.typeId, both.secondaryTypeId], ['school_deep', 'heart_deep']);
-  // school 13 points (deep), heart 10 points (lite): 77%, close.
-  const mixed = score(firstN('school', 8).concat(firstN('heart', 7)), content);
-  assert.deepStrictEqual([mixed.typeId, mixed.secondaryTypeId], ['school_deep', 'heart_lite']);
 });
 
 test('secondary: null for a single dimension, untouched and balanced', () => {
-  assert.strictEqual(score(firstN('brain', 9), content).secondaryTypeId, null);
-  assert.strictEqual(score(['s01'], content).secondaryTypeId, null);
-  assert.strictEqual(score(tick({ school: 3, work: 3, heart: 3, brain: 3, bond: 3 }), content).secondaryTypeId, null);
+  assert.strictEqual(sc({ brain: [2, 2, 2] }).secondaryTypeId, null);
+  assert.strictEqual(sc({ school: [1, 0, 0] }).secondaryTypeId, null);
+  assert.strictEqual(sc(ALL([2, 1, 0])).secondaryTypeId, null);
 });
 
 test('secondary: a tied runner-up is named', () => {
-  const r = score(tick({ heart: 5, school: 5 }), content);
+  const r = sc({ heart: [0, 0, 1], school: [1, 1, 0] });
   assert.deepStrictEqual([r.typeId, r.secondaryTypeId], ['heart_lite', 'school_lite']);
 });
 
-// ---------- invariants over many random players ----------
-test('invariants hold for 20,000 random answer sets', () => {
-  let seed = 12345;
-  const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+// ---------- invariants over many random players on random draws ----------
+test('invariants hold for 20,000 random answer sets on random draws', () => {
+  let x = 12345;
+  const rand = () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+  const weight = { mild: 1, medium: 2, extreme: 3 };
   for (let n = 0; n < 20000; n++) {
+    const drawn = drawStatements(content, 'inv' + String(n).padStart(3, '0'));
     const p = rand();
-    const ids = content.statements.filter((s, i) => rand() < p * (1.2 - (i % 10) / 10)).map((s) => s.id);
-    const r = score(ids, content);
+    const ids = drawn.filter((id) => rand() < p * (1.3 - weight[byId[id].band] / 3));
+    const r = score(ids, content, drawn);
     const admitted = new Set(ids);
-    const dimOf = (sid) => DIM_KEYS[Math.floor((Number(sid.slice(1)) - 1) / 10)];
-    const levelOf = (sid) => ((Number(sid.slice(1)) - 1) % 10) + 1;
-
+    assert.strictEqual(r.drawnCount, 30);
+    assert.strictEqual(r.purity, Math.round(100 * (1 - ids.length / 30)));
     assert.ok(TYPE_IDS.includes(r.typeId));
     assert.ok(r.secondaryTypeId === null || (TYPE_IDS.includes(r.secondaryTypeId) && r.secondaryTypeId !== r.typeId));
     assert.ok(r.match >= 0 && r.match <= 100);
     assert.ok(r.evidenceIds.length <= 3 && r.evidenceIds.every((e) => admitted.has(e)));
-    // Evidence is most extreme first.
-    for (let k = 1; k < r.evidenceIds.length; k++) assert.ok(levelOf(r.evidenceIds[k - 1]) >= levelOf(r.evidenceIds[k]));
-
+    for (let k = 1; k < r.evidenceIds.length; k++) {
+      assert.ok(weight[byId[r.evidenceIds[k - 1]].band] >= weight[byId[r.evidenceIds[k]].band]);
+    }
     if (r.typeId.endsWith('_deep')) {
       const dim = r.typeId.split('_')[0];
-      assert.ok(ids.some((sid) => dimOf(sid) === dim && levelOf(sid) >= 8), 'deep without an extreme statement');
+      assert.ok(ids.some((sid) => byId[sid].dim === dim && byId[sid].band === 'extreme'), 'deep without an extreme statement');
     }
     if (r.typeId.includes('_')) {
       const dim = r.typeId.split('_')[0];
       assert.strictEqual(r.dominantDim, dim);
-      assert.ok(r.evidenceIds.length >= 1 && r.evidenceIds.every((e) => dimOf(e) === dim));
+      assert.ok(r.evidenceIds.length >= 1 && r.evidenceIds.every((e) => byId[e].dim === dim));
       DIM_KEYS.forEach((k) => assert.ok(r.depth[k] <= r.depth[dim]));
-    }
-    if (r.typeId === 'balanced') {
-      const even = r.total >= 10 && DIM_KEYS.every((k) => r.perDim[k] > 0);
-      assert.ok(even || r.tiedDims.length >= 3, 'balanced without an even spread or a three-way tie');
-    }
-    if (r.typeId.includes('_')) {
-      // Never a three-way tie, and the match runs from 50 (dead heat) to 100.
       assert.ok(r.tiedDims.length <= 2);
       assert.ok(r.match >= 50 && r.match <= 100);
-      if (r.tiedDims.length === 2) assert.ok(r.secondaryTypeId && r.secondaryTypeId.startsWith(r.tiedDims[1]));
+      if (r.tiedDims.length === 2) {
+        assert.ok(r.secondaryTypeId && r.secondaryTypeId.startsWith(r.tiedDims[1]));
+        assert.ok(['top', 'count', 'lot'].includes(r.tieBreak));
+      } else {
+        assert.strictEqual(r.tieBreak, null);
+      }
     }
-    if (r.typeId === 'merged') assert.ok(r.total >= 42 || DIM_KEYS.every((k) => r.band[k] === 'high'));
-    if (r.typeId === 'untouched') assert.ok(r.total <= 4);
+    if (r.typeId === 'balanced') {
+      const even = r.total >= 6 && DIM_KEYS.every((k) => r.perDim[k] > 0);
+      assert.ok(even || r.tiedDims.length >= 3, 'balanced without an even spread or a three-way tie');
+    }
+    if (r.typeId === 'merged') assert.ok(r.total >= 25 || DIM_KEYS.every((k) => r.band[k] === 'high'));
+    if (r.typeId === 'untouched') assert.ok(r.total <= 3);
+    if (r.typeId === 'soulmate') assert.ok(r.perDim.bond === 6 && r.hiddenRule);
+    if (r.hiddenRule && r.typeId !== 'soulmate') assert.strictEqual(r.typeId, 'merged');
   }
 });
 
 // ---------- RULES ----------
 test('RULES: thresholds are the documented ones (update SCORING.md if you change them)', () => {
   assert.deepStrictEqual(
-    [RULES.mediumFrom, RULES.extremeFrom, RULES.midFrom, RULES.highFrom, RULES.mergedMinTotal,
-      RULES.untouchedMaxTotal, RULES.balancedMinTotal, RULES.balancedMaxSpread, RULES.balancedTieMin,
+    [RULES.midFrom, RULES.highFrom, RULES.deepFromExtremes, RULES.mergedMinTotal, RULES.untouchedMaxTotal,
+      RULES.balancedMinTotal, RULES.balancedMaxSpread, RULES.balancedTieMin, RULES.soulmateHeartExtremes,
       RULES.closeRatio, RULES.matchCapOne, RULES.matchCapTwo, RULES.evidenceMax],
-    [5, 8, 25, 55, 42, 4, 10, 22, 3, 0.75, 60, 80, 3]
+    [25, 55, 2, 25, 3, 6, 17, 3, 1, 0.75, 60, 80, 3]
   );
 });
 
-// ---------- questionOrder ----------
-test('questionOrder: rounds of one statement per dimension, mildest first', () => {
-  const ids = questionOrder(content).map((s) => s.id);
-  assert.strictEqual(ids.length, 50);
-  assert.deepStrictEqual(ids.slice(0, 5), ['s01', 's11', 's21', 's31', 's41']);
-  assert.deepStrictEqual(ids.slice(5, 10), ['s02', 's12', 's22', 's32', 's42']);
-  assert.deepStrictEqual(ids.slice(45), ['s10', 's20', 's30', 's40', 's50']);
-});
-
-test('questionOrder: every statement exactly once', () => {
-  const ids = questionOrder(content).map((s) => s.id);
-  assert.strictEqual(new Set(ids).size, 50);
-  assert.deepStrictEqual([...ids].sort(), content.statements.map((s) => s.id).sort());
-});
-
-test('questionOrder: position p is round floor(p/5), dimension p%5', () => {
-  questionOrder(content).forEach((s, p) => {
-    assert.strictEqual(s.dim, DIM_KEYS[p % 5], 'position ' + p);
-    const indexInDim = Number(s.id.slice(1)) - 1 - DIM_KEYS.indexOf(s.dim) * 10;
-    assert.strictEqual(indexInDim, Math.floor(p / 5), 'position ' + p);
-  });
-});
-
-test('questionOrder: follows content.dimensions order and copes with uneven sizes', () => {
-  const c = makeContent();
-  c.dimensions = [c.dimensions[4], c.dimensions[0]]; // bond first, then school
-  c.statements = c.statements.filter((s) => s.id === 's41' || s.id === 's42' || s.id === 's01');
-  assert.deepStrictEqual(questionOrder(c).map((s) => s.id), ['s41', 's01', 's42']);
-});
-
-test('questionOrder: does not change the content it reads', () => {
-  const c = makeContent();
-  const before = JSON.stringify(c);
-  questionOrder(c);
-  assert.strictEqual(JSON.stringify(c), before);
+// ---------- questionOrder (deprecated) ----------
+test('questionOrder (deprecated): still lists the whole bank in rounds, for the old app.js', () => {
+  const order = questionOrder(content);
+  assert.strictEqual(order.length, 105);
+  assert.deepStrictEqual(order.slice(0, 5).map((s) => s.dim), DIM_KEYS);
 });
 
 // ---------- validateContent ----------
-function problemsAfter(mutate) {
+function problemsAfter(mutate, options) {
   const c = makeContent();
   mutate(c);
-  return validateContent(c);
+  return validateContent(c, options);
 }
 
-function assertProblem(mutate, pattern) {
-  const problems = problemsAfter(mutate);
+function assertProblem(mutate, pattern, options) {
+  const problems = problemsAfter(mutate, options);
   assert.ok(problems.some((p) => pattern.test(p)), 'expected a problem matching ' + pattern + ', got:\n' + problems.join('\n'));
 }
 
-test('validateContent: the fixture is valid', () => {
+test('validateContent: the fixture is valid, strictly too', () => {
   assert.deepStrictEqual(validateContent(makeContent()), []);
+  assert.deepStrictEqual(validateContent(makeContent(), { strict: true }), []);
 });
 
 test('validateContent: missing content', () => {
   assert.strictEqual(validateContent(undefined).length, 1);
 });
 
-test('validateContent: wrong statement count', () => {
-  assertProblem((c) => c.statements.pop(), /statements: expected 50, found 49/);
+test('validateContent: every statement needs a known band; no flags, no levels', () => {
+  assertProblem((c) => { delete c.statements[0].band; }, /band must be "mild", "medium" or "extreme", found "undefined"/);
+  assertProblem((c) => { c.statements[0].band = 'spicy'; }, /found "spicy"/);
+  assertProblem((c) => { c.statements[0].flag = 'soulmate'; }, /has flag "soulmate", but statements carry no flags/);
+  assertProblem((c) => { c.statements[0].level = 3; }, /"level" is not used any more/);
 });
 
-test('validateContent: wrong count in one dimension', () => {
-  assertProblem((c) => { c.statements[9].dim = 'work'; }, /"school" has 9 statements/);
+test('validateContent: a stratum with fewer than 2 statements makes a draw impossible', () => {
+  const problems = problemsAfter((c) => {
+    c.statements = c.statements.filter((s) => !(s.dim === 'heart' && s.band === 'extreme')).concat(
+      [{ id: 's200', dim: 'heart', band: 'extreme', text: pair('only one') }]);
+  });
+  assert.ok(problems.some((p) => /"heart" has 1 extreme statement\(s\); a draw needs at least 2/.test(p)), problems.join('\n'));
 });
 
-test('validateContent: wrong dimension count and key order', () => {
+test('validateContent: unequal strata are a warning while filling, a problem when strict or full', () => {
+  // 3 / 3 / 3 everywhere except one stratum of 4: 46 statements, not full.
+  const c = makeContent(3);
+  c.statements.push({ id: 's99', dim: 'school', band: 'mild', text: pair('one more') });
+  assert.deepStrictEqual(validateContent(c), []);
+  assert.ok(bankReport(c).warnings.some((w) => /different sizes/.test(w)));
+  assert.ok(validateContent(c, { strict: true }).some((p) => /must have the same size/.test(p)));
+  // A full bank with one extra statement (106): always a problem.
+  assertProblem((full) => { full.statements.push({ id: 's106', dim: 'bond', band: 'mild', text: pair('extra') }); }, /must have the same size/);
+});
+
+test('bankReport: sizes, chances and whether the bank is full', () => {
+  const full = bankReport(makeContent());
+  assert.strictEqual(full.total, BANK_TARGET);
+  assert.strictEqual(full.equal, true);
+  assert.strictEqual(full.full, true);
+  assert.deepStrictEqual(full.warnings, []);
+  assert.strictEqual(full.chance.school.mild, 2 / 7);
+  const small = bankReport(makeContent(3));
+  assert.strictEqual(small.equal, true);
+  assert.strictEqual(small.full, false);
+  assert.ok(/the target is 7/.test(small.warnings[0]));
+});
+
+test('validateContent: ids must look like s01 and be unique; file order is free', () => {
+  assertProblem((c) => { c.statements[1].id = 's01'; }, /duplicate id "s01"/);
+  assertProblem((c) => { c.statements[1].id = 'x1'; }, /id must look like/);
+  const c = makeContent();
+  c.statements.reverse();
+  assert.deepStrictEqual(validateContent(c), []);
+});
+
+test('validateContent: unknown dim, wrong dimension count and key order', () => {
+  assertProblem((c) => { c.statements[0].dim = 'gym'; }, /unknown dim "gym"/);
   assertProblem((c) => c.dimensions.pop(), /dimensions: expected 5/);
   assertProblem((c) => c.dimensions.reverse(), /key should be "school"/);
-});
-
-test('validateContent: unknown dim', () => {
-  assertProblem((c) => { c.statements[0].dim = 'gym'; }, /unknown dim "gym"/);
-});
-
-test('validateContent: duplicate statement id', () => {
-  assertProblem((c) => { c.statements[1].id = 's01'; }, /duplicate id "s01"/);
-});
-
-test('validateContent: statements out of order', () => {
-  assertProblem((c) => {
-    const tmp = c.statements[0];
-    c.statements[0] = c.statements[15];
-    c.statements[15] = tmp;
-  }, /grouped by dimension/);
 });
 
 test('validateContent: missing en or zh', () => {
@@ -590,12 +628,6 @@ test('validateContent: missing en or zh', () => {
 
 test('validateContent: missing ui key', () => {
   assertProblem((c) => { delete c.ui.saveImage; }, /ui: missing key "saveImage"/);
-});
-
-test('validateContent: wrong number of soulmate flags', () => {
-  assertProblem((c) => { delete c.statements[49].flag; }, /2 carry flag "soulmate"/);
-  assertProblem((c) => { c.statements[0].flag = 'soulmate'; }, /4 carry flag "soulmate"/);
-  assertProblem((c) => { c.statements[0].flag = 'bestie'; }, /unknown flag "bestie"/);
 });
 
 test('validateContent: missing, unknown and duplicate type ids', () => {
@@ -629,11 +661,8 @@ test('profiles: missing or incomplete dimension reads', () => {
   assertProblem((c) => { c.dimensions[4].reads.high = { en: 'x' }; }, /bond\) reads: "high" is missing zh/);
 });
 
-test('profiles: missing why', () => {
+test('profiles: missing why; signs must be exactly 3 complete pairs', () => {
   assertProblem((c) => { delete c.types[3].why; }, /\(soulmate\): missing "why"/);
-});
-
-test('profiles: signs must be a list of exactly 3 complete pairs', () => {
   assertProblem((c) => { delete c.types[0].signs; }, /\(untouched\): missing "signs"/);
   assertProblem((c) => { c.types[0].signs.pop(); }, /"signs" has 2 lines \(need 3\)/);
   assertProblem((c) => { c.types[0].signs[1] = { en: 'only english' }; }, /signs: "1" is missing zh/);
@@ -644,7 +673,6 @@ test('profiles: bestWith and clashWith must name another real type, with a line'
   assertProblem((c) => { c.types[1].clashWith = 'nobody'; }, /"clashWith" must be one of the 14 type ids, found "nobody"/);
   assertProblem((c) => { c.types[1].bestWith = 'merged'; }, /"bestWith" points at the type itself/);
   assertProblem((c) => { delete c.types[1].bestWithLine; }, /missing "bestWithLine"/);
-  assertProblem((c) => { c.types[1].clashWithLine = { zh: '只有中文' }; }, /"clashWithLine" is missing en/);
 });
 
 test('profiles: validateProfiles reports exactly the profile problems that validateContent includes', () => {
@@ -652,15 +680,6 @@ test('profiles: validateProfiles reports exactly the profile problems that valid
   c.dimensions.forEach((d) => { delete d.reads; });
   c.types.forEach((t) => { delete t.why; delete t.signs; delete t.bestWith; delete t.bestWithLine; delete t.clashWith; delete t.clashWithLine; });
   const profileProblems = validateProfiles(c);
-  // 5 dimensions x 1 + 14 types x (why, signs, bestWith, bestWithLine, clashWith, clashWithLine)
   assert.strictEqual(profileProblems.length, 5 + 14 * 6);
   assert.deepStrictEqual(validateContent(c), profileProblems);
-});
-
-test('deep: two extreme statements in the lead section make it deep even below the high band', () => {
-  // Levels 9 and 10 of Heart only: 6 points (mid band), but two extreme confessions.
-  const heart = content.statements.filter((x) => x.dim === 'heart').map((x) => x.id);
-  assert.strictEqual(score([heart[8], heart[9]], content).typeId, 'heart_deep');
-  // One extreme statement plus mild ones stays lite.
-  assert.strictEqual(score([heart[0], heart[1], heart[9]], content).typeId, 'heart_lite');
 });

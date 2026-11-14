@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  score, galleryOrder, earnedHidden, hiddenUnlocked, rememberHiddenUnlocked,
+  score, drawStatements, admitByCounts, galleryOrder, earnedHidden, hiddenUnlocked, rememberHiddenUnlocked,
   HIDDEN_UNLOCK_KEY, DIM_KEYS, TYPE_IDS, UI_KEYS
 } = require('../scoring.js');
 
@@ -63,25 +63,29 @@ test('unlock flag: missing or blocked storage means locked, never an error', () 
 });
 
 test('earnedHidden: the hidden result, or merged with it as the secondary', () => {
-  const flagged = content.statements.filter((s) => s.flag === 'soulmate').map((s) => s.id);
-  const soulmate = score(flagged, content);
+  // The hidden rule on a real draw: all six Bond statements shown, plus at
+  // least one extreme Heart statement.
+  const drawn = drawStatements(content, 'abc123');
+  const play = (counts) => score(admitByCounts(content, drawn, counts), content, drawn);
+  const soulmate = play({ bond: [2, 2, 2], heart: [0, 0, 1] });
   assert.strictEqual(soulmate.typeId, 'soulmate');
   assert.strictEqual(earnedHidden(soulmate), true);
 
   // Everything admitted: merged, with the hidden type as its secondary.
-  const everything = score(content.statements.map((s) => s.id), content);
+  const everything = score(drawn, content, drawn);
   assert.strictEqual(everything.typeId, 'merged');
   assert.strictEqual(everything.secondaryTypeId, 'soulmate');
   assert.strictEqual(earnedHidden(everything), true);
 
-  // Everything except the three hidden statements: merged, but not earned.
-  const allButFlagged = score(content.statements.map((s) => s.id).filter((id) => !flagged.includes(id)), content);
-  assert.strictEqual(allButFlagged.typeId, 'merged');
-  assert.strictEqual(earnedHidden(allButFlagged), false);
+  // Everything except one extreme Bond statement: merged, but not earned.
+  const all = { school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2] };
+  const allButOne = play(Object.assign({ bond: [2, 2, 1] }, all));
+  assert.strictEqual(allButOne.typeId, 'merged');
+  assert.strictEqual(earnedHidden(allButOne), false);
 
-  // Two of the three is not enough.
-  assert.strictEqual(earnedHidden(score(flagged.slice(0, 2), content)), false);
-  assert.strictEqual(earnedHidden(score([], content)), false);
+  // A full Bond section without an extreme Heart statement is not enough.
+  assert.strictEqual(earnedHidden(play({ bond: [2, 2, 2], heart: [2, 2, 0] })), false);
+  assert.strictEqual(earnedHidden(score([], content, drawn)), false);
   assert.strictEqual(earnedHidden(null), false);
 });
 
@@ -107,8 +111,8 @@ test('ui keys: the "all types" text exists in both languages and stays short whe
     assert.ok(len(content.ui[key].zh) <= 11, key + ' zh is short');
   });
   assert.ok(len(content.ui.typesYou.en) <= 4 && len(content.ui.typesYou.zh) <= 2, 'typesYou is a word');
-  // The hint must not quote any of the three hidden statements.
-  content.statements.filter((s) => s.flag === 'soulmate').forEach((s) => {
+  // The hint must not quote any statement.
+  content.statements.forEach((s) => {
     assert.ok(!content.ui.typesLockedHint.en.includes(s.text.en), 'hint gives away ' + s.id);
     assert.ok(!content.ui.typesLockedHint.zh.includes(s.text.zh), 'hint gives away ' + s.id);
   });
@@ -137,14 +141,49 @@ test('app.js: the hidden type stays locked everywhere until earned', () => {
     'some type pairs with the hidden one (otherwise this check is moot)');
 });
 
-test('app.js: the merged sample (preview and peek) does not hold the hidden trio', () => {
-  const line = appSource.match(/^\s*merged:\s*(.+),\s*$/m);
-  assert.ok(line, 'merged sample found');
-  // Rebuild the sample the way app.js does: numbersFrom(a, b) and plain lists.
-  const numbersFrom = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
-  const nums = new Function('numbersFrom', 'return ' + line[1])(numbersFrom);
-  const sample = nums.map((n) => 's' + String(n).padStart(2, '0'));
-  const result = score(sample, content);
-  assert.strictEqual(result.typeId, 'merged');
-  assert.strictEqual(earnedHidden(result), false);
+// The sample players (?preview= and the peek) are band counts in app.js
+// (SAMPLE_COUNTS), turned into ids on whatever the play drew. Read that
+// object straight from the source: it is plain data on purpose.
+function sampleCounts() {
+  const match = appSource.match(/const SAMPLE_COUNTS = (\{[\s\S]*?\n {2}\});/);
+  assert.ok(match, 'SAMPLE_COUNTS found in app.js');
+  const literal = match[1].replace(/\/\/[^\n]*/g, ''); // drop the comments
+  return new Function('return ' + literal)();
+}
+
+test('app.js: every sample player scores as its own type on any draw, never by lot', () => {
+  const samples = sampleCounts();
+  assert.deepStrictEqual(Object.keys(samples).sort(), [...TYPE_IDS].sort(), 'one sample per type');
+  for (let i = 0; i < 300; i++) {
+    const drawn = drawStatements(content, 'p' + String(i).padStart(5, '0'));
+    TYPE_IDS.forEach((typeId) => {
+      const result = score(admitByCounts(content, drawn, samples[typeId]), content, drawn);
+      assert.strictEqual(result.typeId, typeId, typeId + ' sample on draw ' + i);
+      // A sample decided by lot could change type from one draw to the next.
+      assert.notStrictEqual(result.tieBreak, 'lot', typeId + ' sample needs the lot on draw ' + i);
+    });
+  }
+});
+
+// The merged sample must not unlock or show the hidden type (it would put
+// the locked PLUS-1 on its card as the "Also" chip).
+test('app.js: the merged sample (preview and peek) does not earn the hidden type', () => {
+  const merged = sampleCounts().merged;
+  for (let i = 0; i < 100; i++) {
+    const drawn = drawStatements(content, 'q' + String(i).padStart(5, '0'));
+    const result = score(admitByCounts(content, drawn, merged), content, drawn);
+    assert.strictEqual(result.typeId, 'merged');
+    assert.strictEqual(earnedHidden(result), false, 'draw ' + i);
+  }
+});
+
+test('the merged sample counts (persona "Nearly everything, drew the line at love") never earn the hidden type', () => {
+  const { PERSONAS } = require('../tools/personas.js');
+  const persona = PERSONAS.find((p) => p.name === 'Nearly everything, drew the line at love');
+  for (let i = 0; i < 50; i++) {
+    const drawn = drawStatements(content, 'm' + String(i).padStart(5, '0'));
+    const result = score(admitByCounts(content, drawn, persona.counts), content, drawn);
+    assert.strictEqual(result.typeId, 'merged');
+    assert.strictEqual(earnedHidden(result), false);
+  }
 });

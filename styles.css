@@ -138,6 +138,9 @@ button { font: inherit; color: inherit; }
   font-size: 14px;
 }
 .site-footer p { margin: 0; text-wrap: pretty; }
+/* Chinese footer: app.js adds break points after "，" and "。", and keep-all
+   stops the browser from splitting a word such as 这台设备 */
+html[lang^="zh"] .site-footer p { word-break: keep-all; overflow-wrap: anywhere; }
 /* Landing and result use the wide layout; keep the footer lined up with them */
 .layout-wide .site-footer { max-width: 1040px; }
 
@@ -198,8 +201,24 @@ button { font: inherit; color: inherit; }
   border-radius: var(--radius);
   font-weight: 600;
 }
+.from-friend-copy { margin: 0; }
 /* The type name never breaks in the middle ("赛 / 博正宫") */
 .from-friend-text { text-wrap: pretty; }
+html[lang^="zh"] .from-friend-text { word-break: keep-all; overflow-wrap: anywhere; }
+/* "Same thirty statements as whoever sent this link": a quiet second line in
+   the friend banner, or on its own above the title when the link had a seed
+   but no type. */
+.seed-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+.seed-note-alone { margin: 0 0 20px; }
+.seed-note-alone .seed-note { margin-top: 0; }
 .nowrap { white-space: nowrap; }
 
 .landing-title {
@@ -220,7 +239,15 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   font-size: 19px;
   line-height: 1.45;
 }
-.meta { margin: 0 0 28px; color: var(--ink-soft); }
+.meta { margin: 0 0 10px; max-width: 34em; color: var(--ink-soft); }
+/* "Close enough counts": the one house rule, set off by a short ink tick on
+   the left so it reads as a rule, not more small print. */
+.close-enough {
+  margin: 0 0 28px;
+  padding-left: 12px;
+  border-left: 3px solid var(--ink);
+  font-weight: 650;
+}
 
 /* Sticker sheet teaser: a few type codes slapped on at angles */
 .sticker-sheet { margin: 44px 0 0; }
@@ -233,10 +260,10 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   gap: 10px 8px;
 }
 .sticker-sheet figcaption { margin-top: 18px; color: var(--ink-soft); font-size: 15px; }
-/* Where three stickers no longer fit in a row, two even columns instead of a
-   lone sticker on the last row */
+/* On a narrow phone the stickers shrink a little, so the six still make two
+   rows of three instead of three ragged rows */
 @media (max-width: 380px) {
-  .sticker-sheet ul { display: grid; grid-template-columns: repeat(2, max-content); }
+  .sticker-sheet .sticker { font-size: 21px; padding: 5px 11px 4px; }
 }
 
 /* A sticker: coloured label with a white die-cut edge */
@@ -384,6 +411,10 @@ body.on-question { overflow-x: hidden; }
   box-shadow: 0 1px 0 var(--rule), 0 18px 36px -26px rgba(28, 37, 65, .4);
 }
 .q-dim {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   margin: 0 0 14px;
   font-size: 13px;
   font-weight: 700;
@@ -391,6 +422,18 @@ body.on-question { overflow-x: hidden; }
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+/* "Close enough counts", on the first three statements only: it shares the
+   section label's line (right end), so it adds no height and nothing moves
+   when it stops showing. Lighter and not shouted in capitals. */
+.q-hint {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-style: italic;
+  white-space: nowrap;
+  opacity: .85;
+}
+html[lang^="zh"] .q-hint { font-style: normal; }
 .q-text {
   margin: 0;
   font-size: clamp(26px, 7.2vw, 32px);
@@ -976,16 +1019,20 @@ html[lang^="zh"] .roast { font-size: 19px; line-height: 1.75; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.dim-squares { display: flex; align-items: flex-end; gap: 4px; }
+/* Six squares per section (the six statements a play shows from it), so
+   they can be larger than the ten of the 50-statement version. A gap
+   between the bands (two mild, two medium, two extreme) shows the steps. */
+.dim-squares { display: flex; align-items: flex-end; gap: 5px; }
 .dim-squares i {
   display: block;
   border: 2px solid var(--ink);
   border-radius: 4px;
   opacity: .35;
 }
-.dim-squares i.w1 { width: 12px; height: 12px; border-radius: 3px; }
-.dim-squares i.w2 { width: 16px; height: 16px; }
-.dim-squares i.w3 { width: 21px; height: 21px; border-radius: 5px; }
+.dim-squares i.w1 { width: 14px; height: 14px; border-radius: 3px; }
+.dim-squares i.w2 { width: 19px; height: 19px; }
+.dim-squares i.w3 { width: 25px; height: 25px; border-radius: 6px; }
+.dim-squares i.w1 + i.w2, .dim-squares i.w2 + i.w3 { margin-left: 5px; }
 .dim-squares i.on { background: var(--ink); opacity: 1; }
 /* The lead section's squares take the type's colour, outlined in ink */
 .dim-row.is-lead .dim-squares i.on { background: var(--type-bg); }
