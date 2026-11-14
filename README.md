@@ -36,7 +36,7 @@ Useful URL parameters:
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
 | `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), and the "all types" grid and the sample players (`gallery.test.js`). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
-| `tools/personas.js` | 29 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw. |
+| `tools/personas.js` | 30 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw. |
 | `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares and match spread over 200,000 simulated players (each on their own draw), and how often a tie decided the lead. `node tools/simulate.js` |
 | `tools/fairness.js` | Proves the draw and the judging have no favourite: six chi-square checks over 200,000 seeds on the real bank, run twice with two independent seed sources (a fixed, repeatable stream and the page's own `makeSeed()`), plus five deliberately broken versions that must be caught. Exits non-zero on failure. `node tools/fairness.js` (about 90 s) |
 | `tools/sim-helpers.js`, `tools/stats.js` | Shared pieces for the tools and tests: a synthetic bank of the same shape (for tests and controls), a seed stream, the simulated player model; chi-square and normal p-values. |
@@ -108,11 +108,11 @@ Useful URL parameters:
   gives each section a depth from 0 to 100 and a depth band (none / low 1-2
   points / mid 3-6 / high 7+). "work" is shown as "Adulting" / 正经事:
   grown-up paperwork, not a job.
-- The type is the first rule that matches: **merged** (25 or more admitted,
+- The type is the first rule that matches: **merged** (20 or more admitted,
   or every section in the high band), the hidden type **soulmate** (every Bond
   statement shown plus at least one extreme Heart statement), **untouched**
   (3 or fewer, all mild), **balanced** (three or more sections tie for the
-  top, or 6+ spread within 2 points over all five), otherwise the deepest
+  top, or 6+ spread within 3 points over all five), otherwise the deepest
   section's `_deep` type when it is in the high band or both its extreme
   statements were admitted, else its `_lite` type. A two-way tie for the lead
   goes to the heavier admitted statement, then more statements, then **the
@@ -157,7 +157,13 @@ favourite. What is guaranteed, and tested by `node tools/fairness.js` over
 What it cannot guarantee without real players: that two statements in the
 same band are equally easy to admit, or that the five sections are equally
 easy overall. That depends on how the statements are written. Once real plays
-exist, the admit rate per statement is the thing to check.
+exist, the admit rate per statement is the thing to check. A first check with
+24 language-model-played respondents (SCORING.md, section 10) found School far
+easier to admit than the other sections; 45 statements were rewritten after
+it, and a re-run on the new texts brought Heart, Brain and Bond closer to
+School but not level with it. It also led to the SAMPLER spread going from 2
+points to 3. Section 10 has the numbers, including what is still short
+(HAHA-OK is about 1% of panel plays).
 
 The bank is full: 105 statements, 7 in each of the 15 strata, so every
 statement is shown in 2 of 7 plays. `validateContent` fails if the strata
@@ -281,8 +287,15 @@ Everything a person reads lives in `content.js`. Change text there and refresh.
   text does not.
 - Write statements broad (a real player: "some questions are too specific").
   The claim must be a kind of thing many AI-using students have done; keep
-  at most one concrete touch, phrased as an example. Two statements that can
-  meet in one play must not tell the same joke.
+  at most one concrete touch, phrased as an example. The joke rides on top as
+  flavour and is never a second condition the player also has to meet. Two
+  statements that can meet in one play must not tell the same joke.
+- Every section has the same targets among ordinary AI users: mild about
+  half admit it, medium a quarter to a third, extreme one in eight to one in
+  five. A section that is easier to admit wins more plays, so balance the
+  sections by rewriting statements, never by weighting them in the rules
+  (SCORING.md, section 10, has the November 2026 panel check that found
+  School far easier than Heart, Brain and Bond).
 - A statement may never be the only way to reach a type, and type copy may
   never refer to one specific statement: a player sees only 30 of the bank.
 - A dimension's optional `blurb` is a note for editors about what belongs in

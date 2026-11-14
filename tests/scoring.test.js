@@ -238,26 +238,30 @@ test('soulmate: merged wins when nearly everything is admitted, and soulmate bec
 });
 
 // ---------- merged ----------
-test('merged: 25 admitted is merged, 24 is not', () => {
-  const r25 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2], bond: [1, 0, 0] });
-  assert.strictEqual(r25.total, 25);
-  assert.strictEqual(r25.typeId, 'merged');
-  assert.strictEqual(r25.secondaryTypeId, null);
-  assert.strictEqual(r25.match, 82); // average depth: (100 x 4 + 100/12) / 5 = 81.7
-  const r24 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 2, 2] });
-  assert.strictEqual(r24.total, 24);
-  assert.notStrictEqual(r24.typeId, 'merged');
+test('merged: 20 admitted is merged, 19 is not', () => {
+  // Three full sections and two mild Brain statements: 20, Bond untouched.
+  const r20 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 0, 0] });
+  assert.strictEqual(r20.total, 20);
+  assert.strictEqual(r20.typeId, 'merged');
+  assert.strictEqual(r20.secondaryTypeId, null);
+  assert.strictEqual(r20.match, 63); // average depth: (100 x 3 + 200/12) / 5 = 63.3
+  // One fewer: a three-way tie at the top, so balanced, not merged.
+  const r19 = sc({ school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [1, 0, 0] });
+  assert.strictEqual(r19.total, 19);
+  assert.strictEqual(r19.typeId, 'balanced');
+  // Every mild and medium statement, no extremes: 20, merged by count.
+  assert.strictEqual(sc(ALL([2, 2, 0])).typeId, 'merged');
 });
 
-test('merged: every section in the high band is merged, even well below 25', () => {
-  const r = sc(ALL([2, 1, 1])); // 7 points (high) everywhere, 20 admitted
-  assert.strictEqual(r.total, 20);
+test('merged: every section in the high band is merged, even well below 20', () => {
+  const r = sc(ALL([0, 2, 1])); // 7 points (high) everywhere, only 15 admitted
+  assert.strictEqual(r.total, 15);
   assert.strictEqual(r.typeId, 'merged');
   assert.strictEqual(r.match, 58);
   // The thinnest way in: one mild and both extreme everywhere, 15 admitted.
   assert.strictEqual(sc(ALL([1, 0, 2])).typeId, 'merged');
-  // One section short of high is not enough.
-  assert.notStrictEqual(sc({ school: [2, 1, 1], work: [2, 1, 1], heart: [2, 1, 1], brain: [2, 1, 1], bond: [2, 2, 0] }).typeId, 'merged');
+  // One section short of high is not enough (19 admitted, under the bar too).
+  assert.notStrictEqual(sc({ school: [2, 1, 1], work: [2, 1, 1], heart: [2, 1, 1], brain: [2, 1, 1], bond: [2, 1, 0] }).typeId, 'merged');
 });
 
 test('merged: evidence is the heaviest statement of each dimension, top three', () => {
@@ -293,13 +297,16 @@ test('balanced (even spread): every dimension must be touched', () => {
   assert.strictEqual(r.typeId, 'school_lite');
 });
 
-test('balanced: deepest and shallowest at most 2 points apart; 3 apart is a leaning', () => {
+test('balanced: deepest and shallowest at most 3 points apart; 4 apart is a leaning', () => {
   const others = { work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] }; // 1 point each
   const two = sc(Object.assign({ school: [1, 1, 0] }, others));   // school 3 points
   assert.strictEqual(two.typeId, 'balanced');
   assert.strictEqual(two.match, 83);                              // 100 - 100 * 2 / 12
   const three = sc(Object.assign({ school: [1, 0, 1] }, others)); // school 4 points
-  assert.strictEqual(three.typeId, 'school_lite');
+  assert.strictEqual(three.typeId, 'balanced');
+  assert.strictEqual(three.match, 75);                            // 100 - 100 * 3 / 12
+  const four = sc(Object.assign({ school: [0, 1, 1] }, others));  // school 5 points
+  assert.strictEqual(four.typeId, 'school_lite');
 });
 
 test('balanced (tie): three or more sections sharing the top points is balanced', () => {
@@ -430,8 +437,9 @@ test('dimension types: match = lead / (lead + runner-up), 50 for a dead heat, 10
   assert.strictEqual(sc({ school: [2, 2, 0], work: [2, 2, 0] }).match, 50);
   // school 6 points, heart 3 points, bond 1: 6 / 9 = 67. Bond does not count.
   assert.strictEqual(sc({ school: [2, 2, 0], heart: [1, 1, 0], bond: [1, 0, 0] }).match, 67);
-  // A heavy player with lots everywhere is not punished: 12 vs 6.
-  const heavy = sc({ brain: [2, 2, 2], school: [2, 2, 0], work: [2, 2, 0], heart: [2, 2, 0], bond: [2, 2, 0] });
+  // A heavy player with lots everywhere (18 admitted, under the merged bar)
+  // is not punished: 12 vs 6.
+  const heavy = sc({ brain: [2, 2, 2], school: [2, 2, 0], work: [2, 2, 0], heart: [2, 1, 0], bond: [1, 0, 0] });
   assert.strictEqual(heavy.typeId, 'brain_deep');
   assert.strictEqual(heavy.match, 67);
   assert.strictEqual(heavy.matchCap, null);
@@ -521,7 +529,8 @@ test('invariants hold for 20,000 random answer sets on random draws', () => {
       const even = r.total >= 6 && DIM_KEYS.every((k) => r.perDim[k] > 0);
       assert.ok(even || r.tiedDims.length >= 3, 'balanced without an even spread or a three-way tie');
     }
-    if (r.typeId === 'merged') assert.ok(r.total >= 25 || DIM_KEYS.every((k) => r.band[k] === 'high'));
+    if (r.typeId === 'merged') assert.ok(r.total >= 20 || DIM_KEYS.every((k) => r.band[k] === 'high'));
+    if (r.total >= 20) assert.strictEqual(r.typeId, 'merged');
     if (r.typeId === 'untouched') assert.ok(r.total <= 3);
     if (r.typeId === 'soulmate') assert.ok(r.perDim.bond === 6 && r.hiddenRule);
     if (r.hiddenRule && r.typeId !== 'soulmate') assert.strictEqual(r.typeId, 'merged');
@@ -534,7 +543,7 @@ test('RULES: thresholds are the documented ones (update SCORING.md if you change
     [RULES.midFrom, RULES.highFrom, RULES.deepFromExtremes, RULES.mergedMinTotal, RULES.untouchedMaxTotal,
       RULES.balancedMinTotal, RULES.balancedMaxSpread, RULES.balancedTieMin, RULES.soulmateHeartExtremes,
       RULES.closeRatio, RULES.matchCapOne, RULES.matchCapTwo, RULES.evidenceMax],
-    [25, 55, 2, 25, 3, 6, 17, 3, 1, 0.75, 60, 80, 3]
+    [25, 55, 2, 20, 3, 6, 25, 3, 1, 0.75, 60, 80, 3]
   );
 });
 

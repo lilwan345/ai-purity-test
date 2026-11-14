@@ -21,9 +21,13 @@ The statements are a **bank**. Each one belongs to one of the five sections
 
 | Band | What it means | Weight |
 |---|---|---|
-| mild | most people who use AI have done it | 1 point |
-| medium | a fair share have | 2 points |
-| extreme | the deep end of that section | 3 points |
+| mild | about half of ordinary AI users have done it | 1 point |
+| medium | a quarter to a third have | 2 points |
+| extreme | the deep end of that section: one in eight to one in five | 3 points |
+
+These targets are the same in every section. That matters: the judging treats
+the five sections identically, so if one section's statements are easier to
+admit, that section simply wins more plays (see section 10).
 
 The bank holds **105 statements: 21 per section, exactly 7 of each band**.
 That gives 15 groups (section x band, called *strata*), all the same size.
@@ -36,7 +40,8 @@ play would have shown them far more often than the rest, so they are gone.)
 
 The original 50 kept their ids (bands from their old levels: 1-4 mild, 5-7
 medium, 8-10 extreme; a few moved one band to even out a section or to keep
-the bands honest, and `s10` was dropped); the new ones run from `s51` to
+the bands honest, `s59` and `s60` swapped bands in November 2026 after a test
+panel admitted `s59` 42% of the time and `s60` 13%, and `s10` was dropped); the new ones run from `s51` to
 `s106`. Many old texts were rewritten broader after a real player said some
 were too specific. `validateContent` fails if the strata ever become unequal.
 
@@ -94,9 +99,11 @@ always includes an extreme statement.
 
 ## 4. The type: the first rule that matches wins
 
-1. **Merged** (PLUG-IN): you admitted **25 or more** of the 30 (purity 17 or
-   lower), **or every one of the five sections is in the high band** (possible
-   with as few as 15 admitted). Either way no single section can describe you.
+1. **Merged** (PLUG-IN): you admitted **20 or more** of the 30 (two thirds,
+   purity 33 or lower), **or every one of the five sections is in the high
+   band** (possible with as few as 15 admitted). Either way no single section
+   can describe you. At 20 one section can still be empty (6 + 6 + 6 + 2 + 0),
+   so nothing about this type claims "every section".
 2. **Hidden type** (PLUS-1, id `soulmate`): you admitted **all six Bond
    statements you were shown and at least one extreme Heart statement**. Every
    play shows six Bond statements and two extreme Heart ones, so every play can
@@ -106,7 +113,7 @@ always includes an extreme statement.
    points somewhere.
 4. **Balanced** (SAMPLER): no section leads. Two ways in:
    - **an even spread**: at least 6 admitted, every section has at least one,
-     and the deepest and shallowest sections are at most 2 points apart; or
+     and the deepest and shallowest sections are at most 3 points apart; or
    - **a tie for the top**: three or more sections share the highest points
      exactly. Picking one of them would be arbitrary.
 5. **A section type**: otherwise your **leading section** decides. It is that
@@ -125,7 +132,7 @@ always gives the same result, but across players every section wins a lot
 equally often. The old rule (a fixed order: Bond, Heart, Brain, Adulting,
 School) quietly favoured Bond in every mirror tie. The result screen says
 plainly when a tie was decided by lot (`tieBreak: 'lot'`). With six
-statements per section, mirror ties are common: about **12% of all players**
+statements per section, mirror ties are common: about **8% of all players**
 get a section type decided this way.
 
 Deep or lite depends only on the leading section, not on your total. A full
@@ -171,8 +178,9 @@ earlier.
 | hidden type | always 100 | all-or-nothing |
 | untouched | your purity | 100 = admitted nothing |
 
-Simulated section-type results: match 50 at the 10th percentile, 60 at the
-median, 78 to 80 at the 90th. The cap touches about 1% of players.
+Simulated section-type results: match 50 to 54 at the 10th percentile, 60
+(lite) or 64 (deep) at the median, 80 to 82 at the 90th. The cap touches
+about 1% of players.
 
 ## 8. Checked against people and a crowd
 
@@ -206,7 +214,7 @@ bank of the same shape). Counts are written mild/medium/extreme.
 | Loyal, but tells it nothing | bond 2/2/2, heart 1/0/0 | 7 | bond_deep | - | 92 |
 | The Plus One | bond 2/2/2, heart 0/0/1, school 1/0/0 | 8 | soulmate | bond_deep | 100 |
 | Evenly moderate | 2/0/0 everywhere | 10 | balanced | - | 100 |
-| Evenly heavy, short of everything | 2/2/0 everywhere | 20 | balanced | - | 100 |
+| Evenly heavy, one short of PLUG-IN | 2/2/0 in four, bond 2/1/0 | 19 | balanced | - | 83 |
 | One mild thing in every section | 1/0/0 everywhere | 5 | balanced | - | 100 |
 | Four sections, no feelings for it | 2/1/0 in all but bond | 12 | balanced | - | 100 |
 | Everyday light user | 2/0/0 in four, bond 1/0/0 | 9 | balanced | - | 92 |
@@ -217,6 +225,7 @@ bank of the same shape). Counts are written mild/medium/extreme.
 | Deep everywhere | 2/1/1 everywhere | 20 | merged | - | 58 |
 | Does everything | 2/2/2 everywhere | 30 | merged | soulmate | 100 |
 | Nearly everything, drew the line at love | all but heart's extremes and one bond extreme | 27 | merged | - | 85 |
+| Two thirds, one section left alone | school, work, heart 2/2/2, brain 2/0/0 | 20 | merged | - | 63 |
 
 Worth a closer look:
 - **One extreme confession** is a lite type: not untouched (it is a real
@@ -229,6 +238,9 @@ Worth a closer look:
   Heart, so the lot decides; over 500 draws School won 48% to 52% of them.
 - **One medium confession** is a known quirk: three mild answers are ANALOG
   while one medium one is TLDR. Its match is capped at 60.
+- **Evenly heavy, one short of PLUG-IN** and **Two thirds, one section left
+  alone** pin the merged bar from both sides: 19 admitted is not merged, 20 is,
+  even with a whole section empty.
 
 ### 200,000 simulated players
 
@@ -240,25 +252,39 @@ favourite section, 45% one and 30% two, chosen uniformly, so the five sections
 are treated identically. (Details at the top of `tools/sim-helpers.js`.)
 
 Result with the final rules (`node tools/simulate.js`, seed 20261113):
-average 11.2 admitted of 30 (purity 63); 30% of results carry a secondary.
+average 11.2 admitted of 30 (purity 63); 20% of results carry a secondary.
 
 | Type | Real bank (105) | Median match |
 |---|---|---|
 | untouched | 10.0% | 93 |
-| merged | 2.7% | 82 |
-| balanced | 7.1% | 83 |
-| soulmate (hidden) | 1.1% | 100 |
-| school_lite / school_deep | 7.6% / 8.4% | 60 / 60 |
-| work_lite / work_deep | 7.6% / 8.4% | 60 / 60 |
-| heart_lite / heart_deep | 7.6% / 8.3% | 60 / 60 |
-| brain_lite / brain_deep | 7.7% / 8.4% | 60 / 60 |
-| bond_lite / bond_deep | 7.6% / 7.5% | 60 / 63 |
+| merged | 11.7% | 65 |
+| balanced | 12.1% | 75 |
+| soulmate (hidden) | 0.3% | 100 |
+| school_lite / school_deep | 6.5% / 6.6% | 60 / 64 |
+| work_lite / work_deep | 6.6% / 6.6% | 60 / 64 |
+| heart_lite / heart_deep | 6.5% / 6.6% | 60 / 64 |
+| brain_lite / brain_deep | 6.7% / 6.7% | 60 / 64 |
+| bond_lite / bond_deep | 6.6% / 6.4% | 60 / 64 |
 
-About 12% of all players reach their section type through an exact tie that
+With the balanced spread at 2 points instead of 3 the same run gave balanced
+6.6%, lite types about 7.6% and deep types about 6.7%. The wider spread moves
+players whose five sections sit within 3 points of each other from a section
+type into balanced, a little more from the lite types than from the deep ones.
+
+With the merged bar at 25 the same run gave merged 2.7%, the hidden type 1.1%
+and every deep type about 8.4%. Lowering the bar to 20 moves the heaviest
+simulated players into merged, mostly from the deep types, and some players
+who met the hidden rule now land on merged with the hidden type as their
+secondary (merged is checked first). In the simulation the hidden type is
+therefore rarer (0.3%). In the 24-person test panel (section 10) it did not
+move (1.2% at both bars), because the people who met the hidden rule there
+admitted well under 20 per play.
+
+About 8% of all players reach their section type through an exact tie that
 nothing in their answers separates, so the lot decides it (with six
 statements per section, mirror-image answers are common). The result screen
-says so plainly. It is fair (each section wins 19.6% to 20.3% of those lots),
-but one player in eight will see "this play's lot decided".
+says so plainly. It is fair (each section wins 19.5% to 20.5% of those lots),
+but about one player in thirteen will see "this play's lot decided".
 
 No type is above 20% and none below 2%, except the hidden type, which is
 meant to be rare. `bond_deep` sits slightly lower than the other deep types
@@ -267,9 +293,11 @@ hidden type's design, not a bias (section 10 shows that with the hidden rule
 switched off all five deep types are equal).
 
 **How sensitive is this?** Lighter players (`--mean=2.5`) give Untouched 17%
-and Merged 1.1%; heavier players (`--mean=4.5`) give Untouched 5% and Merged
-6%. The ten section types and Balanced stay between 6% and 10% in both. The
-model is a reasonable guess, not survey data.
+and Merged 6%; heavier players (`--mean=4.5`) give Untouched 5% and Merged
+21%, just over the 20% line. The ten section types stay between 5% and 8% and
+Balanced between 11% and 12% in both. The model is a reasonable guess, not
+survey data: in the re-run test panel (section 10), where the heaviest of 24
+people admitted 80 of 105, merged came to 7% of plays.
 
 ## 9. The bank's shape
 
@@ -302,17 +330,19 @@ tests). `tests/fairness.test.js` runs the same checks on 20,000 seeds on every
 | (c) picks in different strata independent | 105 tables, every pair of strata | chi2 42,052, 42,000 df | 0.43 |
 | (d) every statement equally likely at each of the 10 places; no section always first | each section first in 19.9% to 20.2% of plays vs 20% | 33 tests, smallest p 0.0096 | 0.32 after correction |
 | (e) seeds one character apart give unrelated draws | 8.577 shared statements vs 8.571 for unrelated draws; generator bits flip 50.00% | chi2 29.3, 30 df | 0.63 after correction |
-| (f) the judging has no favourite section | lite 7.52% to 7.65% each; deep 8.34% to 8.46% each; lot wins 19.6% to 20.3% each | chi2 3.02, 1.98 and 3.10, 4 df | 0.55, 0.74 and 0.54 |
+| (f) the judging has no favourite section | lite 6.52% to 6.65% each; deep 6.58% to 6.72% each; lot wins 19.5% to 20.5% each | chi2 3.34, 4.46 and 4.96, 4 df | 0.50, 0.35 and 0.29 |
 
-The crypto-seed run passes all six as well: (a) 28.35% to 28.82%, chi2 81.1 on
-90 df, p 0.74; (b) chi2 312.5 on 300 df, p 0.30; (c) chi2 42,309 on 42,000 df,
-p 0.14; (d) smallest p 0.0090, 0.30 after correction; (e) 0.11 after
-correction; (f) lite chi2 2.01 (p 0.73), deep chi2 7.13 (p 0.13), lot wins
-chi2 4.52 (p 0.34).
+The crypto-seed run passes all six as well: (a) 28.39% to 28.83%, chi2 67.0 on
+90 df, p 0.97; (b) chi2 268.7 on 300 df, p 0.90; (c) chi2 42,134 on 42,000 df,
+p 0.32; (d) smallest p 0.0017, 0.057 after correction; (e) 0.37 after
+correction; (f) lite chi2 2.65 (p 0.62), deep chi2 5.25 (p 0.26), lot wins
+chi2 2.57 (p 0.63). (Rows (a) to (e) depend only on the draw, so they did not
+change when the merged bar or the balanced spread moved; (f) did, because
+fewer players now reach a section type.)
 
 (f) uses simulated players who treat the five sections identically, and
 switches the hidden rule off for the lite/deep comparison, because that one
-rule is about Bond and Heart on purpose; its own share (1.1%) is printed beside
+rule is about Bond and Heart on purpose; its own share (0.3%) is printed beside
 it. Every two-section mirror tie is also forced directly: each section wins
 50% of its ties within sampling error, and all 120 lot orders come up equally.
 
@@ -335,6 +365,67 @@ exist, the admit rate per statement is the check to run: within a band the
 rates should be close, and across sections the five type shares should be
 close.
 
+**The first content check (November 2026).** Before launch data existed, 24
+invented respondents (12 US undergraduates answering in English, 12 Chinese
+international students answering in Chinese, from near-zero AI use to
+constant use) were played by a language model and answered all 105
+statements; each was then scored on 3,000 draws. That is a rough stand-in for
+people, good for spotting lopsided statements, not survey data. It found the
+content bias this section warns about: mean admit rate for mild / medium /
+extreme was School 46 / 33 / 22%, Adulting 36 / 30 / 13%, Heart 26 / 13 / 10%,
+Brain 24 / 20 / 12% and Bond 24 / 15 / 14%, so School types took 35% of all
+panel plays (TLDR 20%, CRAMBOT 15%) while HAHA-OK, SORRY and SAMPLER got about
+1% each and PLUG-IN 0.2%. People who said they lean one way got that section
+in 73% of their plays, so the judging itself works. The fix was in the
+content and one rule, not in section weights: the merged bar went from 25 to
+20 (measured on the panel: merged 0.2% to 3.6%, the hidden type unchanged at
+1.2%), `s59` and `s60` swapped bands (measured: CRAMBOT 12.6% to 9.9%), and 45
+statements were rewritten so that the act admitted is common (asking AI how
+to reply to a text, saying hi to a chatbot) and the joke rides on top instead
+of adding a second condition.
+
+**The re-run (November 2026).** The same 24 respondents then answered every
+rewritten statement again (a separate agent from the one that wrote them,
+judging each person and line on its own, without aiming at a rate; `s59` and
+`s60` kept their answers because only their band changed). Mean admit rate
+for mild / medium / extreme became School 46 / 38 / 17%, Adulting 36 / 30 /
+13%, Heart 31 / 19 / 13%, Brain 33 / 24 / 17% and Bond 32 / 22 / 15%. One
+rewrite came back far too broad: `s32` ("asked AI something I'd have Googled")
+was admitted by 20 of 24, a survey question rather than a confession, so it
+became "a quick fact, like how old some actor is" (9 of 24). Share of all
+panel plays (24 people x 3,000 draws), before the rewrites → after:
+
+| Type | Before | After |
+|---|---|---|
+| ANALOG | 20% | 19.2% |
+| PLUG-IN | 0% | 7.2% |
+| SAMPLER | 1% | 2.2% |
+| PLUS-1 (hidden) | 1% | 3.3% |
+| TLDR / CRAMBOT | 20% / 15% | 18.6% / 7.0% |
+| NOTED / SYNERGY | 8% / 10% | 7.5% / 8.4% |
+| HAHA-OK / CC-BOT | 1% / 7% | 1.1% / 8.0% |
+| IDK / 404 | 3% / 4% | 4.4% / 5.1% |
+| SORRY / MY-BOT | 1% / 7% | 2.7% / 5.3% |
+
+School's two types fell from 35% to 26%. PLUG-IN comes only from the four
+heaviest respondents (80, 71, 59 and 52 of 105 admitted: 98%, 66%, 7% and 1%
+of their plays). SAMPLER was still 1.2% after the rewrites, because almost no
+real profile has all five sections within 2 points; the even-spread limit
+went from 2 points to 3, which gives 2.2% on the panel and 12.1% in the
+simulation. Two things are still short. **HAHA-OK is 1.1%**, almost all of it
+from one respondent: the panel's two Heart-leaning people both use AI for
+relationships heavily and land on CC-BOT, and nobody in it is a light user
+whose Heart answers lead, so the panel cannot show whether that type is
+reachable (in the simulation it is 6.5%). And people who stated a leaning
+got that section in **66%** of their plays (73% before; 70% if PLUS-1 counts
+as Bond for the two Bond-leaning people), because their other sections are
+now easier to admit: a School-leaning student who is also polite to the bot
+now gets SORRY in 42% of plays. Statements still out of line with their band
+are mostly mild ones at 17% to 29% (`s22`, `s75`, `s34`, `s43`), medium `s04`,
+`s91` and `s101` at 8% to 13%, and School medium as a whole at 38%. A real
+launch sample is the next check; this panel is a language model playing 24
+invented people.
+
 ## 11. What changed, and why
 
 | Before (v3) | Now (v4) | Why |
@@ -344,6 +435,10 @@ close.
 | Three flagged statements decide the hidden type | All six Bond statements shown + one extreme Heart | Forcing flagged statements into every play would make them far more common |
 | Fixed tie order (Bond first) | Lot from the play's seed | The fixed order favoured Bond in every mirror tie |
 | 19 points per section, merged at 42, untouched at 4, balanced from 10 | 12 points, merged at 25, untouched at 3, balanced from 6, spread 2 points | Re-tuned for 6 statements per section; shares stay between 2% and 20% |
+| Merged at 25 (v4) | Merged at 20 (v4.1, November 2026) | In a 24-person test panel the heaviest user (73 of 105 admitted) reached 25 in 5% of plays and merged was 0.2% of all plays; at 20 that person gets it in 78% and merged is 4% |
+| Heart, Brain and Bond statements much harder to admit than School (panel admit rate for mild: School 46%, Heart 26%, Brain 24%, Bond 24%) | 45 statements in Work, Heart, Brain, Bond and School rewritten around commoner acts; `s59` and `s60` swapped bands | School took 35% of panel results and Heart mild 1.5%. Balanced by rewriting, never by weighting sections in the rules |
+| `s32`: "asked AI something I'd have Googled a year ago" | "a quick fact, like how old some actor is" | Re-run panel: 20 of 24 admitted it, too broad to say anything; now 9 of 24 |
+| Balanced spread: within 2 points | Within 3 points | Re-run panel: SAMPLER 1.2% of plays at 2 points, 2.2% at 3; simulation 6.6% → 12.1% |
 
 Earlier changes (v1 to v3) introduced the weights, deep by high band or two
 extremes, balanced for three-way ties, and the lead / (lead + runner-up)
@@ -371,8 +466,9 @@ answers (`evidenceIds`), so the copy does not have to guess.
   only 3 answers and some sections empty). Write about evenness.
 - **Hidden type** players admitted every Bond statement they saw and at least
   one extreme Heart one; they may have admitted nothing else (7 answers).
-- **Merged** players admitted at least 25, or reached the high band in all
+- **Merged** players admitted at least 20, or reached the high band in all
   five sections (as few as 15 answers), and not necessarily the hidden rule.
+  With 20 admitted one section can be empty, so never say "every section".
 - **Signs** never restate a single quiz statement.
 
 ---
@@ -394,9 +490,12 @@ answers (`evidenceIds`), so the copy does not have to guess.
 
 | 档次 | 含义 | 分量 |
 |---|---|---|
-| 轻度 mild | 用 AI 的人大多干过 | 1 分 |
-| 中度 medium | 不少人干过 | 2 分 |
-| 重度 extreme | 这一部分最深的那头 | 3 分 |
+| 轻度 mild | 普通 AI 用户里大约一半干过 | 1 分 |
+| 中度 medium | 四分之一到三分之一的人干过 | 2 分 |
+| 重度 extreme | 这一部分最深的那头，八分之一到五分之一 | 3 分 |
+
+这几个目标五个部分都一样。这一点很要紧：判定对五个部分一视同仁，所以哪个部分的题更容易认，
+哪个部分就会更常赢（见第 10 节）。
 
 题库是 **105 条：每部分 21 条，每个档次正好 7 条**，一共 15 组（部分 × 档次，
 叫“层”），每层一样大。id 是固定字符串（`s01`、`s02`……），永远不改、不复用；
@@ -406,7 +505,8 @@ answers (`evidenceIds`), so the copy does not have to guess.
 它们出现的次数会远多于别的题，所以取消了。）
 
 原来的 50 条保留了 id（档次按旧等级换算：1–4 级轻度、5–7 中度、8–10 重度；有几条为了
-凑齐数量或档次名副其实挪了一档，`s10` 删掉了），新题从 `s51` 编到 `s106`。有真实玩家说
+凑齐数量或档次名副其实挪了一档；2026 年 11 月测试小组认 `s59` 的有 42%、认 `s60` 的只有 13%，
+于是两条对调了档次；`s10` 删掉了），新题从 `s51` 编到 `s106`。有真实玩家说
 有些题太具体，所以很多旧题改写得更宽泛。层大小一旦不一样，`validateContent` 就报错。
 
 ## 2. 抽题：一局出哪 30 条
@@ -448,14 +548,15 @@ answers (`evidenceIds`), so the copy does not have to guess.
 
 ## 4. 类型：按顺序判，先满足哪条就是哪条
 
-1. **人形外设**（PLUG-IN）：30 条里认了 **25 条及以上**（纯度 17 及以下），
+1. **人形外设**（PLUG-IN）：30 条里认了 **20 条及以上**（三分之二，纯度 33 及以下），
    **或者五个部分全在 high 档**（最少 15 条就可能）。两种情况都说明单拿哪一块都概括不了你。
+   认 20 条时还可能有一块完全空着（6 + 6 + 6 + 2 + 0），所以这个类型的文案不能说“每一块”。
 2. **隐藏款**（PLUS-1，id 是 `soulmate`）：**这一局出现的 6 条羁绊题全认了，
    再加至少一条感情的重度题**。每局都有 6 条羁绊题和 2 条感情重度题，所以每局都有机会，
    也没有哪条题是特殊的。
 3. **原装人类**（ANALOG）：认了 **3 条及以下**，而且**全是轻度**（纯度 90 及以上）。
 4. **雨露均沾**（SAMPLER）：没有哪块领头。两条路：
-   - **分得匀**：至少认了 6 条，五个部分都有，最深和最浅的部分相差不超过 2 分；
+   - **分得匀**：至少认了 6 条，五个部分都有，最深和最浅的部分相差不超过 3 分；
    - **并列第一**：三个及以上部分分数完全一样、并列最高。
 5. **部分类型**：以上都不是，就看**领头的部分**。领头部分在 **high** 档（12 分里 7 分以上），
    **或者这一部分的两条重度题都认了**，就是它的 **deep** 类型，否则是 **lite** 类型。
@@ -468,7 +569,7 @@ answers (`evidenceIds`), so the copy does not have to guess.
 抽签是用这一局本身（它抽到的题，也就是它的种子）算出的五个部分的随机顺序。所以同一局
 永远是同一个结果，但放到所有玩家身上，每个部分赢签的次数一样多。旧规则用固定顺序
 （羁绊、感情、脑子、正经事、学业），每次镜像打平都偷偷偏向羁绊。结果页会直说这是抽签
-决定的（`tieBreak: 'lot'`）。每部分只有 6 条，镜像打平并不少见：大约 **12% 的玩家**
+决定的（`tieBreak: 'lot'`）。每部分只有 6 条，镜像打平并不少见：大约 **8% 的玩家**
 的部分类型是这样决定的。
 
 deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的一条没认，照样是 CRAMBOT。
@@ -504,7 +605,7 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 | 隐藏款 | 固定 100 | 要么满足要么不满足 |
 | 原装人类 | 等于纯度 | 100 = 一条没认 |
 
-模拟里部分类型的匹配度：第 10 百分位 50，中位数 60，第 90 百分位 78–80；上限影响约 1% 的玩家。
+模拟里部分类型的匹配度：第 10 百分位 50–54，中位数 60（lite）或 64（deep），第 90 百分位 80–82；上限影响约 1% 的玩家。
 
 ## 8. 拿人和一大群人来检验
 
@@ -520,18 +621,27 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 - 只认了脑子两条重度的，是 404（deep），只有 6 分、档位“mid”，因为两条重度都认了；
 - 每部分认得一样多的，或三块以上并列第一的，是雨露均沾；
 - 学业和感情完全镜像的，由抽签决定，500 局里学业赢了 48%–52%；
-- 每部分 2 轻 1 中 1 重（20 条）的，五块全在 high 档，是人形外设。
+- 每部分 2 轻 1 中 1 重（20 条）的，五块全在 high 档，是人形外设；
+- 学业、正经事、感情全认，再加两条脑子轻度（20 条，羁绊一条没认）的，也是人形外设；
+  轻度中度全认、只差一条（19 条）的，五块很匀，是雨露均沾。门槛两边都钉住了。
 
 **20 万个模拟玩家**：每个模拟玩家有自己的一局 30 条题，按一个简单模型作答：每个部分有一个
 “认到多深”的界线，题越过界线，认的概率就平滑下降。整体轻重呈钟形分布；25% 的人没有偏爱
 的部分，45% 有一个，30% 有两个，偏爱哪块是均匀随机的，所以五个部分被一视同仁。
 
-最终规则下（种子 20261113）：平均认 11.2 条（纯度 63），30% 的结果带副类型。
-各类型占比见英文第 8 节的表：原装人类 10.0%，人形外设 2.7%，雨露均沾 7.1%，隐藏款 1.1%，
-10 个部分类型都在 7.5%–8.4% 之间。除了本该稀有的隐藏款，没有类型超过 20% 或低于 2%。
+最终规则下（种子 20261113）：平均认 11.2 条（纯度 63），20% 的结果带副类型。
+各类型占比见英文第 8 节的表：原装人类 10.0%，人形外设 11.7%，雨露均沾 12.1%，隐藏款 0.3%，
+10 个部分类型都在 6.4%–6.7% 之间。“分得匀”的界线还是 2 分时，同一次模拟里雨露均沾 6.6%，
+lite 约 7.6%、deep 约 6.7%；放宽到 3 分后，五块相差 3 分以内的人从部分类型挪到了雨露均沾。除了本该稀有的隐藏款，没有类型超过 20% 或低于 2%。
+门槛还是 25 条时，同一次模拟里人形外设 2.7%、隐藏款 1.1%、各 deep 类型约 8.4%。降到 20 条后，
+最重的那批模拟玩家归到了人形外设，主要来自 deep 类型；有些满足隐藏规则的人也先被判成人形外设
+（它先判），隐藏款变成副类型，所以模拟里隐藏款更少了（0.3%）。在 24 人测试小组里（第 10 节）
+隐藏款没变（两个门槛下都是 1.2%），因为那里满足隐藏规则的人每局认的远不到 20 条。
 `bond_deep` 略低于其他 deep 类型，是因为隐藏款主要从这里分走玩家，这是隐藏款的设计，
 不是偏向（第 10 节：关掉隐藏规则后五个 deep 类型完全持平）。人群整体偏轻（`--mean=2.5`）时
-原装人类 17%、人形外设 1.1%；偏重（`--mean=4.5`）时原装人类 5%、人形外设 6%。
+原装人类 17%、人形外设 6%；偏重（`--mean=4.5`）时原装人类 5%、人形外设 21%，刚过 20% 的线。
+两种情况下 10 个部分类型都在 5%–8%，雨露均沾在 11%–12%。模型只是合理的猜测：重测后的
+测试小组里（第 10 节）最重的人 105 条认了 80 条，人形外设占全部局数的 7%。
 
 ## 9. 题库的形状
 
@@ -556,18 +666,19 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 | (c) 不同层的抽取互相独立 | 每两层一张表，共 105 张 | 卡方 42,052，自由度 42,000 | 0.43 |
 | (d) 组内每条在 10 个位置上概率一样；没有哪个部分总是第一个 | 各部分排第一 19.9%–20.2% vs 20% | 33 项检验，最小 p 0.0096 | 校正后 0.32 |
 | (e) 只差一个字符的种子抽出的题互不相关 | 平均共有 8.577 条 vs 不相关时 8.571；生成器各位翻转 50.00% | 卡方 29.3，自由度 30 | 校正后 0.63 |
-| (f) 判定不偏向任何部分 | 各 lite 7.52%–7.65%；各 deep 8.34%–8.46%；抽签各赢 19.6%–20.3% | 卡方 3.02、1.98、3.10，自由度 4 | 0.55、0.74、0.54 |
+| (f) 判定不偏向任何部分 | 各 lite 6.52%–6.65%；各 deep 6.58%–6.72%；抽签各赢 19.5%–20.5% | 卡方 3.34、4.46、4.96，自由度 4 | 0.50、0.35、0.29 |
 
-用 crypto 种子的那一遍也六项全过：(a) 28.35%–28.82%，卡方 81.1，自由度 90，p 0.74；
-(b) p 0.30；(c) p 0.14；(d) 校正后 0.30；(e) 校正后 0.11；(f) lite p 0.73、deep p 0.13、
-抽签 p 0.34。
+用 crypto 种子的那一遍也六项全过：(a) 28.39%–28.83%，卡方 67.0，自由度 90，p 0.97；
+(b) p 0.90；(c) p 0.32；(d) 校正后 0.057；(e) 校正后 0.37；(f) lite p 0.62、deep p 0.26、
+抽签 p 0.63。（(a) 到 (e) 只取决于抽题，人形外设门槛和“分得匀”的界线改了也不变；(f) 变了，
+因为走到部分类型的玩家少了。）
 
-大约 12% 的玩家是靠一次完全打平拿到部分类型的，答案里分不出高下，只能抽签（每部分 6 条，
-镜像答案很常见）。结果页会直说是抽签定的。这很公平（每部分赢 19.6%–20.3%），但每 8 个人里
-大约有 1 个会看到“这一局抽签定了”。
+大约 8% 的玩家是靠一次完全打平拿到部分类型的，答案里分不出高下，只能抽签（每部分 6 条，
+镜像答案很常见）。结果页会直说是抽签定的。这很公平（每部分赢 19.5%–20.5%），但大约每 13 个人里
+有 1 个会看到“这一局抽签定了”。
 
 (f) 用的是对五个部分一视同仁的模拟玩家，比较 lite/deep 时关掉了隐藏规则，因为那条规则
-本来就是针对羁绊和感情的；隐藏款自己的占比（1.1%）单独列出。另外还直接构造了每一对部分的
+本来就是针对羁绊和感情的；隐藏款自己的占比（0.3%）单独列出。另外还直接构造了每一对部分的
 镜像打平：每个部分赢一半，120 种抽签顺序出现得一样多。
 
 **这些检查真能抓到错误。** 脚本还会跑五个故意写坏的版本，要求每个都被抓到：对字节用
@@ -580,6 +691,38 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 它证明的是代码没有加偏向，不是内容没有偏向。等有了真实玩家，该跑的检查是每条题的认领率：
 同一档次里应该接近，五个部分的类型占比也应该接近。
 
+**第一次内容检查（2026 年 11 月）。** 还没有上线数据时，用语言模型扮演了 24 个虚构受访者
+（12 个用英文作答的美国本科生、12 个用中文作答的中国留学生，从几乎不用 AI 到天天用），让他们把
+105 条全答一遍，再每人跑 3,000 局。这只是真人的粗略替身，适合找出偏得厉害的题，不是调查数据。
+它查出了这一节提醒过的内容偏差：轻 / 中 / 重的平均认领率，学业 46 / 33 / 22%，正经事 36 / 30 / 13%，
+感情 26 / 13 / 10%，脑子 24 / 20 / 12%，羁绊 24 / 15 / 14%。结果学业类型占了全部局数的 35%
+（TLDR 20%、CRAMBOT 15%），HAHA-OK、SORRY、SAMPLER 各只有 1% 左右，PLUG-IN 0.2%。自报偏向
+某块的人，有 73% 的局拿到了那一块，说明判定本身没问题。修的是内容和一条规则，不是给部分加权：
+人形外设门槛从 25 降到 20（在小组上实测：人形外设 0.2% → 3.6%，隐藏款不变，1.2%）；`s59` 和 `s60`
+对调档次（实测：CRAMBOT 12.6% → 9.9%）；改写了 45 条，让认的那件事本身常见（问 AI 消息怎么回、
+跟 AI 打招呼），笑点只是附在上面，不再多加一个条件。
+
+**重测（2026 年 11 月）。** 之后让同样 24 个人把改写过的题重新答了一遍（由另一个 agent 来答，
+不是写题的那个；一人一条地判断，不朝某个比例凑；`s59`、`s60` 只换了档次，答案沿用）。
+轻 / 中 / 重的平均认领率变成：学业 46 / 38 / 17%，正经事 36 / 30 / 13%，感情 31 / 19 / 13%，
+脑子 33 / 24 / 17%，羁绊 32 / 22 / 15%。有一条改得太宽：`s32`（“以前会去搜的，现在问 AI”）
+24 人里 20 人认，等于问卷题而不是坦白，于是改成“明星多大这种小问题”（24 人里 9 人认）。
+全部局数（24 人 × 3,000 局）里的占比，改写前 → 改写后：ANALOG 20% → 19.2%，PLUG-IN 0% → 7.2%，
+SAMPLER 1% → 2.2%，PLUS-1 1% → 3.3%，TLDR / CRAMBOT 20% / 15% → 18.6% / 7.0%，
+NOTED / SYNERGY 8% / 10% → 7.5% / 8.4%，HAHA-OK / CC-BOT 1% / 7% → 1.1% / 8.0%，
+IDK / 404 3% / 4% → 4.4% / 5.1%，SORRY / MY-BOT 1% / 7% → 2.7% / 5.3%。
+
+学业两个类型合计从 35% 降到 26%。PLUG-IN 只来自最重的四个人（105 条里认了 80、71、59、52 条，
+分别有 98%、66%、7%、1% 的局拿到）。改写后 SAMPLER 还是 1.2%，因为几乎没有人五块都在 2 分以内；
+“分得匀”的界线从 2 分放宽到 3 分后，小组上 2.2%，模拟里 12.1%。还有两处没达标。**HAHA-OK 只有
+1.1%**，几乎全来自一个人：小组里偏感情的两个人都在感情上用得很重，落在 CC-BOT；小组里没有
+“用得少、但感情题领头”的人，所以这个小组证明不了这个类型能不能走到（模拟里是 6.5%）。
+自报偏向的人拿到那一块的比例是 **66%**（之前 73%；如果把 PLUS-1 算作两个偏羁绊的人的羁绊结果，
+是 70%），因为他们别的部分现在也更容易认了：一个偏学业、对 AI 又很客气的学生，现在 42% 的局
+拿到 SORRY。和档次对不上的题主要是认领率 17%–29% 的轻度题（`s22`、`s75`、`s34`、`s43`），
+中度的 `s04`、`s91`、`s101`（8%–13%），以及整体 38% 的学业中度。下一步要看真实上线数据；
+这个小组只是语言模型扮演的 24 个虚构的人。
+
 ## 11. 改了什么、为什么
 
 | 之前（v3） | 现在（v4） | 原因 |
@@ -589,6 +732,10 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 | 三条带标记的题决定隐藏款 | 出现的 6 条羁绊全认 + 一条感情重度 | 硬塞带标记的题会让它们出现得多得多 |
 | 打平按固定顺序（羁绊优先） | 用这一局的种子抽签 | 固定顺序在每次镜像打平时都偏向羁绊 |
 | 每部分 19 分，人形外设 42 条，原装 4 条，均沾从 10 条起 | 12 分，人形外设 25 条，原装 3 条，均沾从 6 条起、相差 2 分以内 | 按每部分 6 条重新调过，各类型占比都在 2%–20% |
+| 人形外设 25 条（v4） | 人形外设 20 条（v4.1，2026 年 11 月） | 24 人测试小组里最重的人（105 条认 73 条）只有 5% 的局能到 25 条，人形外设只占全部局数的 0.2%；门槛 20 时这个人 78% 的局拿到，整体 4% |
+| 感情、脑子、羁绊的题比学业难认得多（小组轻度认领率：学业 46%，感情 26%，脑子 24%，羁绊 24%） | 正经事、感情、脑子、羁绊和学业共改写 45 条，围绕更常见的事；`s59`、`s60` 对调档次 | 小组结果里学业占 35%，感情轻度只有 1.5%。靠改题来平衡，绝不在规则里给部分加权 |
+| `s32`：“以前会去搜的问题，现在直接问 AI” | “明星多大这种小问题，也直接问 AI” | 重测时 24 人里 20 人认，太宽，说明不了什么；现在 9 人 |
+| “分得匀”：相差 2 分以内 | 相差 3 分以内 | 重测小组里 2 分时 SAMPLER 只占 1.2%，3 分时 2.2%；模拟 6.6% → 12.1% |
 
 ## 12. 写类型文案的人请注意
 
@@ -603,5 +750,6 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 - **原装人类**最多认过 3 条轻度。
 - **雨露均沾**要么 6 条以上匀匀分在五个部分，要么三块以上并列第一（可能只有 3 条，还有空着的部分）。写“匀”。
 - **隐藏款**认了见到的每条羁绊题和至少一条感情重度题，可能别的什么都没认（共 7 条）。
-- **人形外设**认了至少 25 条，或者五块都进了 high 档（最少 15 条），不一定满足隐藏规则。
+- **人形外设**认了至少 20 条，或者五块都进了 high 档（最少 15 条），不一定满足隐藏规则。
+  认 20 条时可能有一块空着，所以别写“每一块”。
 - **signs（三条迹象）**不要照搬任何一条题目。

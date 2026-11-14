@@ -109,9 +109,13 @@
     // two shown), whatever the band.
     deepFromExtremes: 2,
 
-    // merged: at least this many of the 30 admitted (purity 17 or lower),
-    // OR every one of the five dimensions in the high band.
-    mergedMinTotal: 25,
+    // merged: at least this many of the 30 admitted (two thirds, purity 33
+    // or lower), OR every one of the five dimensions in the high band.
+    // Lowered from 25 in Nov 2026: in a 24-person test panel even the
+    // heaviest user (73 of 105 admitted) reached 25 in only 5% of plays.
+    // At 20 one section can be empty (6+6+6+2+0), so merged copy must not
+    // claim every section.
+    mergedMinTotal: 20,
 
     // untouched: at most this many admitted (purity 90 or higher), all of
     // them mild. One medium or extreme confession is already a direction.
@@ -119,9 +123,13 @@
 
     // balanced, way 1: at least this many admitted, every dimension touched,
     // and the deepest and shallowest dimensions at most this many depth
-    // points apart (one point of 12 is 8.3 depth points, so 17 = 2 points).
+    // points apart (one point of 12 is 8.3 depth points, so 25 = 3 points).
+    // Widened from 17 (2 points) in Nov 2026: in the 24-person test panel
+    // only 1.2% of plays came out balanced at 2 points, because almost
+    // nobody's five sections land within 2 points of each other; at 3 points
+    // it is 2.1% on the panel and 12.1% in the simulation.
     balancedMinTotal: 6,
-    balancedMaxSpread: 17,
+    balancedMaxSpread: 25,
     // balanced, way 2: this many dimensions (or more) share the top points
     // exactly. No single section leads, so no section type would be honest.
     balancedTieMin: 3,

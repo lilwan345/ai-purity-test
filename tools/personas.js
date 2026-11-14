@@ -153,11 +153,11 @@ var PERSONAS = [
     why: 'Ten admitted, the same depth in all five sections.'
   },
   {
-    name: 'Evenly heavy, short of everything',
-    who: 'Every mild and medium statement shown, no extreme ones.',
-    counts: everywhere([2, 2, 0]),
+    name: 'Evenly heavy, one short of PLUG-IN',
+    who: 'Every mild and medium statement shown except one medium Bond, no extreme ones: 19 admitted.',
+    counts: { school: [2, 2, 0], work: [2, 2, 0], heart: [2, 2, 0], brain: [2, 2, 0], bond: [2, 1, 0] },
     expect: { typeId: 'balanced', secondaryTypeId: null },
-    why: '20 admitted, perfectly even, nothing near "everything".'
+    why: '19 admitted is one short of the merged bar (20), and all five sections are within 2 points, so it is an even spread.'
   },
   {
     name: 'One mild thing in every section',
@@ -213,7 +213,7 @@ var PERSONAS = [
     who: 'Both mild, one medium and one extreme in every section: 20 admitted.',
     counts: everywhere([2, 1, 1]),
     expect: { typeId: 'merged', secondaryTypeId: null },
-    why: 'Every section in the high band. "A little of everything" would be false; "no section can describe you" is true.'
+    why: 'Every section in the high band (and 20 admitted, so it would be merged by count too). "A little of everything" would be false; "no section can describe you" is true.'
   },
   {
     name: 'Does everything',
@@ -228,6 +228,13 @@ var PERSONAS = [
     counts: { school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 0], brain: [2, 2, 2], bond: [2, 2, 1] },
     expect: { typeId: 'merged', secondaryTypeId: null },
     why: '27 of 30 is nearly everything; the hidden rule is not met, so there is no secondary.'
+  },
+  {
+    name: 'Two thirds, one section left alone',
+    who: 'All of School, Adulting and Heart, both mild Brain statements, nothing in Bond: 20 admitted.',
+    counts: { school: [2, 2, 2], work: [2, 2, 2], heart: [2, 2, 2], brain: [2, 0, 0] },
+    expect: { typeId: 'merged', secondaryTypeId: null },
+    why: '20 of 30 meets the merged bar even with Bond empty: three full sections plus more means no single section describes this player.'
   }
 ];
 
