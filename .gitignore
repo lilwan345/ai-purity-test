@@ -1,0 +1,4 @@
+.DS_Store
+node_modules/
+# an early content draft, kept locally for reference only
+content/draft.json

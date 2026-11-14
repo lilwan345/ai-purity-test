@@ -1,0 +1,1163 @@
+/* =========================================================================
+   AI Purity Test — styles
+   Look: a filled-in form on pale photocopy paper, plus coloured stickers.
+   The page itself stays quiet (ink + paper). Colour arrives only through the
+   type stickers, so the result card is the loudest thing on screen.
+   ========================================================================= */
+
+/* Display font fallback. Anton (SIL Open Font License 1.1, see
+   fonts/Anton-OFL.txt), cut down to plain ASCII and embedded here so it costs
+   no network request. It only shows where Avenir Next Condensed is missing
+   (Android, Windows), so the codes and scores keep a condensed poster look on
+   every phone, in the PNG too. unicode-range keeps Chinese on the system font. */
+@font-face {
+  font-family: "APT Display";
+  src: url("data:font/woff2;base64,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") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007E, U+2019, U+2026;
+}
+
+:root {
+  /* Palette */
+  --paper: #E8ECF1;      /* the one calm background tone */
+  --sheet: #FFFFFF;      /* the statement card, answer buttons and sticker borders */
+  --ink: #1C2541;        /* ballpoint-pen navy, used for all text */
+  --ink-soft: #4B5571;   /* secondary text; 6.3:1 on --paper */
+  --rule: #CBD3DE;       /* dividers and empty progress segments */
+
+  /* Type. Avenir Next Condensed ships with macOS/iOS; everywhere else the
+     embedded "APT Display" takes over for Latin letters and digits. CJK
+     fallbacks are listed explicitly so Chinese never lands on a random font. */
+  --font-display: "Avenir Next Condensed", "APT Display", "Arial Narrow", "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+
+  /* A springy ease: overshoots a little, then settles */
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --radius: 14px;
+  --gutter: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chinese reads better a touch looser */
+html[lang^="zh"] body { line-height: 1.65; }
+
+button { font: inherit; color: inherit; }
+
+/* One focus style everywhere: a thick ink ring with a gap */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 8px var(--gutter);
+  padding-top: max(8px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.on-landing .brand { visibility: hidden; }
+
+.lang-toggle {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.lang-toggle:hover { background: var(--sheet); }
+
+/* ---------- Main area ---------- */
+.app {
+  flex: 1;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 8px var(--gutter) 32px;
+}
+.app:focus { outline: none; }
+.app.is-wide { max-width: 1040px; }
+
+.screen { animation: screen-in 180ms ease-out both; }
+@keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
+
+.site-footer {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 8px var(--gutter) max(24px, env(safe-area-inset-bottom));
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.site-footer p { margin: 0; text-wrap: pretty; }
+/* Landing and result use the wide layout; keep the footer lined up with them */
+.layout-wide .site-footer { max-width: 1040px; }
+
+.load-error {
+  margin: 48px 0;
+  padding: 20px;
+  background: var(--sheet);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 160ms var(--spring);
+}
+.btn:active { transform: scale(.96); }
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { background: #2B3760; border-color: #2B3760; }
+.btn-ghost:hover { background: var(--sheet); }
+.btn-big { min-height: 56px; padding: 0 30px; font-size: 18px; }
+.btn-icon { width: 48px; padding: 0 !important; }
+
+.btn-text {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+  cursor: pointer;
+}
+
+/* ---------- Landing ---------- */
+.landing { padding-top: 12px; }
+
+.from-friend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 28px;
+  padding: 12px 14px;
+  background: var(--sheet);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+/* The type name never breaks in the middle ("赛 / 博正宫") */
+.from-friend-text { text-wrap: pretty; }
+.nowrap { white-space: nowrap; }
+
+.landing-title {
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(64px, 21vw, 120px);
+  line-height: .88;
+  letter-spacing: -0.01em;
+}
+/* Chinese headings use the body stack: its Latin and CJK faces are drawn as a
+   pair (SF + PingFang), so "AI" and "纯度测试" match in weight. */
+html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clamp(54px, 16vw, 100px); line-height: 1.08; letter-spacing: -0.02em; }
+
+.lede {
+  margin: 0 0 8px;
+  max-width: 34em;
+  font-size: 19px;
+  line-height: 1.45;
+}
+.meta { margin: 0 0 28px; color: var(--ink-soft); }
+
+/* Sticker sheet teaser: a few type codes slapped on at angles */
+.sticker-sheet { margin: 44px 0 0; }
+.sticker-sheet ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 8px;
+}
+.sticker-sheet figcaption { margin-top: 18px; color: var(--ink-soft); font-size: 15px; }
+/* Where three stickers no longer fit in a row, two even columns instead of a
+   lone sticker on the last row */
+@media (max-width: 380px) {
+  .sticker-sheet ul { display: grid; grid-template-columns: repeat(2, max-content); }
+}
+
+/* A sticker: coloured label with a white die-cut edge */
+.sticker {
+  display: inline-block;
+  padding: 6px 14px 5px;
+  border-radius: 10px;
+  background: var(--sticker-bg);
+  color: var(--sticker-fg);
+  box-shadow: 0 0 0 4px var(--sheet), 0 6px 14px -6px rgba(28, 37, 65, .45);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.1;
+  white-space: nowrap;
+  transform: rotate(var(--tilt, 0deg));
+}
+.sticker-sheet .sticker { animation: sticker-in 420ms var(--spring) both; animation-delay: var(--delay, 0ms); }
+@keyframes sticker-in {
+  from { opacity: 0; transform: rotate(calc(var(--tilt, 0deg) * 3)) scale(.7); }
+  to   { opacity: 1; transform: rotate(var(--tilt, 0deg)) scale(1); }
+}
+.sticker-small { font-size: 18px; padding: 4px 10px 3px; box-shadow: 0 0 0 3px var(--paper); }
+
+@media (min-width: 900px) {
+  /* On a laptop the landing sits in the middle of the window, not the top half */
+  .landing {
+    display: grid;
+    grid-template-columns: 1.15fr .85fr;
+    gap: 64px;
+    align-items: center;
+    align-content: center;
+    min-height: calc(100vh - 180px);
+    padding: 0 0 24px;
+  }
+  .sticker-sheet { margin: 0; }
+  .sticker-sheet ul { display: grid; grid-template-columns: repeat(2, max-content); gap: 18px 14px; }
+  .sticker-sheet .sticker { font-size: 34px; }
+}
+
+/* ---------- Question screens (one statement at a time) ---------- */
+
+/* On a phone the question screen fills the window under the top bar, so the
+   answer buttons sit at the bottom, where the thumb is. (The top bar is
+   44px button + 8px below + 8px or the notch above; .app adds 8px.) The
+   footer is hidden here (the landing and result screens show it), so the
+   screen is exactly one window tall and cannot be dragged up and down. */
+.on-question .app { padding-bottom: 0; }
+.on-question .site-footer { display: none; }
+/* The card slides sideways between statements; this stops that from ever
+   making the page scroll horizontally. */
+body.on-question { overflow-x: hidden; }
+
+.quiz {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 68px);
+  min-height: calc(100svh - 60px - max(8px, env(safe-area-inset-top)));
+}
+
+/* Header row: back, progress bar with "12 / 50", running purity */
+.q-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Back is a quiet chevron: still a 48px target, but no outline competing
+   with the language button. The negative margin lines the chevron up with
+   the page edge. */
+.q-back { flex: none; margin-left: -12px; border-color: transparent; }
+.q-back:hover { background: var(--sheet); }
+.q-progress {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.q-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.q-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+}
+/* app.js passes the previous width in --from, so the bar grows (or shrinks
+   on Back) from where it was instead of jumping. */
+.q-bar span.is-moving { animation: bar-move 360ms var(--spring) both; }
+@keyframes bar-move { from { width: var(--from); } }
+.q-count {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+/* The purity is there for the curious, not the star: small and grey-ish */
+.q-purity {
+  flex: none;
+  margin: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--rule);
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+}
+.q-purity-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.q-purity-num {
+  display: inline-block;
+  min-width: 2ch;          /* 100 -> 98 does not shift the row */
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.q-purity-num.bump { animation: bump 260ms var(--spring); }
+@keyframes bump { 50% { transform: scale(1.25); } }
+
+/* The statement on its white "form" card: the hero of the screen */
+/* The card sits a little above the middle of the free space: centred, but
+   with extra room underneath, so it reads as "up where the eyes are" while
+   the buttons stay down where the thumb is. */
+.q-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 0 clamp(20px, 10svh, 96px);
+}
+.q-card {
+  /* About four lines of English, so the card keeps one size whether the
+     statement is short or long. */
+  min-height: 236px;
+  padding: 22px 22px 28px;
+  background: var(--sheet);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 36px -26px rgba(28, 37, 65, .4);
+}
+.q-dim {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.q-text {
+  margin: 0;
+  font-size: clamp(26px, 7.2vw, 32px);
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+/* Chinese: by default a browser may break between any two characters, which
+   splits words on a big hero line ("认 / 真的"). keep-all turns that off;
+   app.js then adds <wbr> break points after "，" and a few phrase-ending
+   words, so lines break there ("跟 AI 说了晚安，/ 而且是认真的"). With only
+   good break points left, "balance" can even out the lines safely.
+   overflow-wrap: anywhere is the safety net when no break point fits. */
+html[lang^="zh"] .q-text {
+  font-size: clamp(24px, 6.7vw, 30px);
+  line-height: 1.45;
+  letter-spacing: .01em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* Headings marked data-focus (the landing title, each statement, the type
+   name on the result card) receive focus only so keyboard and screen-reader
+   users land in the right place. They are not controls, so no focus ring:
+   it would otherwise box the title or sit on the card people screenshot. */
+[data-focus]:focus { outline: none; }
+
+/* Moving between statements: the card leaves to one side, the next one
+   glides in from the other. Back reverses the direction. A plain ease-out
+   (no spring) so the text is still by the time you read it.
+   Fill mode "backwards" (not "both") matters: a finished animation that
+   kept holding its end state would override the .is-leaving transition
+   below, and the card would blink out instead of sliding away. */
+.q-card.enter-next { animation: card-in-next 260ms cubic-bezier(.2, .8, .2, 1) backwards; }
+.q-card.enter-prev { animation: card-in-prev 260ms cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes card-in-next { from { opacity: 0; transform: translateX(24px); } }
+@keyframes card-in-prev { from { opacity: 0; transform: translateX(-24px); } }
+.q-card.is-leaving {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 140ms ease-in, transform 140ms ease-in;
+}
+
+/* Answer buttons, pinned to the bottom so a long statement on a small phone
+   can never push them off screen. */
+.q-bottom {
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 max(20px, env(safe-area-inset-bottom));
+  background: var(--paper);
+}
+/* Three answers in one row: Never | Not sure | Guilty. The two real answers
+   share the free width equally; "Not sure" in the middle only takes what its
+   label needs. minmax(0, 1fr) lets the side buttons shrink below their
+   content's width instead of pushing the row wider than the phone. None of
+   the widths depend on the statement or on which answer is pressed, so the
+   row never moves between statements. */
+.q-answers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.btn-answer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 64px;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--sheet);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;           /* no double-tap zoom delay */
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms var(--spring), background-color 120ms, color 120ms;
+}
+.btn-answer:hover { background: #F3F5F9; }
+.btn-answer:active { transform: scale(.96); }
+/* The picked answer: filled AND ticked, so it never relies on colour alone */
+.btn-answer[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+/* The tick hangs off the left of the label (the label stays centred and
+   nothing shifts when it appears). The narrow phone buttons leave just
+   enough room for it at 18px; from 420px it grows to 22px. */
+.answer-label { position: relative; white-space: nowrap; }
+.answer-tick {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 5px 0 0;
+  display: none;
+}
+.btn-answer[aria-pressed="true"] .answer-tick { display: block; }
+.answer-tick svg { display: block; width: 100%; height: 100%; }
+.answer-tick path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+}
+/* "Not sure": smaller, lighter and thinly outlined, so the
+   two real answers stay the obvious choices. Still a 48px tap target.
+   Picked, it fills in soft ink: a solid pill where there was a hairline, so
+   it does not depend on colour, and there is no tick (it would not fit the
+   small pill without changing its width). */
+.btn-unsure {
+  min-height: 48px;
+  padding: 0 12px;
+  /* Soft ink at 40%: visible enough to read as a button on the pale paper,
+     much lighter than the 2px ink outline of the real answers. */
+  border: 1.5px solid rgba(75, 85, 113, .4);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 650;
+}
+.btn-unsure:hover { background: var(--sheet); }
+.btn-unsure[aria-pressed="true"] { background: var(--ink-soft); border-color: var(--ink-soft); color: var(--sheet); }
+.btn-unsure .answer-tick { display: none !important; }
+/* The global 3px focus ring would outweigh the hairline pill; 2px keeps it
+   clearly visible but no louder than the real answers' outline. */
+.btn-unsure:focus-visible { outline-width: 2px; }
+
+@media (min-width: 420px) {
+  .q-answers { gap: 10px; }
+  .answer-tick { width: 22px; height: 22px; margin: -11px 6px 0 0; }
+  .btn-unsure { padding: 0 16px; }
+}
+
+/* The moment of answering: the button pops and the tick draws itself */
+.btn-answer.is-confirming { animation: pop 320ms var(--spring); }
+.btn-answer.is-confirming .answer-tick path { animation: tick-draw 220ms ease-out both; }
+@keyframes pop { 40% { transform: scale(1.05); } }
+@keyframes tick-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+
+/* Keyboard hints only where there is probably a keyboard (and, for the key
+   badges inside the buttons, room for them) */
+.answer-key, .q-keys { display: none; }
+@media (hover: hover) and (pointer: fine) and (min-width: 520px) {
+  .btn-answer { padding: 0 40px; }   /* room for the key badge on the right */
+  .btn-unsure { padding: 0 16px; }
+  .answer-key {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 4px;
+    border: 1.5px solid currentColor;
+    border-radius: 6px;
+    font: 700 12px/1 var(--font-body);
+    opacity: .55;
+  }
+  /* In the small middle button the badge simply follows the label */
+  .btn-unsure .answer-key { position: static; transform: none; margin-left: 8px; min-width: 20px; height: 20px; font-size: 11px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .q-keys {
+    display: block;
+    margin: 12px 0 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+}
+
+/* Laptops: no thumb to reach for, so the screen sits as one calm block
+   near the top instead of stretching to the bottom of a tall window. */
+@media (min-width: 700px) {
+  .quiz { min-height: 0; padding-top: 3vh; }
+  .q-stage { flex: none; padding: 28px 0 28px; }
+  /* Tall enough for a 3-line statement, so the buttons below never move:
+     padding (32 + 40) + label (13px x line-height, + 14px margin) + 3 lines.
+     Chinese has a taller line, hence its own value. */
+  .q-card { min-height: calc(72px + 13px * 1.5 + 14px + 3 * 36px * 1.22); padding: 32px 36px 40px; }
+  html[lang^="zh"] .q-card { min-height: calc(72px + 13px * 1.65 + 14px + 3 * 33px * 1.45); }
+  .q-text { font-size: 36px; }
+  html[lang^="zh"] .q-text { font-size: 33px; }
+  .q-bottom { position: static; padding-bottom: 24px; }
+  .q-answers { gap: 16px; }
+}
+
+/* ---------- Result ---------- */
+.result { padding-top: 4px; }
+
+.preview-badge {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 4px 12px;
+  border: 2px dashed var(--ink-soft);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* The card is slapped onto the page and settles. On phones it settles flat,
+   so the small text stays crisp in screenshots; wider screens keep a tilt. */
+.card-wrap {
+  --settle: 0deg;
+  padding: 10px;
+  transform: rotate(var(--settle));
+  animation: slap 520ms var(--spring) both;
+}
+@media (min-width: 480px) { .card-wrap { --settle: -1.4deg; } }
+@keyframes slap {
+  from { opacity: 0; transform: rotate(-6deg) scale(.88); }
+  to   { opacity: 1; transform: rotate(var(--settle)) scale(1); }
+}
+
+/*
+ * The card. Every size inside is in "cqw" (1% of the card's width), so the
+ * card scales as one piece. app.js writes the layout numbers onto the card as
+ * custom properties (--pad, --codeSize, ...) from the same object it uses to
+ * draw the PNG; that is what keeps the saved image identical to the screen.
+ */
+/* cqw units resolve against the nearest container's CONTENT box, so the
+   container is this padding-free frame: 1cqw = exactly 1% of the card width. */
+.card-frame { container-type: inline-size; }
+
+.card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--pad) * 1cqw);
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+  box-shadow: 0 0 0 7px var(--sheet), 0 22px 40px -18px rgba(28, 37, 65, .5);
+}
+.card p, .card h1, .card ul { margin: 0; padding: 0; }
+
+/* Small text gets an 11px floor on screen (the PNG is large anyway). */
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 2cqw;
+  font-weight: 700;
+  font-size: max(11px, calc(var(--topSize) * 1cqw));
+  line-height: calc(var(--topLine) * 1cqw);
+  white-space: nowrap;
+}
+/* The head (code, name, tagline) takes the leftover space above it, so it
+   always sits the same distance above the score. */
+.card-head { margin-top: auto; padding-top: calc(var(--gapTopMin) * 1cqw); }
+.card-code {
+  font-family: var(--font-display);
+  font-weight: 800;
+  white-space: nowrap;   /* size and line-height are set inline by app.js */
+}
+.card-name {
+  margin-top: calc(var(--gapCode) * 1cqw) !important;
+  font-weight: 700;
+  line-height: calc(var(--nameLine) * 1cqw);
+}
+.card-tagline {
+  margin-top: calc(var(--gapName) * 1cqw) !important;
+  font-weight: 500;
+  line-height: calc(var(--tagLine) * 1cqw);
+}
+.card-bottom { margin-top: calc(var(--gapScore) * 1cqw); flex: none; }
+.card-score-label {
+  font-weight: 700;
+  font-size: max(10px, calc(var(--scoreLabelSize) * 1cqw));
+  line-height: calc(var(--scoreLabelLine) * 1cqw);
+  letter-spacing: .08em;
+}
+.card-purity {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: calc(var(--purityLine) * 1cqw);
+}
+.card-purity-num { font-size: calc(var(--puritySize) * 1cqw); }
+/* line-height 1 keeps the small % from stretching the score's line box */
+.card-purity-pct { font-size: calc(var(--pctSize) * 1cqw); margin-left: .4cqw; line-height: 1; }
+/* Match and the secondary chip: a small right-aligned column beside the
+   score, so they add no height (CARD in app.js has the numbers). */
+.card-score { position: relative; }
+.card-match {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-align: right;
+}
+.card-match-num {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--matchSize) * 1cqw);
+  line-height: calc(var(--matchLine) * 1cqw);
+}
+.card-match-pct { font-size: calc(var(--matchPctSize) * 1cqw); margin-left: .3cqw; line-height: 1; }
+.card-lean {
+  margin-top: calc(var(--gapChip) * 1cqw) !important;
+  height: calc(var(--chipH) * 1cqw);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: calc(var(--chipLabelGap) * 1cqw);
+}
+.card-lean-label {
+  font-weight: 700;
+  font-size: max(10px, calc(var(--scoreLabelSize) * 1cqw));
+  letter-spacing: .08em;
+  line-height: 1;
+  white-space: nowrap;
+}
+/* Width comes from app.js (measured once for screen and PNG alike). */
+.card-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--chipW) * 1cqw);
+  height: 100%;
+  border: calc(var(--chipStroke) * 1cqw) solid var(--type-fg);
+  border-radius: calc(var(--chipRadius) * 1cqw);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--chipSize) * 1cqw);
+  line-height: 1;
+  white-space: nowrap;
+}
+.card-bars { margin-top: calc(var(--gapPurity) * 1cqw) !important; list-style: none; }
+.card-bars li {
+  display: flex;
+  align-items: center;
+  height: calc(var(--barRow) * 1cqw);
+  line-height: 1;
+}
+.bar-label {
+  flex: none;
+  width: calc(var(--barLabelW) * 1cqw);
+  overflow: hidden;
+  font-weight: 700;
+  font-size: max(11px, calc(var(--labelSize) * 1cqw));
+  white-space: nowrap;
+}
+.bar-squares { display: flex; gap: calc(var(--barGap) * 1cqw); }
+.bar-squares i {
+  display: block;
+  width: calc(var(--barSize) * 1cqw);
+  height: calc(var(--barSize) * 1cqw);
+  border: calc(var(--barStroke) * 1cqw) solid currentColor;
+  border-radius: calc(var(--barRadius) * 1cqw);
+  opacity: .55;          /* empty slot: still reads as "out of 10" on every colour */
+}
+.bar-squares i.on { background: currentColor; opacity: 1; }
+.card-note {
+  margin-top: calc(var(--gapBars) * 1cqw) !important;
+  font-weight: 600;
+  font-size: max(11px, calc(var(--noteFit) * 1cqw));
+  line-height: calc(var(--noteLine) * 1cqw);
+}
+
+/* ---------- Under the card ---------- */
+.result-body { margin-top: 28px; }
+
+/* Small all-caps heading over each part, like the section label on the
+   statement cards. Chinese has no capitals, so it gets a touch more size. */
+.kicker {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+html[lang^="zh"] .kicker { font-size: 14px; letter-spacing: .04em; }
+
+.r-section { margin: 0 0 32px; }
+
+/* 2. "Why you got this": a white sheet, like a filled-in form. The verdict
+   line first, then the exhibits: the player's own answers, each tagged with
+   a letter in the type's colour. */
+.verdict {
+  margin: 0 0 32px;
+  padding: 20px 18px 18px;
+  background: var(--sheet);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 36px -28px rgba(28, 37, 65, .45);
+}
+.verdict-why {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+html[lang^="zh"] .verdict-why { font-size: 18px; line-height: 1.65; }
+.exhibits-lead {
+  margin: 18px 0 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.exhibits { list-style: none; margin: 0; padding: 0; }
+.exhibit {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--rule);
+}
+.exhibit-tag {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 2px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1;
+}
+.exhibit-meta {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.exhibit-text {
+  margin: 1px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+/* Chinese: break only where app.js put a break point (after "，" and so on),
+   as on the question screen; overflow-wrap is the safety net. */
+html[lang^="zh"] .exhibit-text { word-break: keep-all; overflow-wrap: anywhere; }
+.exhibit-none {
+  margin: 8px 0 0;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--rule);
+  font-weight: 600;
+}
+.verdict-match {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.verdict-match strong { color: var(--ink); margin-right: 4px; }
+/* How many "Not sure" answers there were: a footnote to the verdict, so it
+   sits under a dashed rule in small soft type and never competes with it. */
+.verdict-unsure {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+
+/* 3. The roast */
+.roast {
+  margin: 0 0 32px;
+  font-size: 20px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+html[lang^="zh"] .roast { font-size: 19px; line-height: 1.75; }
+
+/* 4. Telltale signs: a short checklist with type-coloured boxes */
+.signs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.signs li {
+  position: relative;
+  padding-left: 28px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.signs li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .25em;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--type-bg);
+}
+
+/* A type code as a small coloured label (secondary leaning and pairs) */
+.chip {
+  display: inline-block;
+  flex: none;
+  padding: 4px 9px 3px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.traits {
+  margin: 0 0 24px;
+  display: grid;
+  gap: 12px;
+}
+.traits div {
+  padding: 14px 16px;
+  background: var(--sheet);
+  border-radius: var(--radius);
+}
+.traits dt { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.traits dd { margin: 2px 0 0; font-weight: 600; }
+
+/* "Your AI says": a chat bubble in the type's colour */
+.ai-says { margin: 0 0 32px; }
+.ai-says figcaption { margin-bottom: 8px; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.bubble {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 6. Section by section. Each statement is a square; mild ones are small,
+   extreme ones big, so the weighting is visible. Filled = admitted. */
+.dims-note { margin: -4px 0 14px; font-size: 14px; color: var(--ink-soft); text-wrap: pretty; }
+/* On a preview or peek: says whose answers these are (the reads are hidden). */
+.dims-sample { margin: -6px 0 14px; font-size: 14px; font-weight: 700; }
+.dims { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.dim-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dim-name { font-weight: 700; }
+.dim-tag {
+  padding: 1px 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.dim-tag.is-lead { background: var(--type-bg); color: var(--type-fg); }
+.dim-meta {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dim-squares { display: flex; align-items: flex-end; gap: 4px; }
+.dim-squares i {
+  display: block;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  opacity: .35;
+}
+.dim-squares i.w1 { width: 12px; height: 12px; border-radius: 3px; }
+.dim-squares i.w2 { width: 16px; height: 16px; }
+.dim-squares i.w3 { width: 21px; height: 21px; border-radius: 5px; }
+.dim-squares i.on { background: var(--ink); opacity: 1; }
+/* The lead section's squares take the type's colour, outlined in ink */
+.dim-row.is-lead .dim-squares i.on { background: var(--type-bg); }
+.dim-read { margin: 8px 0 0; font-size: 16px; line-height: 1.45; text-wrap: pretty; }
+
+/* 7. The other leaning */
+.secondary-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.secondary-line { margin: 0; font-weight: 600; text-wrap: pretty; }
+.btn-see { min-height: 40px; font-size: 15px; }
+
+/* 8. Gets on with / clashes with: two tappable cards */
+.pairs { display: grid; gap: 12px; }
+.pair {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 44px 16px 16px;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background: var(--sheet);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms var(--spring), border-color 120ms;
+}
+.pair:hover { border-color: var(--ink); }
+.pair:active { transform: scale(.98); }
+.pair-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+html[lang^="zh"] .pair-kicker { font-size: 14px; letter-spacing: .04em; }
+.pair-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; } /* chips line up even when a name wraps */
+.pair-name { font-weight: 700; line-height: 1.3; }
+.pair-line { font-size: 15px; line-height: 1.45; color: var(--ink); text-wrap: pretty; }
+.pair-go {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* 1b. Right under the card: Save image full width on top; Copy link and
+   Share share the row below. Saving the card is the main action, so it sits
+   where a phone user still is, not 3,000 px further down. */
+.result-actions { margin: 10px 0 0; }
+.actions { display: grid; gap: 10px; width: 100%; }
+
+/* 9. The end of the page: Start over, then "How this is scored" */
+.result-end { margin: 8px 0 16px; }
+.actions .btn { width: 100%; }
+.actions-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; }
+
+/* "How this is scored": closed by default */
+.how {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius);
+}
+.how summary {
+  min-height: 24px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.how ol { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 8px; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
+
+/* Peeking at another type: a dark bar on top with the way back. It sticks
+   to the top of the window, so the way back is never far. */
+.peek-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 10px 10px 16px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+}
+.peek-note { flex: 1; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; text-wrap: balance; }
+.btn-peek-back { flex: none; min-height: 44px; padding: 0 16px; font-size: 15px; background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.peek-back-bottom { margin: 8px 0 24px; background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+@media (min-width: 600px) {
+  .pairs { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 900px) {
+  .result {
+    display: grid;
+    grid-template-columns: 440px 1fr;
+    gap: 64px;
+    align-items: start;
+    padding-top: 24px;
+  }
+  .peek-bar { grid-column: 1 / -1; margin: 0; position: static; }
+  .result-left { position: sticky; top: 24px; }
+  /* Card plus buttons are about 720 px tall: on a short window pinning them
+     would hide the buttons, so they scroll with the page instead. */
+  @media (max-height: 760px) { .result-left { position: static; } }
+  .result-body { margin-top: 12px; }
+  .traits { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- Saved-image sheet (phones and in-app browsers) ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) var(--gutter) max(16px, env(safe-area-inset-bottom));
+  background: rgba(28, 37, 65, .96);
+  animation: screen-in 160ms ease-out both;
+}
+.overlay-inner {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 420px;
+}
+.overlay-img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(100vh - 170px);
+  border-radius: 12px;
+  -webkit-touch-callout: default;   /* keep iOS long-press "Save to Photos" */
+}
+.overlay-hint { margin: 0; color: var(--paper); font-weight: 700; text-align: center; }
+.overlay .btn-primary { background: var(--paper); color: var(--ink); border-color: var(--paper); min-width: 140px; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 30;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+  font-size: 15px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 160ms, transform 260ms var(--spring);
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Reduced motion: keep everything, drop the movement ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}

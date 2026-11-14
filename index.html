@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#E8ECF1">
+  <title>AI Purity Test</title>
+  <meta name="description" content="Fifty yes-or-no statements about what you have done with AI. Get a purity score and a type. Zero science.">
+  <!-- Empty icon: stops the browser asking the server for a favicon.ico that does not exist -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <!-- Product name; filled in by app.js from content.js -->
+    <p class="brand" id="brand"></p>
+    <button class="lang-toggle" id="langToggle" type="button"></button>
+  </header>
+
+  <!-- Every screen (landing, questions, result) is rendered in here by app.js -->
+  <main id="app" class="app" tabindex="-1">
+    <noscript><p class="load-error">This quiz needs JavaScript. 这个测试需要开启 JavaScript。</p></noscript>
+  </main>
+
+  <footer class="site-footer">
+    <p id="footerNote"></p>
+  </footer>
+
+  <!-- Short confirmations ("Link copied"); role=status makes screen readers announce them -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Order matters: content first, then the scoring rules, then the UI. -->
+  <script src="content.js"></script>
+  <script src="scoring.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
