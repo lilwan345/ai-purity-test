@@ -9,7 +9,8 @@
  * Statement ids by dimension (level = position inside the dimension):
  *   school s01-s10   work s11-s20   heart s21-s30   brain s31-s40   bond s41-s50
  *   Levels 1-4 are mild (1 point), 5-7 medium (2 points), 8-10 extreme (3 points).
- *   s30, s49 and s50 carry the soulmate flag.
+ *   s30, s49 and s50 carry the soulmate flag (big news first, hurt by a new
+ *   chat's greeting, asked if it would miss me).
  *
  * `expect` is what the current rules give; `why` is the human judgement of
  * why that is the right answer for this person.
@@ -29,7 +30,7 @@ function range(from, to) {
 var PERSONAS = [
   {
     name: 'Tried it twice',
-    who: 'Summarized one reading, asked for one tip calculation.',
+    who: 'Read one AI summary instead of the reading, asked what date next Friday is.',
     ids: ids([1, 32]),
     expect: { typeId: 'untouched', secondaryTypeId: null },
     why: 'Two mild things out of fifty is almost nothing.'
@@ -43,42 +44,42 @@ var PERSONAS = [
   },
   {
     name: 'One extreme confession',
-    who: 'Admitted only "asked AI what my own opinion was".',
+    who: 'Admitted only "asked AI if I\'m an introvert and trusted it".',
     ids: ids([40]),
     expect: { typeId: 'brain_lite', secondaryTypeId: null },
     why: 'One extreme confession is not "untouched", but one statement is not deep either.'
   },
   {
     name: 'Study-only student',
-    who: 'Uses AI for coursework up to rehearsing office hours; thanks it once.',
+    who: 'Uses AI for coursework up to studying with it until 3 a.m.; thanks it once.',
     ids: ids(range(1, 8).concat([41])),
     expect: { typeId: 'school_deep', secondaryTypeId: null },
     why: 'Eight school statements including an extreme one; nothing else close.'
   },
   {
     name: 'Reading-summary skimmer',
-    who: 'Summaries before section, the 3 a.m. panic, one text and one thank-you.',
+    who: 'An AI summary instead of the reading, the professor-email check, the YouTube rescue, one text and one thank-you.',
     ids: ids([1, 2, 5, 21, 41]),
     expect: { typeId: 'school_lite', secondaryTypeId: null },
     why: 'School leads clearly, but only with mild-to-medium statements.'
   },
   {
     name: 'Emails and applications',
-    who: 'Polishes emails and the resume, asks what a job title means; one tip question.',
+    who: 'Polishes emails, asks about sign-offs, dress codes and a $4.99 charge, adds up takeout, forgets their own cover letter; one calendar question.',
     ids: ids([11, 12, 13, 14, 16, 18, 32]),
     expect: { typeId: 'work_lite', secondaryTypeId: null },
     why: 'All the weight is in Adulting, but the deep end (levels 8-10) is barely touched.'
   },
   {
     name: 'Adulting on autopilot',
-    who: 'Has done every Adulting statement, including reading AI replies to customer service.',
+    who: 'Has done every Adulting statement, including letting two chatbots settle things with the landlord.',
     ids: ids(range(11, 20).concat([1, 21])),
     expect: { typeId: 'work_deep', secondaryTypeId: null },
     why: 'A full Adulting section with every extreme statement.'
   },
   {
-    name: 'Texting a crush',
-    who: 'Decodes "haha ok", lets AI write the reply, edits texts to a crush, asks "am I the problem?".',
+    name: 'Group-chat detective',
+    who: 'Decodes "haha ok", asks for a gift idea, asks who in the group chat means them, settles a fight with a screenshot.',
     ids: ids([21, 23, 25, 28, 41]),
     expect: { typeId: 'heart_lite', secondaryTypeId: null },
     why: 'Heart leads, but one extreme statement plus mild ones is not deep.'
@@ -106,21 +107,21 @@ var PERSONAS = [
   },
   {
     name: 'The polite one',
-    who: 'Thanks it, apologizes to it, gloats after winning an argument, apologizes after snapping; one reading summary.',
+    who: 'Thanks it, apologizes before a dumb question, tells it "no rush", softens notes to spare its feelings; one reading summary.',
     ids: ids([1, 41, 42, 44, 45]),
     expect: { typeId: 'bond_lite', secondaryTypeId: null },
     why: 'Manners towards the chatbot, without the extreme attachment statements.'
   },
   {
     name: 'Attached to it',
-    who: 'Nicknames it, feels like cheating on it, keeps the finals chat.',
+    who: 'Reports back to it after a problem is solved, feels like cheating on it, keeps the finals chat.',
     ids: ids(range(41, 48).concat([21])),
     expect: { typeId: 'bond_deep', secondaryTypeId: null },
     why: 'Eight Bond statements including an extreme one; stops just short of the soulmate trio.'
   },
   {
     name: 'The Plus One',
-    who: 'Told it big news first, hurt when it forgot, says goodnight; a bit of politeness.',
+    who: 'Told it big news first, hurt by a new chat\'s "How can I help you today?", asked if it would miss them; a bit of politeness.',
     ids: ids([30, 49, 50, 41, 43, 21]),
     expect: { typeId: 'soulmate', secondaryTypeId: 'bond_deep' },
     why: 'All three soulmate statements. Two of them are extreme Bond statements, so the leaning underneath is the deep Bond type.'
@@ -176,14 +177,14 @@ var PERSONAS = [
   },
   {
     name: 'Three heavy Brain confessions',
-    who: 'Dinner, the outage, the bad dream and asking AI for their own opinion.',
+    who: 'The egg, having AI approve an opinion, the movie verdict and the introvert question.',
     ids: ids([31, 38, 39, 40]),
     expect: { typeId: 'brain_deep', secondaryTypeId: null },
     why: 'Only 10 points, but three extreme Brain statements. Two or more extreme statements in a section make it the deep type.'
   },
   {
-    name: 'One medium worry',
-    who: 'Only asked a chatbot at 3 a.m. whether it was too late to start studying.',
+    name: 'One medium confession',
+    who: 'Only sat through four AI explanations, then got it from YouTube.',
     ids: ids([5]),
     expect: { typeId: 'school_lite', secondaryTypeId: null },
     why: 'One medium statement already points somewhere, but one answer caps the match at 60.'

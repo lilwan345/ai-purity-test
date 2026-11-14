@@ -5,3 +5,4 @@ require('./scoring.test.js');
 require('./content.test.js');
 require('./personas.test.js');
 require('./answers.test.js');
+require('./gallery.test.js');

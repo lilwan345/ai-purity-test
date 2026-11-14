@@ -4,7 +4,9 @@
  * from `state` by a render function.
  *
  * Screens: landing -> question 1..50 (one statement per screen) -> result
- * URL params: ?lang=en|zh  ?preview=<typeId>  ?from=<typeId>
+ * On top of any screen: "all types" (the grid of the 14 cards), and a peek
+ * at one type's full result (see "Moving between layers" below).
+ * URL params: ?lang=en|zh  ?preview=<typeId>  ?from=<typeId>  ?types=1
  */
 (function () {
   'use strict';
@@ -74,7 +76,10 @@
     from: typesById[params.get('from')] ? params.get('from') : null,
     // Set while the person taps a paired or secondary type on the result
     // screen to look at it. Not saved: a refresh goes back to their own result.
-    peek: null
+    peek: null,
+    // True while the "all types" grid shows. Not saved either; the address
+    // bar carries ?types=1 instead, so a refresh reopens the grid.
+    gallery: params.get('types') === '1'
   };
 
   // The ids answered "yes": this is what scoring.score counts. "Not sure"
@@ -116,6 +121,13 @@
       if (['landing', 'question', 'result'].includes(saved.screen)) state.screen = saved.screen;
       if (Number.isInteger(saved.index) && saved.index >= 0 && saved.index < ORDER.length) state.index = saved.index;
     } catch (e) { /* nothing saved or storage blocked */ }
+  }
+
+  // localStorage holds exactly one thing: whether the hidden type has been
+  // earned on this device (scoring.hiddenUnlocked / rememberHiddenUnlocked).
+  // Even reaching window.localStorage can throw when storage is blocked.
+  function deviceStorage() {
+    try { return window.localStorage; } catch (e) { return null; }
   }
 
   // ---------------------------------------------------------------------
@@ -180,18 +192,23 @@
     toastTimer = setTimeout(() => node.classList.remove('is-on'), 2600);
   }
 
+  // The current address with some parameters changed (null removes one).
+  function urlWith(changes) {
+    const next = new URLSearchParams(location.search);
+    Object.keys(changes).forEach((key) => {
+      if (changes[key] === null) next.delete(key);
+      else next.set(key, changes[key]);
+    });
+    const query = next.toString();
+    return location.pathname + (query ? '?' + query : '') + location.hash;
+  }
+
   // Rewrites the address bar without reloading (keeps links and refreshes honest).
   function setUrlParams(changes) {
     try {
-      const next = new URLSearchParams(location.search);
-      Object.keys(changes).forEach((key) => {
-        if (changes[key] === null) next.delete(key);
-        else next.set(key, changes[key]);
-      });
-      const query = next.toString();
-      // Keep history.state: it marks a "peek" entry (see peekAt), and the
-      // language toggle must not erase that mark.
-      history.replaceState(history.state, '', location.pathname + (query ? '?' + query : '') + location.hash);
+      // Keep history.state: it records which layers an entry shows (see
+      // "Moving between layers"), and the language toggle must not erase that.
+      history.replaceState(history.state, '', urlWith(changes));
     } catch (e) { /* some file:// setups refuse; not important */ }
   }
 
@@ -215,17 +232,21 @@
       el('span', { class: 'visually-hidden', text: ' – ' + t('langSwitchLabel') })
     );
 
+    // A peek or the grid sits on top of whatever screen is underneath.
+    const layer = currentLayer();
     let screen;
-    if (state.screen === 'question') screen = renderQuestion(opts.enter);
+    if (layer === 'peek') screen = renderResult();
+    else if (layer === 'gallery') screen = renderGallery();
+    else if (state.screen === 'question') screen = renderQuestion(opts.enter);
     else if (state.screen === 'result') screen = renderResult();
     else screen = renderLanding();
 
-    const onQuestion = state.screen === 'question';
+    const onQuestion = layer === 'base' && state.screen === 'question';
     app.classList.toggle('is-wide', !onQuestion);
     document.body.classList.toggle('layout-wide', !onQuestion);
     document.body.classList.toggle('on-question', onQuestion);
     // The landing page already shows the name huge, so the small one hides there.
-    document.body.classList.toggle('on-landing', state.screen === 'landing');
+    document.body.classList.toggle('on-landing', layer === 'base' && state.screen === 'landing');
     app.replaceChildren(screen);
 
     if (opts.moveFocus) {
@@ -246,7 +267,9 @@
   // ---------- Landing ----------
   // Which type codes appear as stickers on the landing page, and their tilt.
   // Six stickers fill two even rows on a phone and two on a laptop.
-  const TEASER_TYPES = ['bond_deep', 'work_deep', 'brain_lite', 'soulmate', 'school_lite', 'heart_deep'];
+  // Never the hidden type (soulmate): the grid one tap away shows it locked,
+  // so a sticker with its code and colour would give the secret away.
+  const TEASER_TYPES = ['bond_deep', 'work_deep', 'brain_lite', 'heart_lite', 'school_lite', 'heart_deep'];
   const TEASER_TILTS = [-6, 4, -2, 7, -4, 3];
 
   function sticker(type, extraClass, tilt, delay) {
@@ -290,7 +313,10 @@
 
     const sheet = el('figure', { class: 'sticker-sheet' }, [
       el('ul', { 'aria-hidden': 'true' }, stickers),
-      el('figcaption', { text: t('typesTeaser') })
+      el('figcaption', {}, [
+        el('span', { class: 'teaser-text', text: t('typesTeaser') }),
+        typesLink('types-landing')
+      ])
     ]);
 
     return el('section', { class: 'screen landing' }, [copy, sheet]);
@@ -522,7 +548,8 @@
   // Uppercase "Y" / "N" are still accepted: Caps Lock gives those without
   // setting shiftKey.
   document.addEventListener('keydown', (event) => {
-    if (state.screen !== 'question') return;
+    // Only on a question, and not while "all types" sits on top of it.
+    if (state.screen !== 'question' || currentLayer() !== 'base') return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing) return;
     if (document.querySelector('.overlay')) return;
     const key = event.key;
@@ -582,7 +609,9 @@
   }
   const SAMPLE_ANSWERS = {
     untouched:   [1, 32],
-    merged:      [].concat(numbersFrom(1, 9), numbersFrom(11, 19), numbersFrom(21, 28), [30], numbersFrom(31, 38), numbersFrom(41, 50)),
+    // Leaves out s30 on purpose: with all three hidden statements the sample
+    // would show the locked hidden type as its "Also" chip.
+    merged:      [].concat(numbersFrom(1, 9), numbersFrom(11, 19), numbersFrom(21, 28), numbersFrom(31, 38), numbersFrom(41, 50)),
     balanced:    [1, 2, 3, 5, 11, 12, 13, 15, 21, 22, 23, 24, 31, 32, 33, 35, 41, 42, 43, 44],
     soulmate:    [30, 49, 50, 41, 43, 21],
     school_lite: [1, 2, 3, 4, 5, 6, 11, 21, 22, 23, 24, 25, 41],
@@ -624,59 +653,184 @@
     return t('bandNone');
   }
 
-  // ---------- Peeking at another type from the result screen ----------
-  // Tapping a paired or secondary type shows that type's full result with
-  // sample answers. It adds one browser-history entry, so the phone's back
-  // gesture (or the "Back to my result" button) returns to the person's own
-  // result, at the spot they left.
-  let peekReturnY = 0;
+  // ---------- Moving between layers: the screen, all types, a peek ----------
+  /*
+   * Up to three layers sit on top of each other:
+   *   base:    the current screen (landing, a question or the result)
+   *   gallery: "all types", the grid of the 14 cards (state.gallery)
+   *   peek:    one type's full result, played by its sample player
+   *            (state.peek), opened from the result screen or from the grid
+   * Each step up adds one browser-history entry, so the phone's back gesture
+   * and the in-page back buttons both step down again, to the same scroll
+   * position and the same button that was tapped. Peeking from one type to
+   * another (a pairing card inside a peek) replaces the entry instead, so
+   * one back always leaves the peek.
+   *
+   * history.state = { aptDepth, aptGallery, aptPeek } for each entry.
+   * aptDepth counts the entries this page pushed below it. At depth 0 there
+   * is nothing of ours to go back to (the grid was opened straight from
+   * ?types=1), so the in-page back closes the layer in place instead of
+   * leaving the site.
+   */
+  const LAYER_RANK = { base: 0, gallery: 1, peek: 2 };
+  // Where each lower layer was left: { y: scroll position, nav: the
+  // data-nav key of the button that opened the next layer }.
+  const layerMemory = {};
+  // True between an in-page back and the popstate it causes (see below).
+  let steppingBack = false;
+
+  function currentLayer() {
+    if (state.peek) return 'peek';
+    if (state.gallery) return 'gallery';
+    return 'base';
+  }
+
+  function historyDepth() {
+    const entry = history.state;
+    return entry && Number.isInteger(entry.aptDepth) ? entry.aptDepth : 0;
+  }
+
+  function historyEntry(depth) {
+    return { aptDepth: depth, aptGallery: state.gallery, aptPeek: state.peek };
+  }
+
+  // While the grid (or a type opened from it) shows, the address carries
+  // ?types=1, so a refresh or a copied address reopens the grid.
+  function layerUrl() {
+    return urlWith({ types: state.gallery ? '1' : null });
+  }
+
+  function navKeyOf(node) {
+    const owner = node && node.closest ? node.closest('[data-nav]') : null;
+    return owner ? owner.getAttribute('data-nav') : null;
+  }
+
+  // Shows the given layers. Going up, the layer left behind is remembered
+  // and the new one starts at the top with focus on its heading (render
+  // does that). Going down, the remembered scroll position comes back and
+  // focus returns to the button that opened the layer above.
+  function showLayers(gallery, peek) {
+    const before = currentLayer();
+    const leaving = { y: window.scrollY, nav: navKeyOf(document.activeElement) };
+    state.gallery = gallery;
+    state.peek = peek;
+    const after = currentLayer();
+    if (LAYER_RANK[after] > LAYER_RANK[before]) layerMemory[before] = leaving;
+    render({ moveFocus: true });
+    if (LAYER_RANK[after] < LAYER_RANK[before]) {
+      const saved = layerMemory[after];
+      if (!saved) return;
+      window.scrollTo(0, saved.y);
+      const opener = saved.nav && app.querySelector('[data-nav="' + saved.nav + '"]');
+      if (opener) opener.focus({ preventScroll: true });
+    }
+  }
+
+  // One layer up, with its own history entry. The entry is pushed BEFORE
+  // the new layer renders: pushing stores the current scroll position in
+  // the entry being left, and the browser puts that position back when the
+  // person comes back to it. Pushed after the render, it would store the top.
+  function pushLayers(gallery, peek) {
+    const entry = { aptDepth: historyDepth() + 1, aptGallery: gallery, aptPeek: peek };
+    try {
+      history.pushState(entry, '', urlWith({ types: gallery ? '1' : null }));
+    } catch (e) { /* file:// may refuse; in-page back still works */ }
+    showLayers(gallery, peek);
+  }
+
+  // One layer down: the in-page back buttons.
+  function closeLayer() {
+    if (historyDepth() > 0) {
+      steppingBack = true;
+      history.back(); // the popstate handler below does the rest
+      return;
+    }
+    // Opened straight from ?types=1: nothing of ours behind it, so step
+    // down in place and rewrite this entry.
+    showLayers(state.peek ? state.gallery : false, null);
+    try { history.replaceState(historyEntry(0), '', layerUrl()); } catch (e) { /* not important */ }
+  }
+
+  function openGallery() {
+    if (currentLayer() === 'gallery') return;
+    pushLayers(true, null);
+  }
 
   // The type the result screen shows when nobody is peeking.
   function baseTypeId() {
     return state.preview || currentScore().typeId;
   }
 
+  // The player's own type, when the screen underneath is their real result
+  // (not a ?preview= sample). The grid marks it "you".
+  function ownTypeId() {
+    return state.screen === 'result' && !state.preview ? currentScore().typeId : null;
+  }
+
+  // May the hidden type show its code and name? Yes once earned on this
+  // device, or right now if the player's own result underneath earned it
+  // (so blocked storage cannot hide it). Used by the grid and the pairing
+  // cards, so neither can be a way around the lock.
+  function hiddenOpenNow() {
+    return scoring.hiddenUnlocked(deviceStorage()) ||
+      (ownTypeId() !== null && scoring.earnedHidden(currentScore()));
+  }
+
   function peekAt(typeId) {
     if (!typesById[typeId]) return;
-    if (state.peek && typeId === baseTypeId()) { endPeek(); return; }
-    try {
-      if (state.peek) history.replaceState({ aptPeek: typeId }, '');
-      else history.pushState({ aptPeek: typeId }, '');
-    } catch (e) { /* some file:// setups refuse; the in-page Back still works */ }
-    if (!state.peek) peekReturnY = window.scrollY;
+    // The hidden type cannot be opened before it is earned, whatever links to
+    // it. (?preview=soulmate, for QA, does not go through here.)
+    if (typeId === 'soulmate' && !hiddenOpenNow()) return;
+    // Peeking from the result screen at the type underneath: just go back to it.
+    if (state.peek && !state.gallery && state.screen === 'result' && typeId === baseTypeId()) { closeLayer(); return; }
+    if (!state.peek) { pushLayers(state.gallery, typeId); return; }
     state.peek = typeId;
     render({ moveFocus: true });
-  }
-
-  function endPeek() {
-    if (history.state && history.state.aptPeek) {
-      history.back(); // the popstate handler below does the rest
-      return;
-    }
-    leavePeek();
-  }
-
-  function leavePeek() {
-    state.peek = null;
-    render({ moveFocus: true });
-    // Going back restores the URL of the entry before the peek, which may
-    // still carry the old ?lang= if the language was switched while peeking.
-    setUrlParams({ lang: state.lang });
-    window.scrollTo(0, peekReturnY);
+    try { history.replaceState(historyEntry(historyDepth()), '', layerUrl()); } catch (e) { /* not important */ }
   }
 
   window.addEventListener('popstate', (event) => {
-    const target = event.state && event.state.aptPeek;
-    if (state.screen !== 'result') return;
-    if (target && typesById[target]) {
-      if (target === state.peek) return;
-      state.peek = target;
-      render({ moveFocus: true });
-      setUrlParams({ lang: state.lang }); // same reason as in leavePeek
-    } else if (state.peek) {
-      leavePeek();
+    const entry = event.state || {};
+    const gallery = Boolean(entry.aptGallery);
+    const peek = typesById[entry.aptPeek] ? entry.aptPeek : null;
+    if (gallery === state.gallery && peek === state.peek) {
+      // An in-page back landed on an entry that shows the same thing (this
+      // happens after a refresh, which drops a peek but keeps its entry):
+      // keep going, so the button never seems to do nothing.
+      if (steppingBack && historyDepth() > 0) { history.back(); return; }
+      steppingBack = false;
+      return;
     }
+    steppingBack = false;
+    showLayers(gallery, peek);
+    // The entry's address may still carry an older ?lang= if the language
+    // was switched further up.
+    setUrlParams({ lang: state.lang });
   });
+
+  // Label of a button that returns to the screen underneath everything.
+  function baseBackLabel() {
+    if (state.screen === 'result') {
+      return state.preview ? t('peekBackTo', { code: typesById[state.preview].code }) : t('peekBack');
+    }
+    if (state.screen === 'question') return t('typesBackQuiz');
+    return t('typesBackHome');
+  }
+
+  // A link that opens the grid. A real link (?types=1), so it can also be
+  // opened in a new tab; a plain click opens the grid in place.
+  function typesLink(navKey) {
+    return el('a', {
+      class: 'types-link',
+      href: urlWith({ types: '1', lang: state.lang }),
+      'data-nav': navKey,
+      onclick: (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        event.preventDefault();
+        openGallery();
+      }
+    }, [t('typesLink'), el('span', { class: 'types-link-arrow', 'aria-hidden': 'true', text: '→' })]);
+  }
 
   /*
    * The result screen, top to bottom (one column on a phone; on a laptop the
@@ -704,6 +858,9 @@
     const type = typesById[typeId];
     const model = buildCardModel(type, result);
     const isSample = Boolean(sampleType);
+    // A real result that met the hidden type unlocks its card in the grid,
+    // on this device, for good. Previews and peeks never do.
+    if (!isSample && scoring.earnedHidden(result)) scoring.rememberHiddenUnlocked(deviceStorage());
 
     document.title = type.code + ' ' + L(type.name) + ' | ' + t('appName');
 
@@ -735,7 +892,8 @@
       state.peek
         ? renderPeekBack('peek-back-bottom')
         : el('div', { class: 'result-end' }, [
-          el('button', { class: 'btn-text', type: 'button', onclick: startOver }, [t('startOver')])
+          el('button', { class: 'btn-text', type: 'button', onclick: startOver }, [t('startOver')]),
+          typesLink('types-end')
         ]),
       renderHowScored()
     ]);
@@ -962,7 +1120,7 @@
         chip(sec),
         el('div', {}, [
           el('p', { class: 'secondary-line' }, keepWhole(line, [sec.code, L(sec.name)])),
-          el('button', { class: 'btn-text btn-see', type: 'button', onclick: () => peekAt(sec.id) },
+          el('button', { class: 'btn-text btn-see', type: 'button', 'data-nav': 'see-' + sec.id, onclick: () => peekAt(sec.id) },
             [t('seeType', { code: sec.code }), el('span', { 'aria-hidden': 'true', text: ' →' })])
         ])
       ])
@@ -974,7 +1132,20 @@
     function pair(kind, otherId, line) {
       const other = typesById[otherId];
       if (!other) return null;
-      return el('button', { class: 'pair', type: 'button', onclick: () => peekAt(otherId) }, [
+      // MY-BOT "gets on with" the hidden type. Until it is earned, that card
+      // looks like the locked grid card: not a button, no code, no name.
+      if (otherId === 'soulmate' && !hiddenOpenNow()) {
+        return el('div', { class: 'pair is-locked' }, [
+          el('span', { class: 'pair-kicker', text: kind }),
+          el('span', { class: 'pair-head' }, [
+            el('span', { class: 'chip chip-locked', 'aria-hidden': 'true', text: '???' }),
+            el('span', { class: 'pair-name', text: t('typesHidden') })
+          ]),
+          el('span', { class: 'visually-hidden', text: t('typesLocked') + '. ' }),
+          el('span', { class: 'pair-line' }, statementPieces(t('typesLockedHint')))
+        ]);
+      }
+      return el('button', { class: 'pair', type: 'button', 'data-nav': 'pair-' + otherId, onclick: () => peekAt(otherId) }, [
         el('span', { class: 'pair-kicker', text: kind }),
         el('span', { class: 'pair-head' }, [chip(other), el('span', { class: 'pair-name', text: L(other.name) })]),
         el('span', { class: 'pair-line', text: L(line) }),
@@ -984,7 +1155,13 @@
     const best = pair(t('bestWithTitle'), type.bestWith, type.bestWithLine);
     const clash = pair(t('clashWithTitle'), type.clashWith, type.clashWithLine);
     if (!best && !clash) return null;
-    return el('section', { class: 'r-section' }, [el('div', { class: 'pairs' }, [best, clash])]);
+    return el('section', { class: 'r-section' }, [
+      // The way to all fourteen sits just above the two pairings (not under
+      // them: the second link, next to Start over, follows right after).
+      // Left out on a peek, where the way back is the bar on top.
+      !state.peek && el('p', { class: 'types-more' }, [typesLink('types-pairs')]),
+      el('div', { class: 'pairs' }, [best, clash])
+    ]);
   }
 
   // 1b. Under the card: Save image is the main action; Copy link and Share
@@ -1026,9 +1203,111 @@
       renderPeekBack('')
     ]);
   }
+  // Opened from the grid, the way back leads to the grid; otherwise to the
+  // screen underneath (normally the player's own result).
   function renderPeekBack(extraClass) {
-    const label = state.preview ? t('peekBackTo', { code: typesById[state.preview].code }) : t('peekBack');
-    return el('button', { class: 'btn btn-peek-back ' + extraClass, type: 'button', onclick: endPeek }, [label]);
+    const label = state.gallery ? t('typesBack') : baseBackLabel();
+    return el('button', { class: 'btn btn-peek-back ' + extraClass, type: 'button', onclick: closeLayer }, [label]);
+  }
+
+  // ---------- All types: the grid of the 14 cards ----------
+  /*
+   * Each card is a small copy of the result card: the type's colour, a
+   * small top line (which section and depth, or the rule for the four
+   * special types), the code as large as the card allows, the name and the
+   * tagline. Tapping one opens that type as a peek; the player's own card
+   * (marked "you") goes back to their real result instead. The hidden type
+   * stays a locked card until it has been earned on this device.
+   *
+   * Order (scoring.galleryOrder): the ten section types, light then deep
+   * per section, so on a phone each row is one section and on a laptop the
+   * light ones run along the top row and the deep ones under them; then the
+   * four special types, the hidden one last.
+   */
+  // Largest code size on a grid card, in % of the card's inner width. Short
+  // codes ("404") would otherwise fill half the card.
+  const TILE_CODE_MAX = 34;
+
+  function renderGallery() {
+    const order = scoring.galleryOrder();
+    const own = ownTypeId();
+    const hiddenOpen = hiddenOpenNow();
+
+    document.title = t('typesTitle') + ' | ' + t('appName');
+
+    function group(title, ids, extraClass) {
+      return el('section', { class: 'types-group ' + extraClass }, [
+        kicker(title),
+        el('ul', { class: 'types-grid' }, ids.filter((id) => typesById[id]).map((id) =>
+          el('li', {}, [typeTile(typesById[id], id === own, hiddenOpen)])))
+      ]);
+    }
+
+    return el('section', { class: 'screen types' }, [
+      el('div', { class: 'types-head' }, [
+        galleryBack('types-back-top'),
+        el('h1', { class: 'types-title', tabindex: '-1', 'data-focus': true, text: t('typesTitle') }),
+        el('p', { class: 'types-intro', text: t('typesIntro') })
+      ]),
+      group(t('typesSections'), order.sections, 'is-sections'),
+      group(t('typesSpecial'), order.special, 'is-special'),
+      galleryBack('types-back-bottom')
+    ]);
+  }
+
+  function galleryBack(extraClass) {
+    return el('button', { class: 'btn btn-ghost types-back ' + extraClass, type: 'button', onclick: closeLayer }, [
+      el('span', { 'aria-hidden': 'true', text: '←' }),
+      baseBackLabel()
+    ]);
+  }
+
+  // The small line at the top of a grid card.
+  function tileLabel(type) {
+    const dim = dimOfType(type.id);
+    if (dim) {
+      const depth = type.id.slice(-5) === '_deep' ? t('typesDeep') : t('typesLite');
+      return L(dimsByKey[dim].name) + ' · ' + depth;
+    }
+    if (type.id === 'untouched') return t('typesRuleUntouched');
+    if (type.id === 'balanced') return t('typesRuleBalanced');
+    if (type.id === 'merged') return t('typesRuleMerged');
+    return t('typesHidden');
+  }
+
+  function typeTile(type, mine, hiddenOpen) {
+    if (type.id === 'soulmate' && !hiddenOpen) {
+      // Locked: no code, no name, no colour. Not a button: nothing to open.
+      return el('div', { class: 'tcard is-locked' }, [
+        el('span', { class: 'tcard-top' }, [el('span', { text: t('typesHidden') })]),
+        el('span', { class: 'tcard-code', 'aria-hidden': 'true', text: '???' }),
+        el('span', { class: 'visually-hidden', text: t('typesLocked') + '. ' }),
+        el('span', { class: 'tcard-hint' }, statementPieces(t('typesLockedHint')))
+      ]);
+    }
+    // The code is fitted with the same measuring as the big card: as large
+    // as the card's inner width allows (96%, a little safety margin).
+    const code = fitText(type.code, 800, fontStacks().display, TILE_CODE_MAX, 96, 1);
+    return el('button', {
+      class: 'tcard' + (mine ? ' is-mine' : ''),
+      type: 'button',
+      'data-nav': 'type-' + type.id,
+      style: '--type-bg:' + type.color + ';--type-fg:' + textColorOn(type.color),
+      onclick: () => (mine ? closeLayer() : peekAt(type.id))
+    }, [
+      el('span', { class: 'tcard-top' }, [
+        el('span', { class: 'tcard-label', text: tileLabel(type) }),
+        mine && el('span', { class: 'tcard-you', text: t('typesYou') })
+      ]),
+      el('span', {
+        class: 'tcard-code',
+        style: 'font-size:calc(' + code.size.toFixed(2) + ' * 1cqw)'
+      }, [type.code]),
+      // statementPieces keeps Chinese from breaking mid-word and keeps
+      // "Cloud-Hosted" together in English (see its comment).
+      el('span', { class: 'tcard-name' }, statementPieces(L(type.name))),
+      el('span', { class: 'tcard-tagline' }, statementPieces(L(type.tagline)))
+    ]);
   }
 
   function startOver() {
@@ -1037,7 +1316,8 @@
     state.preview = null;
     state.from = null;
     state.peek = null;
-    setUrlParams({ preview: null, from: null });
+    state.gallery = false;
+    setUrlParams({ preview: null, from: null, types: null });
     go('landing');
   }
 
@@ -1659,13 +1939,19 @@
 
   render();
 
+  // Mark this history entry with the layers on show (see "Moving between
+  // layers"). After a refresh it keeps its depth; a peek it recorded is
+  // dropped, because a refresh never reopens a peek.
+  try { history.replaceState(historyEntry(historyDepth()), '', layerUrl()); } catch (e) { /* not important */ }
+
   // The card is measured with canvas, so it needs the display font.
   // "APT Display" is embedded in styles.css (no network) and is used where
   // Avenir Next Condensed is missing (Android, Windows). If it was not ready
-  // for the first render of a result, measure and draw the card again.
+  // for the first render of a result (or of the grid, whose codes are
+  // measured the same way), measure and draw again.
   if (document.fonts && document.fonts.load && !document.fonts.check('800 40px "APT Display"')) {
     document.fonts.load('800 40px "APT Display"', 'A0').then(() => {
-      if (state.screen === 'result') render();
+      if (state.screen === 'result' || currentLayer() !== 'base') render();
     }).catch(() => {});
   }
 })();

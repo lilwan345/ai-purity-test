@@ -1029,6 +1029,20 @@ html[lang^="zh"] .pair-kicker { font-size: 14px; letter-spacing: .04em; }
 .pair-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; } /* chips line up even when a name wraps */
 .pair-name { font-weight: 700; line-height: 1.3; }
 .pair-line { font-size: 15px; line-height: 1.45; color: var(--ink); text-wrap: pretty; }
+/* The hidden type as a pairing before it is earned: like the locked grid
+   card (dashed, no colour, not a button), so the lock holds here too. */
+.pair.is-locked {
+  padding-right: 16px;
+  border: 2px dashed var(--ink-soft);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: default;
+}
+.pair.is-locked:hover { border-color: var(--ink-soft); }
+.pair.is-locked:active { transform: none; }
+.pair.is-locked .pair-line { color: var(--ink-soft); }
+.chip-locked { border: 2px dashed var(--ink-soft); background: transparent; color: var(--ink-soft); letter-spacing: .08em; }
+html[lang^="zh"] .pair.is-locked .pair-line { word-break: keep-all; overflow-wrap: anywhere; }
 .pair-go {
   position: absolute;
   right: 16px;
@@ -1101,6 +1115,159 @@ html[lang^="zh"] .pair-kicker { font-size: 14px; letter-spacing: .04em; }
   @media (max-height: 760px) { .result-left { position: static; } }
   .result-body { margin-top: 12px; }
   .traits { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- Links that open "all types" ---------- */
+/* An underlined text link with an arrow. inline-block (not flex) so the
+   underline stays on the words: the arrow is an inline-block of its own,
+   which the underline skips. Padding keeps the tap target 44px tall. */
+.types-link {
+  display: inline-block;
+  padding: 10px 0;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.types-link-arrow { display: inline-block; margin-left: .35em; transition: transform 160ms var(--spring); }
+.types-link:hover .types-link-arrow { transform: translateX(3px); }
+
+/* Landing: under the sticker caption */
+.sticker-sheet figcaption { display: grid; justify-items: start; }
+.sticker-sheet figcaption .types-link { margin-top: 2px; font-size: 16px; }
+/* Result: just above the two pairing cards, and next to Start over */
+.types-more { margin: -10px 0 4px; }
+.result-end { display: flex; flex-wrap: wrap; align-items: center; gap: 0 28px; }
+
+/* ---------- All types: the grid of the 14 cards ---------- */
+.types { padding-top: 4px; }
+.types-head { margin: 0 0 26px; }
+.types-back { gap: 8px; min-height: 44px; padding: 0 18px; font-size: 15px; }
+.types-back-top { margin: 0 0 18px; }
+.types-back-bottom { margin: 4px 0 8px; }
+.types-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(46px, 14vw, 80px);
+  line-height: .92;
+  letter-spacing: -0.01em;
+}
+/* Same reason as the landing title: the body stack pairs Latin and CJK */
+html[lang^="zh"] .types-title { font-family: var(--font-body); font-size: clamp(40px, 12vw, 64px); line-height: 1.1; letter-spacing: -0.02em; }
+.types-intro { margin: 0; max-width: 34em; font-size: 17px; color: var(--ink-soft); text-wrap: pretty; }
+
+.types-group { margin: 0 0 30px; }
+.types-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 14px;
+}
+.types-grid li { display: flex; }   /* each card fills its grid cell */
+
+/*
+ * One grid card: a small copy of the result card, with the same colour,
+ * white die-cut edge and soft shadow. It is a size container, so the code
+ * can be sized in cqw (app.js fits it, like the big card's code). Any spare
+ * height goes above the code, so names and taglines line up along the bottom.
+ */
+.tcard {
+  container-type: inline-size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 4 / 5;          /* grows taller if the words need it */
+  padding: 10px 11px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+  box-shadow: 0 0 0 4px var(--sheet), 0 12px 22px -14px rgba(28, 37, 65, .55);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms var(--spring);
+}
+/* Lift on hover only with a real pointer: on a touch screen :hover sticks
+   after a tap, and the card would stay tilted when you come back. */
+@media (hover: hover) and (pointer: fine) {
+  .tcard:hover { transform: translateY(-2px) rotate(-.8deg); }
+}
+.tcard:active { transform: scale(.97); }
+/* The focus ring sits outside the white edge */
+.tcard:focus-visible { outline-offset: 7px; }
+.tcard-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.tcard-code {
+  display: block;
+  margin-top: auto;
+  padding-top: 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: .94;
+  white-space: nowrap;           /* font-size is set inline by app.js */
+}
+.tcard-name { display: block; margin-top: 6px; font-size: 15px; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+.tcard-tagline { display: block; margin-top: 4px; font-size: 13px; font-weight: 500; line-height: 1.35; text-wrap: pretty; }
+html[lang^="zh"] .tcard-tagline { line-height: 1.45; }
+/* Chinese on the cards breaks only where app.js (statementPieces) put a
+   <wbr>: after ，。 or 的, never mid-word. overflow-wrap is the safety net. */
+html[lang^="zh"] .tcard-name,
+html[lang^="zh"] .tcard-tagline,
+html[lang^="zh"] .tcard-hint { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* The player's own type: an ink ring outside the white edge and a "You" tag */
+.tcard.is-mine { box-shadow: 0 0 0 4px var(--sheet), 0 0 0 7px var(--ink), 0 12px 22px -14px rgba(28, 37, 65, .55); }
+.tcard-you {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* The hidden type before it is earned: no colour, a dashed outline, a
+   quiet "???" and the hint. Not a button, so it neither lifts nor presses. */
+.tcard.is-locked {
+  cursor: default;
+  border: 2px dashed var(--ink-soft);
+  background: rgba(255, 255, 255, .4);
+  color: var(--ink-soft);
+  box-shadow: none;
+}
+.tcard.is-locked:hover, .tcard.is-locked:active { transform: none; }
+.is-locked .tcard-code { font-size: 24cqw; letter-spacing: .08em; opacity: .75; }
+.tcard-hint { display: block; margin-top: 8px; font-size: 13px; font-weight: 600; line-height: 1.4; text-wrap: pretty; }
+
+/* Tablet: four across (an even number, so each section's pair stays together) */
+@media (min-width: 640px) {
+  .types-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px 18px; }
+}
+/* Laptop: five across. The section types flow down the columns, so each
+   column is one section, light on top and deep underneath. */
+@media (min-width: 900px) {
+  .types { padding-top: 16px; }
+  .types-head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 0 24px; margin-bottom: 30px; }
+  .types-back-top { grid-column: 2; grid-row: 1 / span 2; align-self: start; margin: 6px 0 0; }
+  .types-title, .types-intro { grid-column: 1; }
+  .types-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 22px 20px; }
+  .is-sections .types-grid { grid-template-rows: auto auto; grid-auto-flow: column; }
+  .tcard { padding: 12px 13px 14px; }
+  .tcard-name { font-size: 16px; }
 }
 
 /* ---------- Saved-image sheet (phones and in-app browsers) ---------- */

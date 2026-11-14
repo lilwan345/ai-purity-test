@@ -20,6 +20,7 @@ Useful URL parameters:
 | `?lang=en` / `?lang=zh` | Force a language. Default: Chinese if the browser language starts with `zh`, otherwise English. |
 | `?preview=bond_deep` | Jump straight to a type's full result, played by a sample player (for QA and screenshots). |
 | `?from=bond_deep` | Landing page says "A friend got ...". "Copy link" on a result makes this URL. |
+| `?types=1` | Opens "All 14 types", the grid of every type (see below). |
 
 ## Files
 
@@ -32,7 +33,7 @@ Useful URL parameters:
 | `app.js` | The UI: screens, answering, the result screen and card, the PNG export and sharing. Also holds `SAMPLE_ANSWERS`, the sample player for each type. |
 | `styles.css` | All styling. Colours and fonts are tokens at the top. Also holds the embedded display font (see below). |
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
-| `tests/` | Scoring and question-order tests, persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable), and the stored answers (`answers.test.js`: saved state is cleaned, "Not sure" never reaches scoring). Run `node --test tests/` |
+| `tests/` | Scoring and question-order tests, persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable), the stored answers (`answers.test.js`: saved state is cleaned, "Not sure" never reaches scoring), and the "all types" grid (`gallery.test.js`: card order, the hidden type's unlock flag, its text). Run `node --test tests/` |
 | `SCORING.md` | How the result is decided, in plain English and Chinese, with the persona table and simulated type shares. |
 | `tools/personas.js` | 26 named test players written as exact answers (used by the simulation and the tests). |
 | `tools/simulate.js` | Prints each persona's result, the type shares and match spread over 200,000 simulated players, and how often a tie decided the lead. `node tools/simulate.js` |
@@ -89,7 +90,8 @@ Useful URL parameters:
   statements), **untouched** (4 or fewer, all mild), **balanced** (no section
   leads: three or more tie for the top, or 10+ spread evenly over all five),
   otherwise the deepest dimension's `_deep` type when that dimension is in the
-  high band, else its `_lite` type. A two-way tie for the lead is settled by
+  high band (11+ of its 19 points) or holds two or more of its three extreme
+  statements, else its `_lite` type. A two-way tie for the lead is settled by
   the heavier top statement, then by count, then by a fixed order (more
   personal section first), and the other section always shows as secondary.
 - The result also carries a secondary type, up to 3 evidence statements and a
@@ -134,7 +136,8 @@ card stays pinned on the left):
 7. **Your other leaning** (only with a secondary type): one line with the real
    points ("School is right behind Heart, 8 points to 9"), and a "See CODE" link.
 8. **Gets on with / Clashes with**: two cards; tapping one shows that type.
-9. Start over, and a closed "How this is scored" panel with six plain sentences.
+9. Start over and "See all 14 types", then a closed "How this is scored" panel with six plain sentences.
+   (A second "See all 14 types" link sits just above the pairing cards.)
 
 **Looking at another type.** Tapping a paired or secondary type shows that
 type's full result, played by its sample player, under a dark bar with "Back
@@ -143,6 +146,50 @@ also returns, to the same scroll position. Save and share are hidden there, so
 nobody shares a type they did not get; the match line says it is the sample
 player's, and the section reads (which talk to "you") are hidden. A refresh
 returns to the player's own result.
+
+## All 14 types
+
+"See all 14 types" (全部人格) shows every type as a small copy of the result
+card: its colour, a top line (section and depth, such as "School · light",
+or for the four special types how they are reached), the code as large as the
+card allows (fitted with the same `fitText` as the big card), the name and
+the tagline.
+
+- **Where it opens**: a link under the sticker caption on the landing page;
+  on the result, a link just above the two pairing cards and another next to
+  Start over; and `?types=1` in the address. While it shows, the address
+  carries `?types=1`, so a refresh reopens it.
+- **Layout**: on a phone two columns, one section per row (light left, deep
+  right), then the four special types; four columns from 640 px; from 900 px
+  five columns, each section a column with light on top and deep underneath.
+  Order is `galleryOrder()` in `scoring.js`.
+- **Tapping a card** opens that type as a peek (sample player, dark bar, no
+  save or share) with "Back to all types". The player's own card, when there
+  is a result underneath, is marked "You" and goes straight back to their real
+  result instead.
+- **The hidden type** shows as a locked card (dashed outline, "???", one hint
+  line, no code or name) until the player has actually got it on this device.
+  The same lock covers MY-BOT's "Gets on with" card (which points at it) and
+  any attempt to peek at it; it is never one of the landing stickers, and the
+  merged sample player leaves out one of its three statements. It unlocks
+  when the player gets it as their result, or as the "Also" type of the
+  merged result (which means the same three answers). Then one flag goes into `localStorage`
+  (`apt-hidden-unlocked-v1` = `1`; helpers `hiddenUnlocked` /
+  `rememberHiddenUnlocked` in `scoring.js`) and the card stays open, even after
+  Start over. It holds no answers, so the footer's "your answers never leave
+  this device" stays true. Previews and peeks never unlock it;
+  `?preview=soulmate` still shows the type for QA. To lock it again, clear the
+  site's data.
+- **Back**: the grid and a peek are layers on top of the current screen. Each
+  step up adds one browser-history entry (`history.state` records
+  `aptDepth`, `aptGallery`, `aptPeek`), so the phone's back gesture and the
+  in-page buttons step down one layer at a time, to the same scroll position
+  and the button that was tapped. When the grid was opened straight from
+  `?types=1`, there is nothing behind it, so its back button goes to the
+  landing page (or the saved result) in place instead of leaving the site.
+- Keyboard: every card is a button (Tab, Enter); focus goes to the grid's
+  heading on the way in and back to the opening card or link on the way out.
+  The answer keys are switched off while the grid sits over a question.
 
 **Sample players.** `?preview=` and the peek use `SAMPLE_ANSWERS` in `app.js`:
 one believable set of answers per type that really scores as that type, so the

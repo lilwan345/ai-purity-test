@@ -26,8 +26,8 @@ level is simply the statement's position in its section in `content.js`.
 | 8 to 10 | extreme | 3 points |
 
 So a full section is worth 4 + 6 + 9 = **19 points**. Weighting is why
-"asked AI what my own opinion was" says more about you than "asked AI to work
-out a tip".
+"asked AI if I'm an introvert and trusted it" says more about you than "asked
+AI how long to boil an egg".
 
 ## 2. Depth and band per section
 
@@ -51,8 +51,8 @@ section can only reach "high" if you admitted at least one extreme statement.
    way no single section can describe you. (Someone who reached the heavy end
    of all five is not "a little of everything", so they are not Balanced.)
 2. **Soulmate** (PLUS-1, hidden): you admitted **all three** statements marked
-   `soulmate` (told a chatbot big news first, felt hurt when a new chat forgot
-   you, said goodnight and meant it). Nothing else is needed: those three are
+   `soulmate` (told a chatbot big news first, felt hurt when a new chat greeted
+   you like a stranger, asked it whether it would miss you). Nothing else is needed: those three are
    the whole definition.
 3. **Untouched** (ANALOG): you admitted **4 or fewer**, and **all of them mild**
    (levels 1 to 4). A single medium or extreme confession already points
@@ -150,20 +150,20 @@ digit is the level, with 0 meaning 10).
 
 | Persona | Admitted | Type | Secondary | Match | Evidence |
 |---|---|---|---|---|---|
-| Tried it twice (one reading summary, one tip) | 2 | untouched | - | 96 | s32 s01 |
+| Tried it twice (one reading summary, one calendar question) | 2 | untouched | - | 96 | s32 s01 |
 | One mild thing per corner | 4 | untouched | - | 92 | s41 s21 s11 |
-| One extreme confession ("asked AI what my own opinion was") | 1 | brain_lite | - | 60 | s40 |
+| One extreme confession ("asked AI if I'm an introvert and trusted it") | 1 | brain_lite | - | 60 | s40 |
 | Study-only student | 9 | school_deep | - | 93 | s08 s07 s06 |
 | Reading-summary skimmer | 5 | school_lite | - | 80 | s05 s02 s01 |
 | Emails and applications | 7 | work_lite | - | 90 | s18 s16 s14 |
 | Adulting on autopilot | 12 | work_deep | - | 95 | s20 s19 s18 |
-| Texting a crush | 5 | heart_lite | - | 88 | s28 s25 s23 |
+| Group-chat detective | 5 | heart_lite | - | 88 | s28 s25 s23 |
 | Love life outsourced | 9 | heart_deep | - | 100 | s29 s28 s27 |
 | Asks it everything, politely distant | 14 | brain_lite | - | 73 | s36 s35 s34 |
 | Brain on remote | 14 | brain_deep | - | 95 | s40 s39 s38 |
 | The polite one | 5 | bond_lite | - | 83 | s45 s44 s42 |
 | Attached to it (stops short of the soulmate trio) | 9 | bond_deep | - | 93 | s48 s47 s46 |
-| The Plus One | 6 | soulmate | bond_lite | 100 | s50 s30 s49 |
+| The Plus One | 6 | soulmate | bond_deep | 100 | s50 s30 s49 |
 | Evenly moderate (3 mildest of every section) | 15 | balanced | - | 100 | s43 s23 s33 |
 | Evenly heavy (levels 1-7 everywhere) | 35 | balanced | - | 100 | s47 s27 s37 |
 | Heavy in two, equally (same points, School goes to level 9) | 16 | school_deep | heart_deep | 50 | s09 s07 s06 |
@@ -171,8 +171,8 @@ digit is the level, with 0 meaning 10).
 | Four sections, no feelings for it (four-way tie, Bond empty) | 12 | balanced | - | 100 | s23 s33 s13 |
 | Everyday light user (two mild in four sections, one thank-you) | 9 | balanced | - | 95 | s22 s32 s12 |
 | Dead heat, mirror image (levels 1-5 in School and Heart) | 10 | heart_lite | school_lite | 50 | s25 s24 s23 |
-| Three heavy Brain confessions (s31, s38, s39, s40) | 4 | brain_lite | - | 100 | s40 s39 s38 |
-| One medium worry (only s05) | 1 | school_lite | - | 60 | s05 |
+| Three heavy Brain confessions (s31, s38, s39, s40) | 4 | brain_deep | - | 100 | s40 s39 s38 |
+| One medium confession (only s05) | 1 | school_lite | - | 60 | s05 |
 | Deep everywhere (levels 1-8 in every section) | 40 | merged | - | 68 | s48 s28 s38 |
 | Does everything | 50 | merged | soulmate | 100 | s50 s30 s40 |
 | Nearly everything, drew the line at love | 45 | merged | - | 84 | s40 s20 s10 |
@@ -187,10 +187,13 @@ A few of these are worth a closer look:
 - **Dead heat, mirror image** is the one case the fixed order still decides.
   The screen says it was a dead heat, tags both sections and shows TLDR as the
   other leaning, and the match is 50.
-- **Three heavy Brain confessions** is lite with only 10 points, although all
-  three extreme Brain statements are in it. The copy for lite types is written
-  for exactly this: "you've admitted only part of that section".
-- **One medium worry** (ANALOG needs all mild) is a known quirk: four mild
+- **Three heavy Brain confessions** is deep with only 10 points (band
+  "medium"), because it holds two or more of Brain's three extreme statements.
+  So deep copy talks about how far the answers reach, never about how many
+  there are.
+- **The Plus One**: the leaning underneath is the deep Bond type, because two
+  of the three hidden statements are Bond's extreme ones (s49, s50).
+- **One medium confession** (ANALOG needs all mild) is a known quirk: four mild
   School answers are ANALOG while this single medium one is TLDR. Its match is
   capped at 60, so the comparison does not look absurd.
 
@@ -236,7 +239,7 @@ be a better check.
 | v1 | v2 | Why |
 |---|---|---|
 | Every statement counted 1 | mild 1, medium 2, extreme 3 | The extreme statements say far more about a person. |
-| Leading section = most statements | = highest weighted depth; ties go to the more extreme statement | "Asked AI what I think" should outweigh three tip questions. |
+| Leading section = most statements | = highest weighted depth; ties go to the more extreme statement | "Asked AI if I'm an introvert" should outweigh three egg questions. |
 | Deep if total ≥ 20 | Deep if the leading section is in the high band (11+ points) or two of its extreme statements were admitted | 20 mild statements spread around is not "deep"; a full School section alone is. |
 | Untouched: total ≤ 3 | ≤ 4 and all mild | One extreme confession contradicts the Analog profile. |
 | Balanced: counts within 1 | ≥ 10 admitted, every section touched, depths within 4 points | 1,1,1,1,0 is not "well-rounded"; it is barely anything. |
@@ -258,12 +261,14 @@ The profile has to stay true for **everyone** who can get the type:
 - **Lite types** can come from a single statement anywhere in the section, even
   an extreme one (persona "One extreme confession"). Lite copy should describe
   the section, not claim specific mild statements ("you ask it about dinner").
-- **Lite types** can also hold every extreme statement of their section (levels
-  8-10 plus one mild = 10 points, one short of deep). Write about breadth
-  ("only part of the section"), never "not the heavy ones yet".
-- **Deep types** always include at least one extreme statement from that
-  section and at least 11 of its 19 points, which can be as few as 4
-  statements (for example levels 5, 8, 9, 10).
+- **Lite types** hold at most one extreme statement of their section (two
+  make it deep), but can have up to 10 points. Write about breadth ("only part
+  of the section").
+- **Deep types** have either 11 or more of the section's 19 points, or two or
+  more of its three extreme statements. So they always include an extreme
+  statement, but can be as few as 2 statements (levels 9 and 10) with the
+  section's band only "medium". Write about how far the answers reach, never
+  about volume ("your answers pile up").
 - **The lead can be a two-way tie.** Say "nothing outweighs X" or "X is your
   heaviest section", never "X outweighs everything else".
 - **Untouched** players may have admitted up to 4 mild statements. Don't claim
@@ -308,8 +313,8 @@ answers, so the profile doesn't have to guess.
 | 5–7 | 中度 | 2 分 |
 | 8–10 | 重度 | 3 分 |
 
-一个部分满分 4 + 6 + 9 = **19 分**。加权的意思是：“问 AI 我自己怎么看”
-比“让 AI 算小费”更能说明问题。
+一个部分满分 4 + 6 + 9 = **19 分**。加权的意思是：“问 AI 我内不内向，还信了它”
+比“问 AI 鸡蛋煮几分钟”更能说明问题。
 
 ## 2. 每个部分的深度和档位
 
@@ -328,8 +333,8 @@ answers, so the profile doesn't have to guess.
 
 1. **人形外设**（PLUG-IN）：50 条里认了 **42 条及以上**（纯度 16 及以下），**或者五个部分全在 high 档**。
    两种情况都说明，单拿哪一块都概括不了你。（五块都认到重的那头的人，不能叫“哪儿都沾一点”，所以不算雨露均沾。）
-2. **电子家属**（PLUS-1，隐藏款）：三条带 `soulmate` 标记的**全认了**：出了大事先告诉 AI、
-   新对话不记得自己会受伤、跟 AI 说晚安是认真的。别的都不看，这三条就是全部条件。
+2. **电子家属**（PLUS-1，隐藏款）：三条带 `soulmate` 标记的**全认了**：有大事先告诉 AI、
+   新对话像不认识自己会受伤、问过 AI 会不会想自己。别的都不看，这三条就是全部条件。
 3. **原装人类**（ANALOG）：认了 **4 条及以下**，而且**全是轻度**（1–4 级）。
    哪怕只认了一条中度或重度，也已经有方向了，不算原装。
 4. **雨露均沾**（SAMPLER）：没有哪块领头。有两条路：
@@ -397,17 +402,18 @@ lite 类型甚至可以包含这一部分全部三条重度（8、9、10 级再�
 `tests/personas.test.js` 把每个人的结果钉住。人设表见上面英文部分第 7 节，结论一致：
 
 - 只用 AI 学习的，是 CRAMBOT；只拿来改邮件、写申请的，是 NOTED；
-- 只拿来跟暗恋对象发消息的，是 HAHA-OK；连分手都去问 AI 的，是 CC-BOT；
-- 给 AI 起外号、用别家 AI 会心虚的，是 MY-BOT；三条 soulmate 全中的，是 PLUS-1；
+- 只拿来破译消息、问群里谁在内涵自己的，是 HAHA-OK；连分手都去问 AI 的，是 CC-BOT；
+- 问题解决了还回去跟 AI 汇报、用别家 AI 会心虚的，是 MY-BOT；三条 soulmate 全中的，是 PLUS-1；
 - 只试过两次的，是原装人类；每部分都认了差不多的量，是雨露均沾；全认了，是人形外设；
-- 只认了一条重度（“问 AI 我自己怎么看”）的，是 IDK：认了真东西所以不算原装，
+- 只认了一条重度（“问 AI 我内不内向，还信了它”）的，是 IDK：认了真东西所以不算原装，
   但一条不足以叫 deep；
 - 两个部分一样重的，主类型给认过更重那一条的部分，另一个作为副类型显示；
 - 四个部分完全一样（不管羁绊空不空）的，是雨露均沾：从四个并列里挑一个都不讲理；
 - 只有“完全镜像”的两块（学业和感情都认了 1–5 级）还靠固定顺序决定，页面会直说打平了，
   两块都标出来，副倾向显示另一个，匹配度 50；
-- 只认了脑子最狠的三条加一条轻度的，是 IDK（lite）：只有 10 分，差 1 分到 deep，
-  lite 的文案正是“只认了其中一部分”；
+- 只认了脑子最狠的三条加一条轻度的，是 404（deep）：只有 10 分、档位是“中等”，
+  但认了两条以上重度就算 deep，所以 deep 的文案只说“认到了尽头”，不说“认得多”；
+- 三条 soulmate 全中的电子家属，副倾向是 MY-BOT：三条里有两条是羁绊的重度题（s49、s50）；
 - 五个部分都认到 1–8 级（40 条）的，是人形外设，因为五块全在 high 档。
 
 ## 8. 拿一大群人来检验：20 万个模拟玩家
@@ -445,7 +451,7 @@ lite 类型甚至可以包含这一部分全部三条重度（8、9、10 级再�
 | v1 | v2 | 原因 |
 |---|---|---|
 | 每条都算 1 | 轻 1、中 2、重 3 | 重度的那几条更能说明一个人 |
-| 领头部分 = 认的条数最多 | = 加权深度最高；打平时看谁认过更重的 | “问 AI 我怎么想”该比三次算小费分量重 |
+| 领头部分 = 认的条数最多 | = 加权深度最高；打平时看谁认过更重的 | “问 AI 我内不内向”该比三次问煮鸡蛋分量重 |
 | 总数 ≥ 20 就是 deep | 领头部分进 high 档（11 分以上），或者认了其中两条重度，才是 deep | 东一条西一条凑够 20 条不该叫 deep；只把学业全认了反而该是 |
 | 原装：总数 ≤ 3 | ≤ 4 且全是轻度 | 认了一条重度还叫“出厂设置”，说不过去 |
 | 均沾：各部分条数相差 ≤ 1 | ≥ 10 条、五部分都有、深度相差 ≤ 4 分 | 1,1,1,1,0 算不上雨露均沾，几乎什么都没认 |
@@ -468,7 +474,8 @@ lite 类型甚至可以包含这一部分全部三条重度（8、9、10 级再�
   文案要说这一部分整体，别断言对方干过哪条轻度的事（比如“晚饭都问 AI”）。
 - **lite 类型**最多只认了这一部分的一条重度。认了两条重度就是 deep，哪怕别的几乎没认。
 - **deep 类型**一定认过这一部分里至少一条重度：要么拿到 19 分里的至少 11 分，
-  要么认了两条以上重度，最少可能只有 2 条（比如 9、10 级）。
+  要么认了两条以上重度，最少可能只有 2 条（比如 9、10 级），这一块的档位还只是“中等”。
+  所以 deep 的文案写“认到了尽头”，别写“堆得最高”“认得最多”。
 - **领头部分可能是两块打平**。写“没有哪块比 X 重”或“X 是你最重的一块”，别写“X 压过了其他所有部分”。
 - **原装人类**最多认过 4 条轻度，别把“自己决定晚饭”“自己写邮件”说死。
 - **雨露均沾**要么是 10 条以上匀匀地分在五个部分（从每部分 2 条轻度到每部分 1–7 级全认），

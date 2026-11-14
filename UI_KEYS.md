@@ -100,4 +100,18 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `howTitle` | The disclosure's summary line |
 | `howWeights` / `howUnsure` / `howLead` / `howSpecial` / `howSecondary` / `howHonest` | Its six sentences, in this order (`howUnsure`: "Not sure" counts as Never) |
 
+| **All types** (the grid of the 14 cards; `?types=1`) | |
+| `typesLink` | Link that opens the grid: landing (under the sticker caption), result (above the pairing cards, and next to Start over). Says 14; tests check the number matches |
+| `typesTitle` | The grid's heading (focus lands here) |
+| `typesIntro` | One line under the heading |
+| `typesSections` / `typesSpecial` | Small headings over the ten section types and the four special ones |
+| `typesLite` / `typesDeep` | Depth word in a section card's top line ("School · light") |
+| `typesRuleUntouched` / `typesRuleBalanced` / `typesRuleMerged` | Top line of those three special cards: how the result is reached, in a few words (≤ 24 chars / 11 characters) |
+| `typesHidden` | Top line of the hidden type's card, locked or not |
+| `typesLocked` | Screen-reader word on the locked card |
+| `typesLockedHint` | The locked card's one dry hint. Must not quote the three hidden statements (a test checks) |
+| `typesYou` | Tag on the player's own card (one short word) |
+| `typesBack` | Back button on a type opened from the grid |
+| `typesBackHome` / `typesBackQuiz` | The grid's back button when the screen underneath is the landing page / a question (on a result it reuses `peekBack`, on a preview `peekBackTo`) |
+
 Length notes for the card: the type name gets up to 2 lines and the tagline up to 2 lines; both shrink to fit if longer. `cardNote` is one line and shrinks to fit. Dimension names appear as bar labels on the card, so short names (one word / two characters) look best.

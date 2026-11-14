@@ -54,7 +54,11 @@
     'bandNone', 'bandLow', 'bandMid', 'bandHigh', 'dimLeads', 'dimSecond', 'dimTied',
     'secondaryTitle', 'secondaryDim', 'secondaryTie', 'secondarySoulmate', 'secondaryMerged', 'seeType',
     'bestWithTitle', 'clashWithTitle', 'peekNote', 'peekBack', 'peekBackTo',
-    'howTitle', 'howWeights', 'howUnsure', 'howLead', 'howSpecial', 'howSecondary', 'howHonest'
+    'howTitle', 'howWeights', 'howUnsure', 'howLead', 'howSpecial', 'howSecondary', 'howHonest',
+    // the "all types" screen and the links that open it
+    'typesLink', 'typesTitle', 'typesIntro', 'typesSections', 'typesSpecial', 'typesLite', 'typesDeep',
+    'typesRuleUntouched', 'typesRuleBalanced', 'typesRuleMerged', 'typesHidden', 'typesLocked',
+    'typesLockedHint', 'typesYou', 'typesBack', 'typesBackHome', 'typesBackQuiz'
   ];
 
   // The four depth bands. Each dimension has one sentence per band in content.js.
@@ -633,6 +637,47 @@
     return Object.keys(answers || {}).filter(function (id) { return answers[id] === 'unsure'; }).length;
   }
 
+  /*
+   * The "all types" screen: which order the 14 cards appear in.
+   *   sections: the ten section types, two per section in section order,
+   *             light before deep (so on a phone each row is one section)
+   *   special:  the four rule types, with the hidden one last
+   * Display only: nothing here changes how a result is decided.
+   */
+  function galleryOrder() {
+    var sections = [];
+    DIM_KEYS.forEach(function (key) { sections.push(key + '_lite', key + '_deep'); });
+    return { sections: sections, special: ['untouched', 'balanced', 'merged', 'soulmate'] };
+  }
+
+  /*
+   * The hidden type's card on the "all types" screen stays locked until the
+   * player has earned it on this device. One flag in localStorage remembers
+   * that ('1' under HIDDEN_UNLOCK_KEY); no answers are kept there.
+   * Storage is passed in (window.localStorage in the page, a fake in tests).
+   * Reading or writing it can throw (private mode, blocked storage), so both
+   * helpers swallow errors: locked is the safe answer.
+   */
+  var HIDDEN_UNLOCK_KEY = 'apt-hidden-unlocked-v1';
+
+  // True when a result counts as having met the hidden type: it is the
+  // result, or (for the merged type) its secondary, which the card shows as
+  // "Also PLUS-1". Both mean all three hidden statements were admitted.
+  function earnedHidden(result) {
+    return Boolean(result) && (result.typeId === 'soulmate' || result.secondaryTypeId === 'soulmate');
+  }
+  function hiddenUnlocked(storage) {
+    try { return Boolean(storage) && storage.getItem(HIDDEN_UNLOCK_KEY) === '1'; } catch (e) { return false; }
+  }
+  // Returns true when the flag was written.
+  function rememberHiddenUnlocked(storage) {
+    try {
+      if (!storage) return false;
+      storage.setItem(HIDDEN_UNLOCK_KEY, '1');
+      return true;
+    } catch (e) { return false; }
+  }
+
   var api = {
     DIM_KEYS: DIM_KEYS,
     TIE_ORDER: TIE_ORDER,
@@ -649,7 +694,12 @@
     UNSURE_MANY: UNSURE_MANY,
     cleanAnswers: cleanAnswers,
     admittedIds: admittedIds,
-    unsureCount: unsureCount
+    unsureCount: unsureCount,
+    galleryOrder: galleryOrder,
+    HIDDEN_UNLOCK_KEY: HIDDEN_UNLOCK_KEY,
+    earnedHidden: earnedHidden,
+    hiddenUnlocked: hiddenUnlocked,
+    rememberHiddenUnlocked: rememberHiddenUnlocked
   };
 
   root.APT_SCORING = api;
