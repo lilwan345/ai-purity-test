@@ -423,7 +423,7 @@
     finishReveal();
     document.documentElement.lang = state.lang === 'zh' ? 'zh-Hans' : 'en';
     document.title = t('appName');
-    document.getElementById('brand').textContent = t('appName');
+    renderBrand();
     // statementPieces: in Chinese the footer breaks after "，" or "。", never
     // inside a word ("这台 / 设备"); styles.css sets keep-all on it.
     document.getElementById('footerNote').replaceChildren(...statementPieces(t('footer')));
@@ -528,11 +528,7 @@
       el('p', { class: 'lede', text: t('intro') }),
       el('p', { class: 'meta', text: t('meta') }),
       el('p', { class: 'close-enough', text: t('closeEnough') }),
-      el('button', {
-        class: 'btn btn-primary btn-big',
-        type: 'button',
-        onclick: () => { state.index = 0; go('question'); }
-      }, [t('start')])
+      landingActions()
     ]);
 
     const stickers = TEASER_TYPES.filter((id) => typesById[id]).map((id, i) =>
@@ -557,6 +553,89 @@
     ]);
 
     return el('section', { class: 'screen landing' }, [copy, sheet]);
+  }
+
+  // The landing's buttons. Nothing answered: one start button. A play under
+  // way (the player came back through the title in the top bar, or after a
+  // refresh): continue where they were, or start over. Every statement
+  // answered: back to the result, or start over. No confirm dialog anywhere:
+  // leaving never loses anything, and starting over is a deliberate tap.
+  function landingActions() {
+    const choice = extras.landingChoice(state.answers, state.drawn.length, state.index);
+    if (choice.kind === 'start') {
+      return el('button', {
+        class: 'btn btn-primary btn-big',
+        type: 'button',
+        onclick: () => { state.index = 0; go('question'); }
+      }, [t('start')]);
+    }
+    const primary = choice.kind === 'result'
+      ? el('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => go('result') }, [t('peekBack')])
+      : el('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => go('question') },
+        [t('continuePlay', { n: choice.position, total: state.drawn.length })]);
+    const keepsSet = extras.restartKeepsSet(state);
+    return el('div', { class: 'landing-actions' }, [
+      el('div', { class: 'landing-buttons' }, [
+        primary,
+        el('button', { class: 'btn btn-ghost btn-big', type: 'button', onclick: restartPlay }, [t('startOver')])
+      ]),
+      // From someone's link the restart keeps their 30, so say so.
+      keepsSet && el('p', { class: 'restart-note', text: t('restartSameSet') })
+    ]);
+  }
+
+  /*
+   * "Start over" on the landing: the answers are cleared and the play
+   * begins again at statement 1, as a new play (remarks can come again, the
+   * reveal plays at the end, only finishing counts for the collection).
+   * Which 30 (extras.restartKeepsSet): a play that came from someone's link
+   * (a seed link or a challenge link) keeps that link's set, or the
+   * comparison with the sender would silently stop matching; any other play
+   * gets a fresh set, like "New questions".
+   */
+  function restartPlay() {
+    if (extras.restartKeepsSet(state)) {
+      state.answers = {};
+      state.index = 0;
+      state.remarked = [];
+    } else {
+      startPlay();
+      state.challenge = null;
+      state.challengeCode = null;
+    }
+    setUrlParams({ seed: seedParam(), vs: challengeParam() });
+    go('question');
+  }
+
+  // ---------- The title in the top bar: back to the landing page ----------
+  /*
+   * A real link (to the plain address, so it also opens in a new tab), named
+   * "AI Purity Test, back to the start" for screen readers. On the landing
+   * page it is hidden (the huge title is right there; styles.css). A plain
+   * click leaves whatever shows (a question, the result, the grid, a peek,
+   * a preview or a reply link) for the landing page of this tab's own play,
+   * which then offers to continue or start over.
+   */
+  function renderBrand() {
+    const brand = document.getElementById('brand');
+    brand.replaceChildren(el('a', {
+      class: 'brand-link',
+      href: baseUrl() + '?lang=' + state.lang,
+      onclick: goHome
+    }, [t('appName'), el('span', { class: 'visually-hidden', text: ', ' + t('brandHomeLabel') })]));
+  }
+
+  function goHome(event) {
+    if (event && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
+    if (event) event.preventDefault();
+    hideRemark();
+    if (state.reply) state.reply = null;
+    state.preview = null;
+    state.peek = null;
+    state.gallery = false;
+    setUrlParams({ preview: null, types: null, re: null, seed: seedParam(), vs: challengeParam() });
+    try { history.replaceState(historyEntry(0), '', layerUrl()); } catch (e) { /* not important */ }
+    go('landing');
   }
 
   // ---------- Question screens (one statement at a time) ----------

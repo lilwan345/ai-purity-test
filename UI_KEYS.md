@@ -3,7 +3,7 @@
 Every key below must exist in `APT_CONTENT.ui` in content.js, each as `{ en, zh }`.
 The current wording lives only in content.js (it is not copied here, so it cannot drift).
 Words in `{braces}` are filled in by app.js and must be kept (they may move within the sentence):
-`fromFriend` {name}; `progress` {n} {total}; `cardTicks` {n} {total};
+`fromFriend` {name}; `progress` {n} {total}; `continuePlay` {n} {total}; `cardTicks` {n} {total};
 `barAria` {name} {n}; `shareText` {code} {name} {purity};
 `evidenceLeadSpread` / `evidenceLeadSome` {n}; `exhibitLabel` {n}; `exhibitMeta` {dim} {weight} {pts};
 `matchHeading` {n}; `matchDim` / `matchTieTop` / `matchTieCount` / `matchTieLot` {dim} {dim2} {a} (and {b} in `matchDim`);
@@ -22,12 +22,16 @@ every one of them is decorative (empty alt text).
 
 | Key | Where it appears |
 |---|---|
-| `appName` | Top bar, landing headline, card, page title |
+| `appName` | Top bar (a link back to the landing page, hidden on the landing itself), landing headline, card, page title |
 | `intro` | Landing, under the headline |
 | `meta` | Landing, small line under intro: 30 taps, and that the 30 are drawn from a bigger pile and change every time. Don't promise only two answers: every statement also offers `answerUnsure` |
 | `closeEnough` | Landing, the one house rule under `meta` (with an ink tick on the left): if you've done something like it, it counts |
 | `seedFromLink` | Landing, one quiet line when the seed came from a link: these are the sender's 30 statements, so the scores compare. Second line of the `fromFriend` banner, or on its own above the title when the link had a seed but no type |
-| `start` | Landing button |
+| `start` | Landing button (when nothing is answered yet) |
+| `continuePlay` | Landing, primary button when a play is under way ({n} = the statement they were on, {total} = 30) |
+| `startOver` | Landing, secondary button next to `continuePlay` (or next to `peekBack` when every statement is answered): clears the answers, back to statement 1 |
+| `restartSameSet` | Landing, quiet line under those two buttons, only when the play came from someone's link: starting over keeps that link's 30 |
+| `brandHomeLabel` | Top bar: hidden words after the product name, which is a link back to the landing page ("AI Purity Test, back to the start") |
 | `fromFriend` | Landing banner when opened from a shared link ({name} = type name) |
 | `typesTeaser` | Landing, caption under the sticker cluster (three character stickers above six code stickers) |
 | `langSwitch` | Language button label (name of the OTHER language) |
@@ -101,7 +105,7 @@ every one of them is decorative (empty alt text).
 | `seeType` | Link-button under that line that opens the secondary type |
 | `bestWithTitle` / `clashWithTitle` | Small heading on each of the two pairing cards |
 | `peekNote` | Dark bar on top while looking at another type |
-| `peekBack` | Button that returns to the player's own result |
+| `peekBack` | Button that returns to the player's own result; also the landing's primary button when every statement of the play is answered |
 | `peekBackTo` | Same, on a `?preview=` page, where there is no own result ({code} = the previewed type) |
 | **How this is scored** (keep in step with SCORING.md) | |
 | `howTitle` | The disclosure's summary line |

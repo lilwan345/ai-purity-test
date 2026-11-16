@@ -79,6 +79,21 @@ Useful URL parameters:
   landing page says once that something like it counts, and the first three
   statements of a play repeat it quietly at the right end of the section label
   (it shares that line, so nothing moves when it goes away).
+- **Leaving halfway.** The product name in the top bar (on the questions,
+  the result, the grid, a peek, a preview or a reply link) is a real link
+  back to the landing page, named "AI Purity Test, back to the start" for
+  screen readers. There is no confirm dialog because nothing is lost: with a
+  play under way, the landing shows **Continue (8 / 30)** (the statement they
+  were on) and **Start over** in place of the start button; with every
+  statement answered, **Back to my result** and **Start over**
+  (`landingChoice` in `extras.js`). Start over clears the answers and begins
+  at statement 1 as a new play: the AI's remarks can come again (for a kept
+  set, the same ones, since they come from the seed), the reveal plays when it
+  finishes, and only finishing adds to the collection. Which 30
+  (`restartKeepsSet`): a play that came from someone's link, a plain seed
+  link or a challenge link, keeps that link's 30, or the comparison with the
+  sender would quietly stop matching, and a line under the buttons says so;
+  any other play gets a fresh set, like "New questions".
 - **Back** (the arrow top left) returns to the previous statement and shows the
   answer you gave (including "Not sure"); tap any button to keep or change it. Back on statement 1
   returns to the landing page.
@@ -131,6 +146,13 @@ Useful URL parameters:
   the card's `<img>` and removed afterwards; everything else is Web
   Animations on the existing elements, cancelled at the end, so the settled
   card (and the PNG) is exactly what it is without the reveal.
+
+- **The landing on large windows.** From 900 px the landing is two columns.
+  Its type, buttons and stickers are sized in a "landing pixel" (`--u` in
+  `styles.css`): exactly 1 px at 1280 x 800 and larger on bigger windows (the
+  average of the width and height ratios, never more than the width allows,
+  at most 1.75 px), and the block gets wider with it. It sits a little above
+  the vertical centre. Below 900 px nothing changes.
 
 ## How scoring works
 

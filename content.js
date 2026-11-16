@@ -31,6 +31,12 @@ globalThis.APT_CONTENT = {
     // Landing, only when the seed came from someone's link.
     seedFromLink:    { en: "Same thirty statements as whoever sent this link, so the scores compare.", zh: "和发链接的人是同一套 30 条，分数可以直接比。" },
     start:           { en: "Start the test", zh: "开始测" },
+    // Landing, when a play is under way (the title in the top bar leads back here).
+    continuePlay:    { en: "Continue ({n} / {total})", zh: "接着答（{n}/{total}）" },
+    startOver:       { en: "Start over", zh: "从头再来" },
+    restartSameSet:  { en: "Starting over keeps the same 30 statements as the link you opened.", zh: "从头再来也还是链接里那套 30 条。" },
+    // Hidden words after the title in the top bar, which is a link back to the start.
+    brandHomeLabel:  { en: "back to the start", zh: "回到首页" },
     fromFriend:      { en: "A friend got {name}. What are you?", zh: "你朋友测出了「{name}」。你呢？" },
     typesTeaser:     { en: "14 possible results. None of them is a compliment.", zh: "14 种结果，没有一种是在夸你。" },
     langSwitch:      { en: "中文", zh: "English" },

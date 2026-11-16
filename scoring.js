@@ -63,7 +63,9 @@
     'compareTitle', 'compareYou', 'compareFriend', 'comparePurity', 'comparePurerYou', 'comparePurerFriend',
     'compareTie', 'compareSame', 'compareTheyBest', 'compareTheyClash', 'compareNone',
     'compareBoth', 'compareBothNone', 'compareOnlyFriend', 'compareOnlyYou', 'compareMeta',
-    'sendBack', 'sendBackNote', 'replyIntro', 'replyStart'
+    'sendBack', 'sendBackNote', 'replyIntro', 'replyStart',
+    // leaving a play and coming back (the title in the top bar, the landing's buttons)
+    'continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel'
   ];
 
   // The four DEPTH bands of a dimension in a result (how far the player went

@@ -375,3 +375,64 @@ test('tools/bump-version.js: rewrites every reference at once, and picks the nex
   assert.strictEqual(nextVersion('<script src="a.js?v=' + today.slice(0, 8) + 'c"></script>'), today.slice(0, 8) + 'd');
   assert.strictEqual(nextVersion('<script src="a.js?v=20000101q"></script>'), today, 'an older date starts again at a');
 });
+
+// ---------- leaving a play and coming back ----------
+test('landingChoice: start, continue at the statement they were on, or back to the result', () => {
+  const { landingChoice } = extras;
+  assert.deepStrictEqual(landingChoice({}, 30, 0), { kind: 'start' });
+  assert.deepStrictEqual(landingChoice(null, 30, 5), { kind: 'start' });
+  const seven = Object.fromEntries(DRAWN.slice(0, 7).map((id) => [id, 'no']));
+  assert.deepStrictEqual(landingChoice(seven, 30, 7), { kind: 'continue', position: 8 });
+  // "Not sure" and "Never" count as answered too; a bad index falls back to 1.
+  assert.deepStrictEqual(landingChoice({ [DRAWN[0]]: 'unsure' }, 30, 99), { kind: 'continue', position: 1 });
+  assert.deepStrictEqual(landingChoice({ [DRAWN[0]]: 'yes' }, 30, 2.5), { kind: 'continue', position: 1 });
+  const all = Object.fromEntries(DRAWN.map((id) => [id, 'yes']));
+  assert.deepStrictEqual(landingChoice(all, 30, 29), { kind: 'result' });
+});
+
+test('restartKeepsSet: a play from a seed link or a challenge link keeps its 30; any other gets a fresh set', () => {
+  const { restartKeepsSet } = extras;
+  assert.strictEqual(restartKeepsSet({ seedFromLink: true, challenge: null }), true);
+  assert.strictEqual(restartKeepsSet({ seedFromLink: false, challenge: [DRAWN[0]] }), true);
+  assert.strictEqual(restartKeepsSet({ seedFromLink: false, challenge: [] }), true, 'a challenger who admitted nothing still counts');
+  assert.strictEqual(restartKeepsSet({ seedFromLink: false, challenge: null }), false);
+  assert.strictEqual(restartKeepsSet(null), false);
+  // Keeping the set really keeps the comparison: the same seed draws the same 30.
+  assert.deepStrictEqual(drawStatements(content, SEED), DRAWN);
+});
+
+test('app.js: the title is a link home, the landing offers continue / start over, and no confirm dialog', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  // The top bar's name is a real link with a named way home.
+  const brand = src.match(/function renderBrand\(\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(brand, /el\('a', \{/);
+  assert.match(brand, /onclick: goHome/);
+  assert.match(brand, /t\('brandHomeLabel'\)/);
+  // No confirm() or alert() anywhere.
+  assert.doesNotMatch(src, /\b(confirm|alert)\(/);
+  // The landing's buttons come from landingChoice.
+  const actions = src.match(/function landingActions\(\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(actions, /extras\.landingChoice\(state\.answers, state\.drawn\.length, state\.index\)/);
+  assert.match(actions, /t\('continuePlay'/);
+  assert.match(actions, /t\('startOver'\)/);
+  // Start over: the link's set is kept by restartKeepsSet, otherwise a fresh
+  // set; either way a new play (no answers, no remarks shown yet, statement 1).
+  const restart = src.match(/function restartPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(restart, /if \(extras\.restartKeepsSet\(state\)\) \{\s*state\.answers = \{\};\s*state\.index = 0;\s*state\.remarked = \[\];/);
+  assert.match(restart, /startPlay\(\);/);
+  assert.match(restart, /go\('question'\)/);
+  const startPlay = src.match(/function startPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(startPlay, /state\.remarked = \[\];/);
+  // Going home never asks for the reveal; only the last answer does.
+  assert.strictEqual((src.match(/reveal: !reduce/g) || []).length, 1);
+});
+
+test('ui copy: the restart keys exist, and Continue shows where you are', () => {
+  ['continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel'].forEach((key) => {
+    assert.ok(scoring.UI_KEYS.includes(key), key);
+    assert.ok(content.ui[key].en && content.ui[key].zh, key);
+  });
+  ['en', 'zh'].forEach((lang) => {
+    assert.ok(content.ui.continuePlay[lang].includes('{n}') && content.ui.continuePlay[lang].includes('{total}'));
+  });
+});

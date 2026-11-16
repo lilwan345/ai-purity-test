@@ -99,6 +99,19 @@ button { font: inherit; color: inherit; }
   font-weight: 700;
   font-size: 15px;
 }
+/* The product name is a link back to the landing page (app.js, goHome).
+   It looks like the plain name it always was; the underline shows on hover
+   and the focus ring for the keyboard. 44px tall for a thumb. */
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.brand-link:hover { text-decoration: underline; }
 
 .on-landing .brand { visibility: hidden; }
 
@@ -248,6 +261,13 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   border-left: 3px solid var(--ink);
   font-weight: 650;
 }
+/* A play under way: continue (primary) and start over, stacked full width
+   on a phone, side by side from 520px. */
+.landing-buttons { display: grid; gap: 10px; }
+@media (min-width: 520px) {
+  .landing-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+}
+.restart-note { margin: 10px 0 0; max-width: 34em; font-size: 14px; line-height: 1.45; color: var(--ink-soft); text-wrap: pretty; }
 
 /* Sticker sheet teaser: a few type codes slapped on at angles */
 .sticker-sheet { margin: 44px 0 0; }
@@ -1579,4 +1599,62 @@ html[lang^="zh"] .reply-title { font-family: var(--font-body); font-size: clamp(
   .compare .tcard-tagline { font-size: 12px; }
   .compare-who, .compare-purity, .compare-purer, .compare-relation, .compare-list, .compare > .kicker { padding: 0 4px; }
   .compare-side .compare-who, .compare-side .compare-purity { padding: 0 4px; }
+}
+
+/* ---------- The landing page on large windows ----------
+   From 900px the landing is two columns. On bigger windows it grows with
+   the window instead of sitting in a small block in the middle: --u is one
+   "landing pixel", exactly 1px at 1280 x 800 (the size everything was
+   designed at) and larger as the window grows, up to 1.75px. It follows the
+   average of the width and height ratios, so a tall window grows too, but
+   never more than the width allows. Phones and tablets never see any of it.
+   The block is a little above the vertical centre (more free space below
+   than above), which reads calmer than dead centre. */
+@media (min-width: 900px) {
+  body.on-landing {
+    --u: clamp(1px, min(calc(0.0390625vw + 0.0625vh), 0.0952vw), 1.75px);
+  }
+  body.on-landing .topbar,
+  body.on-landing .app,
+  body.on-landing .site-footer { max-width: min(calc(var(--u) * 1040), 92vw); }
+  body.on-landing .site-footer { font-size: calc(var(--u) * 14); }
+  /* Three rows: the free space above and below the block, 1 : 1.4, so it
+     sits a little above the centre; when there is no free space (a short
+     window, a banner line) both rows are empty and nothing scrolls extra. */
+  .landing {
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1.4fr);
+    align-content: stretch;
+    column-gap: calc(var(--u) * 64);
+    row-gap: 0;
+    min-height: calc(100vh - 180px);
+    padding: 0 0 24px;
+  }
+  .landing > * { grid-row: 2; }
+  .landing-title { margin-bottom: calc(var(--u) * 20); font-size: calc(var(--u) * 120); }
+  html[lang^="zh"] .landing-title { font-size: calc(var(--u) * 100); }
+  .landing .lede { margin-bottom: calc(var(--u) * 8); font-size: calc(var(--u) * 19); }
+  .landing .meta { margin-bottom: calc(var(--u) * 10); font-size: calc(var(--u) * 17); }
+  /* Wider lines on a laptop: in Chinese break only at punctuation and
+     spaces, never inside a word ("没人看 / 见"). */
+  html[lang^="zh"] .landing .lede,
+  html[lang^="zh"] .landing .meta { word-break: keep-all; overflow-wrap: anywhere; }
+  .landing .close-enough { margin-bottom: calc(var(--u) * 28); padding-left: calc(var(--u) * 12); font-size: calc(var(--u) * 17); }
+  .landing .btn-big { min-height: calc(var(--u) * 56); padding: 0 calc(var(--u) * 30); font-size: calc(var(--u) * 18); }
+  .landing .landing-buttons { gap: calc(var(--u) * 12); }
+  .landing .restart-note { margin-top: calc(var(--u) * 10); font-size: calc(var(--u) * 14); }
+  .landing .from-friend { gap: calc(var(--u) * 12); margin-bottom: calc(var(--u) * 28); padding: calc(var(--u) * 12) calc(var(--u) * 14); font-size: calc(var(--u) * 17); }
+  .landing .sticker-small { font-size: calc(var(--u) * 18); }
+  .landing .seed-note { font-size: calc(var(--u) * 14); }
+  .landing .seed-note-alone { margin-bottom: calc(var(--u) * 20); }
+  .sticker-sheet ul { gap: calc(var(--u) * 18) calc(var(--u) * 14); }
+  .sticker-sheet .sticker {
+    padding: calc(var(--u) * 6) calc(var(--u) * 14) calc(var(--u) * 5);
+    font-size: calc(var(--u) * 34);
+    box-shadow: 0 0 0 calc(var(--u) * 4) var(--sheet), 0 calc(var(--u) * 6) calc(var(--u) * 14) calc(var(--u) * -6) rgba(28, 37, 65, .45);
+  }
+  .sticker-sheet .sticker.sticker-art { padding: calc(var(--u) * 2); border-radius: calc(var(--u) * 14); }
+  .sticker-sheet .sticker-faces { gap: calc(var(--u) * 12) calc(var(--u) * 14); margin-bottom: calc(var(--u) * 22); }
+  .sticker-art-img { width: calc(var(--u) * 104); height: calc(var(--u) * 104); }
+  .sticker-sheet figcaption { margin-top: calc(var(--u) * 18); font-size: calc(var(--u) * 15); }
+  .sticker-sheet figcaption .types-link { font-size: calc(var(--u) * 16); }
 }

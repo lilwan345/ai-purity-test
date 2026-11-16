@@ -349,7 +349,44 @@
     }
   }
 
+  // ======================================================================
+  // 4. LEAVING A PLAY AND COMING BACK
+  //
+  // The title in the top bar leads back to the landing page at any time,
+  // without a confirm dialog: nothing is lost, because the landing then
+  // offers to continue where the player was, or to start over.
+  // ======================================================================
+
+  /*
+   * landingChoice(answers, drawnCount, index) -> what the landing page offers:
+   *   { kind: 'start' }                        nothing answered yet: one start button
+   *   { kind: 'continue', position: n }        a play under way: "Continue (n / 30)"
+   *                                            (n = the statement they were on) + start over
+   *   { kind: 'result' }                       every statement answered: back to the
+   *                                            result + start over
+   */
+  function landingChoice(answers, drawnCount, index) {
+    var answered = Object.keys(answers || {}).length;
+    if (answered === 0) return { kind: 'start' };
+    if (drawnCount > 0 && answered >= drawnCount) return { kind: 'result' };
+    var i = typeof index === 'number' && index % 1 === 0 && index >= 0 && index < drawnCount ? index : 0;
+    return { kind: 'continue', position: i + 1 };
+  }
+
+  /*
+   * restartKeepsSet({ seedFromLink, challenge }) -> true when "Start over"
+   * must keep this play's 30 statements: the play came from someone's link
+   * (a seed link or a challenge link), so their results only compare on the
+   * same set. Otherwise a restart draws a fresh set, as "New questions" does.
+   */
+  function restartKeepsSet(play) {
+    return Boolean(play) && (play.seedFromLink === true || Boolean(play.challenge));
+  }
+
   var api = {
+    // leaving and coming back
+    landingChoice: landingChoice,
+    restartKeepsSet: restartKeepsSet,
     // comparison
     encodeAnswers: encodeAnswers,
     decodeAnswers: decodeAnswers,
