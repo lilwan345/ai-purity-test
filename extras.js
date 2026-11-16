@@ -1003,7 +1003,57 @@
     return { total: result.total, typeId: type, match: result.match, steps: steps };
   }
 
+  // ======================================================================
+  // Part 8. The purity figure on the question screen
+  // ======================================================================
+  // A small marker person whose parts become machine parts as purity falls.
+  // FIGURE_STAGES is the one table to retune from real play data: a part is a
+  // machine part once purity is at or below its `at`. Purity moves in steps of
+  // 100/30 (it is round(100 * (1 - admitted / 30))), and every `at` is one of
+  // those values, so each admission crosses at most one stage. Why these: in
+  // the simulated players the final purity has median 63, quartiles 47 and 80,
+  // and 5% end at 23 or lower, so the first admission already changes
+  // something, a typical play ends part machine, and few end all machine; 33
+  // is also where the merged type starts. The parts are the groups in
+  // art-src/c/out/purity-figure.svg ("lights" is the eye lights going full).
+  var FIGURE_STAGES = [
+    { at: 97, part: 'ant' },     // antenna
+    { at: 90, part: 'eyeL' },    // first eye becomes a screen
+    { at: 80, part: 'armR' },    // right arm becomes a claw arm
+    { at: 70, part: 'eyeR' },    // second eye
+    { at: 60, part: 'mouth' },   // mouth becomes a grille
+    { at: 50, part: 'head' },    // square head
+    { at: 40, part: 'body' },    // a box with a panel
+    { at: 33, part: 'armL' },    // left arm
+    { at: 17, part: 'legs' },    // wheels
+    { at: 3, part: 'lights' }    // the eye lights go fully on
+  ];
+
+  // The machine parts at this purity, in table order (anything that is not a
+  // number counts as 100: a fresh, human figure).
+  function figureState(purity) {
+    var p = Number(purity);
+    if (purity === null || purity === undefined || purity === '' || !isFinite(p)) p = 100;
+    return FIGURE_STAGES.filter(function (s) { return p <= s.at; }).map(function (s) { return s.part; });
+  }
+
+  // What changes between two purities: the parts that turn machine (add) or
+  // back to human (remove), and the kind of change: 'scan' (a part changes),
+  // 'react' (purity fell but no part changes) or 'none'.
+  function figureChange(fromPurity, toPurity) {
+    var a = figureState(fromPurity);
+    var b = figureState(toPurity);
+    var add = b.filter(function (x) { return a.indexOf(x) < 0; });
+    var remove = a.filter(function (x) { return b.indexOf(x) < 0; });
+    var kind = add.length || remove.length ? 'scan' : (Number(toPurity) < Number(fromPurity) ? 'react' : 'none');
+    return { add: add, remove: remove, kind: kind };
+  }
+
   var api = {
+    // the purity figure
+    FIGURE_STAGES: FIGURE_STAGES,
+    figureState: figureState,
+    figureChange: figureChange,
     // the judging trace
     judgingTrace: judgingTrace,
     validateJudging: validateJudging,

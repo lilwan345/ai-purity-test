@@ -30,7 +30,7 @@ test('motion: the whole change takes about 300 ms or less', () => {
 test('motion: an answer is recorded and the next statement drawn at once, input is never held up', () => {
   const ans = fn('answer');
   // busy only around a remark's hold and the hand-over to the result.
-  assert.match(ans, /busy = true;\s*pressAnswer\(value\);\s*if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*return;\s*\}\s*busy = false;/);
+  assert.match(ans, /busy = true;\s*pressAnswer\(value\);\s*if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*syncFigure\('animate'\);\s*return;\s*\}\s*busy = false;/);
   assert.match(ans, /state\.index = next;\s*stepTo\('next', value, true\);/);
   assert.doesNotMatch(ans.split('if (next === null)')[1].split('return;\n    }')[1] || '', /setTimeout/, 'no timer before the next statement');
   // A double tap on a button is one answer; keys are never limited.

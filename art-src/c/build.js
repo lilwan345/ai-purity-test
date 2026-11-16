@@ -705,10 +705,107 @@ CHARS.bond_lite = () => {
   return s;
 };
 
+// ---------- THE PURITY FIGURE (question screen) ----------
+// One margin-doodle person whose parts are swapped for machine parts as
+// purity falls (the stage table is extras.FIGURE_STAGES). Same hand as the 14:
+// the same ink, line weights, wobble and white scribble fill. Every part comes
+// twice in the file, as a group <g data-p="<part>" data-f="h"> (human) and
+// data-f="m" (machine); app.js shows one form of each, and during a change it
+// shows both, clipped either side of the scan line (the two clip paths at the
+// top). The antenna has only a machine form; "lights" is not a drawing but the
+// eye lights going from dim to full (class pf-light). The only colour besides
+// ink and white is ACCENT, and only on machine parts and the scan line.
+// Stands about 210 units tall; app.js shows it 46 to 78 px tall, so details
+// are drawn big (screen eyes, a fat antenna tip) to survive at 48 px.
+const ACCENT = '#3A7BFF';
+function figurePart(p, form, seedN, body) {
+  seed = seedN;
+  return `<g data-p="${p}" data-f="${form}">${body()}</g>`;
+}
+function roundBox(x0, y0, x1, y1, r, n = 2, a = 0.8) {
+  // a rounded rectangle as a wobbly polygon (corners cut at r)
+  return sub([[x0 + r, y0], [x1 - r, y0 + 1], [x1, y0 + r], [x1 + 1, y1 - r], [x1 - r, y1], [x0 + r, y1 + 1], [x0, y1 - r], [x0 - 1, y0 + r]], n, a);
+}
+function screenEye(cx, cy) { // a little ink screen with a light inside
+  const scr = roundBox(cx - 10, cy - 8, cx + 10, cy + 8, 4, 1, 0.4);
+  return scribble(scr, { col: INK, sp: 4, w: 6, dx: 0, dy: 0, shrink: 0.5 }) + ink(loopPath(scr, 1), 4.2) +
+    `<rect class="pf-light" x="${cx - 5}" y="${cy - 3}" width="10" height="6" rx="2" fill="${ACCENT}" stroke="none"/>`;
+}
+function wheel(cx, cy, r) {
+  const w = blob(cx, cy, r, r, 12, 0.8);
+  return shape(w, { sp: 5, w: 6, dx: 1, dy: 1, shrink: 0.5 }) + dot(cx, cy, 3.6);
+}
+const FIGURE_H = 214, FIGURE_X0 = 14, FIGURE_W = 122;
+function purityFigure() {
+  DARK = false;
+  const parts = [];
+  // antenna (machine only): drawn first, so either head covers its foot
+  parts.push(figurePart('ant', 'm', 301, () =>
+    line([[80, 34], [82, 20], [84, 12]], 5, 1, 0.4) +
+    scribble(blob(85, 9, 7, 7, 8, 0.4), { col: ACCENT, sp: 3.5, w: 6, dx: 0.5, dy: 0.5, shrink: 0 }) +
+    ink(loopPath(blob(85, 9, 7, 7, 8, 0.4), 1), 4)));
+  // legs
+  parts.push(figurePart('legs', 'h', 311, () =>
+    line([[66, 160], [62, 194]]) + line([[86, 160], [90, 194]]) + shoe(56, 199, -1) + shoe(94, 199, 1)));
+  parts.push(figurePart('legs', 'm', 312, () =>
+    line([[64, 160], [64, 180]], 6, 1, 0.4) + line([[87, 160], [87, 180]], 6, 1, 0.4) +
+    line([[52, 182], [99, 181]], 5, 2, 0.5) + wheel(60, 196, 13) + wheel(91, 196, 13)));
+  // arms: "L" is the figure's own left (the viewer's right), "R" its right
+  parts.push(figurePart('armR', 'h', 321, () => line([[54, 112], [38, 128], [32, 148]])));
+  parts.push(figurePart('armR', 'm', 322, () =>
+    line([[54, 112], [36, 124]], 6, 1, 0.4) + line([[36, 124], [32, 144]], 6, 1, 0.4) +
+    `<circle cx="36" cy="124" r="4.5" fill="${WHITE}" stroke-width="3.6"/>` +
+    line([[23, 146], [26, 156], [32, 158]], 4.5, 1, 0.3) + line([[41, 146], [38, 156], [33, 158]], 4.5, 1, 0.3)));
+  parts.push(figurePart('armL', 'h', 331, () => line([[96, 112], [112, 126], [118, 146]])));
+  parts.push(figurePart('armL', 'm', 332, () =>
+    line([[96, 112], [114, 124]], 6, 1, 0.4) + line([[114, 124], [118, 144]], 6, 1, 0.4) +
+    `<circle cx="114" cy="124" r="4.5" fill="${WHITE}" stroke-width="3.6"/>` +
+    line([[109, 146], [112, 156], [118, 158]], 4.5, 1, 0.3) + line([[127, 146], [124, 156], [119, 158]], 4.5, 1, 0.3)));
+  // body
+  parts.push(figurePart('body', 'h', 341, () => shape(sack(75, 102))));
+  parts.push(figurePart('body', 'm', 342, () => {
+    const box = roundBox(51, 102, 100, 162, 5, 2, 0.9);
+    const panel = roundBox(62, 116, 89, 140, 3, 1, 0.5);
+    return shape(box, { sp: 7 }) + ink(loopPath(panel, 1), 3.6) +
+      scribble(blob(75.5, 128, 5.5, 5.5, 8, 0.3), { col: ACCENT, sp: 3, w: 5, dx: 0.5, dy: 0.5, shrink: 0 }) +
+      ink(loopPath(blob(75.5, 128, 5.5, 5.5, 8, 0.3), 1), 3.2) + dot(58, 152, 2.6) + dot(93, 152, 2.6);
+  }));
+  // head
+  parts.push(figurePart('head', 'h', 351, () => {
+    const h = head(75, 64, 33, 36, -0.04);
+    return shape(h) + ghost(h) + cowlick(70, 30) + ear(42, 70, -1) + bigNose(98, 72, 1);
+  }));
+  parts.push(figurePart('head', 'm', 352, () => {
+    const h = roundBox(43, 30, 107, 98, 9, 2, 0.9);
+    return shape(h) + ghost(h) + dot(39, 64, 4.2) + dot(111, 64, 4.2) + line([[52, 40], [62, 39]], 3.4, 1, 0.3);
+  }));
+  // eyes (on either head): deadpan lid eye or a screen
+  const lid = (x, y) => dot(x + 1, y + 2) + line([[x - 8, y - 2], [x + 8, y - 2]], 4.5, 1, 0.5);
+  parts.push(figurePart('eyeL', 'h', 361, () => lid(88, 58)));
+  parts.push(figurePart('eyeL', 'm', 362, () => screenEye(88, 59)));
+  parts.push(figurePart('eyeR', 'h', 371, () => lid(63, 58)));
+  parts.push(figurePart('eyeR', 'm', 372, () => screenEye(63, 59)));
+  // mouth: a flat little line, or a speaker grille
+  parts.push(figurePart('mouth', 'h', 381, () => line([[66, 86], [75, 88], [84, 85]], 4.5, 1)));
+  parts.push(figurePart('mouth', 'm', 382, () => {
+    const g = roundBox(62, 80, 88, 92, 3, 1, 0.3);
+    return ink(loopPath(g, 1), 4) + [68.5, 75, 81.5].map((x) => line([[x, 82], [x, 90]], 3.2, 1, 0.2)).join('');
+  }));
+  // the scan line: drawn once at y = 0 and moved down by app.js
+  const scan = `<g class="pf-scan" opacity="0"><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="10" stroke-opacity=".2"/><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="3"/></g>`;
+  const clips = `<defs><clipPath id="pf-new"><rect class="pf-clip-new" x="${FIGURE_X0 - 10}" y="${-FIGURE_H}" width="${FIGURE_W + 20}" height="${FIGURE_H}"/></clipPath>` +
+    `<clipPath id="pf-old"><rect class="pf-clip-old" x="${FIGURE_X0 - 10}" y="0" width="${FIGURE_W + 20}" height="${FIGURE_H}"/></clipPath></defs>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${FIGURE_X0} 0 ${FIGURE_W} ${FIGURE_H}" width="${FIGURE_W}" height="${FIGURE_H}">${clips}` +
+    `<g fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">${parts.join('')}${scan}</g></svg>`;
+  fs.writeFileSync(path.join(OUT, 'purity-figure.svg'), svg);
+  return svg.length;
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 const ids = Object.keys(CHARS);
 const only = process.argv.slice(2);
 const sizes = {};
 const DARK_CARDS = new Set(['merged', 'work_deep', 'bond_deep', 'school_deep', 'brain_deep', 'heart_deep']);
 for (const id of ids) if (!only.length || only.includes(id)) DARK = DARK_CARDS.has(id), sizes[id] = wrap(id, CHARS[id]());
+if (!only.length || only.includes('purity-figure')) sizes['purity-figure'] = purityFigure();
 console.log(sizes); // bytes

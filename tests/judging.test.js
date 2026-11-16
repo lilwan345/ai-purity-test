@@ -243,7 +243,7 @@ test('remark hold: the answered statement stays while its remark shows, then the
   assert.match(src, /if \(hold\) releaseHold\(\);/);
   // Never in the play-off.
   const ans = src.match(/function answer\(value, tapped\) \{([\s\S]*?)\n {2}\}/)[1];
-  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*return;\s*\}/);
+  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*syncFigure\('animate'\);\s*return;\s*\}/);
 });
 
 test('remark hold: remarkFor never holds the last statement, a play-off position or a non-Guilty answer', () => {

@@ -527,6 +527,9 @@
     // The landing page already shows the name huge, so the small one hides there.
     document.body.classList.toggle('on-landing', !state.reply && layer === 'base' && state.screen === 'landing');
     app.replaceChildren(screen);
+    // The purity figure follows the purity: animated only when an answer
+    // moved it on (stepTo, the hold), at once otherwise.
+    if (onQuestion) syncFigure(opts.figure);
     // The reveal: only when the last answer of a play brought us here.
     if (opts.reveal && !state.reply && layer === 'base' && state.screen === 'result' && !state.preview) {
       startReveal(screen, currentScore().typeId);
@@ -1125,7 +1128,11 @@
     // only animates the card, so the header stays still.
     return el('section', { class: 'quiz' + (enter ? '' : ' screen') }, [
       head,
-      el('div', { class: 'q-stage' }, [card]),
+      // The card's slot: the purity figure stands on the card's top edge, but
+      // belongs to the slot, so it stays put while cards come and go.
+      el('div', { class: 'q-stage' + (figureNode() ? ' has-figure' : '') }, [
+        el('div', { class: 'q-slot' }, [figureNode(), card])
+      ]),
       el('div', { class: 'q-bottom' }, [
         answers,
         el('p', { class: 'q-keys', text: t('keysHint') })
@@ -1250,6 +1257,7 @@
     pressAnswer(value);
     if (!inPlayoff && maybeRemark(state.index, value)) {
       updateLive();
+      syncFigure('animate');
       return;
     }
     busy = false;
@@ -1262,6 +1270,7 @@
       // preview, a peek or a reply link: they do not come through here).
       busy = true;
       updateLive();
+      syncFigure('animate');
       const reduce = reducedMotion();
       const card = app.querySelector('.q-card');
       if (card && !reduce) card.classList.add('q-leaving', 'leave-' + value);
@@ -1303,7 +1312,7 @@
     const oldNum = document.getElementById('liveNum');
     const oldPurity = oldNum ? (oldNum.dataset.to || oldNum.textContent) : null;
     const enter = reduce ? 'swap' : (way === 'next' ? 'rise' : 'return-' + (value || 'no'));
-    render({ moveFocus: true, enter: enter });
+    render({ moveFocus: true, enter: enter, figure: way === 'next' ? 'animate' : 'instant' });
     if (reduce || state.screen !== 'question') return;
     const stage = app.querySelector('.q-stage');
     if (oldCard && stage) {
@@ -1465,6 +1474,143 @@
     ], { duration: MOTION.purity, easing: 'cubic-bezier(.3, 0, .2, 1)' });
     num.rollSwap = setTimeout(() => { num.textContent = to; }, MOTION.purity * 0.42);
     num.roll.onfinish = num.roll.oncancel = () => { if (num.dataset.to === to) num.textContent = to; };
+  }
+
+  // ---------- The purity figure ----------
+  /*
+   * A small marker person on the card's top edge whose parts become machine
+   * parts as purity falls (extras.FIGURE_STAGES says which part at which
+   * purity; the drawing is APT_FIGURE from art.js, made by art-src/c/build.js).
+   * Decorative only: aria-hidden; the purity number is the readable value.
+   *  - An answer that crosses a stage: a thin accent line sweeps down the
+   *    figure; above the line the part is already new, below it still old
+   *    (two clip paths in the drawing move with the line). FIG.scan ms, then a
+   *    small settle (FIG.settle ms). About 450 ms in all.
+   *  - Purity falls without crossing a stage: a small wobble (FIG.react ms).
+   *  - Never, Not sure, the play-off: purity does not change, nothing happens.
+   *  - Back, a refresh, the first draw, a language switch: the right state at
+   *    once, no motion. Reduced motion: parts change, nothing moves.
+   *  - Fast answering: a new change first finishes the one under way (jumps
+   *    to its end state), then starts; a scan that is cut short for any other
+   *    reason still ends in its end state. It never blocks input.
+   * At rest nothing moves (no idle loop). The same <svg> node is kept and
+   * moved into each new question screen, so a change survives the redraw
+   * that comes with the next statement.
+   */
+  const FIG = { scan: 300, settle: 150, react: 180 };
+  let fig = null; // { svg, parts: { name: { h, m } }, shown: [machine parts], purity, anims: [], timers: [] }
+
+  function figureNode() {
+    if (fig) return fig.svg;
+    let src = null;
+    try { src = globalThis.APT_FIGURE; } catch (e) { src = null; }
+    if (typeof src !== 'string' || !src) return null;
+    const holder = document.createElement('div');
+    holder.innerHTML = src; // our own generated drawing (tools/pack-art.js checks it)
+    const svg = holder.querySelector('svg');
+    if (!svg || typeof svg.animate !== 'function') return null;
+    svg.setAttribute('class', 'q-figure');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    const parts = {};
+    svg.querySelectorAll('[data-p]').forEach((g) => {
+      (parts[g.getAttribute('data-p')] = parts[g.getAttribute('data-p')] || {})[g.getAttribute('data-f')] = g;
+    });
+    fig = {
+      svg, parts, shown: null, purity: null, anims: [], timers: [],
+      scan: svg.querySelector('.pf-scan'),
+      clipNew: svg.querySelector('.pf-clip-new'),
+      clipOld: svg.querySelector('.pf-clip-old'),
+      height: svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal.height : 214
+    };
+    return svg;
+  }
+
+  // Shows one form of every part, for these machine parts; no clipping.
+  function applyFigure(machine) {
+    Object.keys(fig.parts).forEach((name) => {
+      const isMachine = machine.indexOf(name) >= 0;
+      const forms = fig.parts[name];
+      ['h', 'm'].forEach((f) => {
+        if (!forms[f]) return;
+        forms[f].style.display = (f === 'm') === isMachine ? '' : 'none';
+        forms[f].removeAttribute('clip-path');
+      });
+    });
+    fig.svg.classList.toggle('pf-lights-on', machine.indexOf('lights') >= 0);
+  }
+
+  // Ends any motion at once, in the state it was heading for.
+  function stopFigure() {
+    const anims = fig.anims;
+    fig.anims = [];
+    anims.forEach((a) => { a.onfinish = null; a.oncancel = null; a.cancel(); });
+    fig.timers.forEach(clearTimeout);
+    fig.timers = [];
+    if (fig.shown) applyFigure(fig.shown);
+  }
+
+  function syncFigure(mode) {
+    if (!fig || !fig.svg.isConnected) return;
+    const purity = currentScore().purity;
+    const target = extras.figureState(purity);
+    if (fig.shown === null || mode !== 'animate' || reducedMotion()) {
+      stopFigure();
+      fig.shown = target;
+      fig.purity = purity;
+      applyFigure(target);
+      return;
+    }
+    const change = extras.figureChange(fig.purity, purity);
+    fig.purity = purity;
+    if (change.kind === 'scan') {
+      stopFigure();
+      scanFigure(fig.shown, target);
+    } else if (change.kind === 'react' && !fig.anims.length) {
+      const a = fig.svg.animate([
+        { transform: 'none' }, { transform: 'rotate(-6deg)', offset: 0.35 }, { transform: 'rotate(3deg)', offset: 0.7 }, { transform: 'none' }
+      ], { duration: FIG.react, easing: 'ease-out' });
+      fig.anims.push(a);
+      a.onfinish = a.oncancel = () => { fig.anims = fig.anims.filter((x) => x !== a); };
+    }
+  }
+
+  // The scan: both forms of each changing part are shown, the new one clipped
+  // above the line and the old one below it, while the line moves down.
+  function scanFigure(from, to) {
+    const changed = Object.keys(fig.parts).filter((p) => (from.indexOf(p) >= 0) !== (to.indexOf(p) >= 0));
+    changed.forEach((p) => {
+      const oldForm = fig.parts[p][from.indexOf(p) >= 0 ? 'm' : 'h'];
+      const newForm = fig.parts[p][to.indexOf(p) >= 0 ? 'm' : 'h'];
+      if (oldForm) { oldForm.style.display = ''; oldForm.setAttribute('clip-path', 'url(#pf-old)'); }
+      if (newForm) { newForm.style.display = ''; newForm.setAttribute('clip-path', 'url(#pf-new)'); }
+    });
+    fig.shown = to;
+    const down = [{ transform: 'translateY(0px)' }, { transform: 'translateY(' + fig.height + 'px)' }];
+    const timing = { duration: FIG.scan, easing: 'cubic-bezier(.45, 0, .55, 1)', fill: 'both' };
+    const line = fig.scan.animate([
+      { transform: 'translateY(0px)', opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.9 },
+      { transform: 'translateY(' + fig.height + 'px)', opacity: 0 }
+    ], timing);
+    fig.anims = [fig.clipNew.animate(down, timing), fig.clipOld.animate(down, timing), line];
+    // The eye lights turn full as the line passes the eyes (about 28% down).
+    if ((from.indexOf('lights') >= 0) !== (to.indexOf('lights') >= 0)) {
+      fig.timers.push(setTimeout(() => fig.svg.classList.toggle('pf-lights-on', to.indexOf('lights') >= 0), FIG.scan * 0.28));
+    }
+    const done = (settle) => {
+      if (fig.anims.indexOf(line) < 0) return; // already stopped
+      stopFigure();
+      if (!settle || reducedMotion()) return;
+      const s = fig.svg.animate([{ transform: 'scale(1.06, .95)' }, { transform: 'none' }], { duration: FIG.settle, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+      fig.anims.push(s);
+      s.onfinish = s.oncancel = () => { fig.anims = fig.anims.filter((x) => x !== s); };
+    };
+    line.onfinish = () => done(true);
+    line.oncancel = () => done(false);
+    // Whatever happens to the animation, it ends in the right state.
+    fig.timers.push(setTimeout(() => done(false), FIG.scan + 200));
   }
 
   // ---------- The AI's remarks while answering ----------

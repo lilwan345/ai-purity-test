@@ -85,6 +85,20 @@ the characters are the only decoration.
   120 ms count as one (a double tap), keys are never limited. The three buttons keep the same size and place on every
   statement, from 360 px phones up. The footer is hidden on these screens,
   so the page is exactly one window tall.
+- **The purity figure.** A small marker person stands on the statement
+  card's top edge at the right, under the purity number, drawn by the same
+  generator as the 14 characters (`purityFigure()` in `art-src/c/build.js`,
+  packed into `art.js` as `APT_FIGURE`). As purity falls its parts become
+  machine parts, one per stage of `extras.FIGURE_STAGES` (antenna at 97, an
+  eye at 90, the right arm at 80, the other eye at 70, the mouth at 60, the
+  head at 50, the body at 40, the left arm at 33, wheels at 17, the eye
+  lights full at 3; the one table to retune). Crossing a stage, a thin blue
+  scan line sweeps down the figure and the part is new once the line has
+  passed, then a small settle (300 + 150 ms); a drop without a new stage
+  gives a small wobble (180 ms); Never and Not sure do nothing. Back,
+  refresh and the first draw show the right state at once; reduced motion
+  swaps parts without moving. It is still at rest, never blocks input, and
+  is hidden from screen readers (`tests/figure.test.js`).
 - **Large windows.** From 900 px wide the question screen grows with the
   window like the landing page: every size on it (the card, the statement,
   the section label, back, progress and purity, the three answers with their

@@ -17,3 +17,4 @@ require('./counts.test.js');
 require('./judging.test.js');
 require('./question-scale.test.js');
 require('./motion.test.js');
+require('./figure.test.js');
