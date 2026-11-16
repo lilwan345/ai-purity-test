@@ -238,12 +238,12 @@ test('remark hold: the answered statement stays while its remark shows, then the
   assert.match(on, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);/);
   assert.match(on, /if \(back\) state\.index = held;/);
   // Answers and Back are locked while holding; any redraw ends the hold.
-  assert.match(src, /function answer\(value\) \{\s*if \(busy \|\| hold \|\| state\.screen !== 'question'\) return;/);
+  assert.match(src, /function answer\(value, tapped\) \{\s*if \(busy \|\| hold \|\| state\.screen !== 'question'\) return;/);
   assert.match(src, /function goBack\(\) \{\s*if \(busy \|\| hold \|\| state\.screen !== 'question'\) return;/);
   assert.match(src, /if \(hold\) releaseHold\(\);/);
   // Never in the play-off.
-  const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
-  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) return;/);
+  const ans = src.match(/function answer\(value, tapped\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*return;\s*\}/);
 });
 
 test('remark hold: remarkFor never holds the last statement, a play-off position or a non-Guilty answer', () => {

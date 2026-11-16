@@ -16,3 +16,4 @@ require('./playoff.test.js');
 require('./counts.test.js');
 require('./judging.test.js');
 require('./question-scale.test.js');
+require('./motion.test.js');

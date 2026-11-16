@@ -1001,22 +1001,44 @@
   // ---------- Question screens (one statement at a time) ----------
   const TICK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
 
-  // Timing of one answer: the picked button shows its tick for CONFIRM_MS,
-  // then the card slides out for LEAVE_MS and the next one springs in (CSS).
-  // With reduced motion there is no sliding, just a short pause on the tick.
-  const CONFIRM_MS = 230;
-  const LEAVE_MS = 140;
-  const REDUCED_CONFIRM_MS = 160;
+  // Moving between statements (styles.css has the keyframes; only transform
+  // and opacity move, so it stays smooth on phones):
+  //  - An answer is recorded and the next statement is on screen at once, in
+  //    the same frame: input is never held up by the motion, so fast keyboard
+  //    answers each count once, in order.
+  //  - The answered card stays as a "ghost" on top and leaves the way of the
+  //    answer (Guilty right, Never left, Not sure a little down) in
+  //    MOTION.leave ms, while the new card rises from behind it (slightly
+  //    smaller and lower, fading in) in MOTION.enter ms. They overlap, so
+  //    there is never an empty frame.
+  //  - The picked button shows a short pressed flash (MOTION.flash ms), the
+  //    purity number rolls to its new value (MOTION.purity ms) and the
+  //    progress bar eases to its new length (MOTION.bar ms).
+  //  - Back reverses it: the previous card comes back from the side it left
+  //    and the current one sinks behind it.
+  //  - With reduced motion: no movement, the next statement simply replaces
+  //    the last.
+  // The last answer of a play is the exception: its card leaves on its own,
+  // then the result and its reveal come (MOTION.last ms).
+  const MOTION = { leave: 260, enter: 300, flash: 220, purity: 240, bar: 300, last: 160 };
+  // Two taps within this time on the answer buttons are one double tap, not
+  // two answers (a statement cannot be read that fast). Keys are not limited.
+  const DOUBLE_TAP_MS = 120;
+  let lastTapAt = -Infinity;
+  // The progress bar's last shown position, so the next one eases from it.
+  let barShown = null;
 
-  // True while an answer is being confirmed, so a double tap (or a held key)
-  // cannot answer the next statement before the person has seen it.
+  // True only while the last answer of a play hands over to the result, and
+  // during a remark's hold (see "hold" below).
   let busy = false;
 
   function reducedMotion() {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
   }
 
-  // enter: 'next' | 'prev' | undefined — which side the card slides in from.
+  // enter: how the card arrives (stepTo): 'rise' | 'return-yes' |
+  // 'return-no' | 'return-unsure' | 'swap' (no motion) | undefined (the
+  // whole screen fades in, as on arriving from another screen).
   function renderQuestion(enter) {
     const statement = statementsById[statementAt(state.index)];
     if (!statement) {
@@ -1049,12 +1071,14 @@
 
     // The bar shows how many statements lie behind you. When arriving from
     // a neighbour, it animates from that neighbour's width (--from).
-    const pct = (i) => (Math.min(i, total) / total * 100).toFixed(2) + '%';
-    const from = enter === 'next' ? state.index - 1 : (enter === 'prev' ? state.index + 1 : null);
+    // (A scaleX of a full-width bar, so only transform moves.)
+    const frac = (i) => (Math.min(i, total) / total).toFixed(4);
+    const moving = enter && enter !== 'swap' && barShown !== null && barShown !== state.index;
     const fill = el('span', {
-      class: from === null ? '' : 'is-moving',
-      style: 'width:' + pct(state.index) + (from === null ? '' : ';--from:' + pct(from))
+      class: moving ? 'is-moving' : '',
+      style: 'transform:scaleX(' + frac(state.index) + ')' + (moving ? ';--from:' + frac(barShown) : '')
     });
+    barShown = state.index;
 
     // Progress and purity are for the eyes; the statement heading below
     // carries "Statement 12 of 30" for screen readers instead.
@@ -1193,17 +1217,22 @@
       type: 'button',
       'data-answer': value,
       'aria-pressed': given === value ? 'true' : 'false',
-      onclick: () => answer(value)
+      onclick: () => answer(value, true)
     }, [
       el('span', { class: 'answer-label' }, [tick, answerText(value)]),
       el('kbd', { class: 'answer-key', 'aria-hidden': 'true', text: ANSWER_KEY[value] })
     ]);
   }
 
-  function answer(value) {
+  function answer(value, tapped) {
     if (busy || hold || state.screen !== 'question') return;
     const statementId = statementAt(state.index);
     if (!statementId) return;
+    if (tapped) {
+      const now = performance.now();
+      if (now - lastTapAt < DOUBLE_TAP_MS) return;
+      lastTapAt = now;
+    }
     hideRemark();
     const inPlayoff = state.index >= state.drawn.length;
     const firstAnswer = answeredCount() === 0;
@@ -1211,54 +1240,93 @@
     else state.answers[statementId] = value;
     saveState();
     if (firstAnswer) track('start', 'play');
-    busy = true;
 
-    // 1. Confirmation: the picked button fills in and draws its tick, and the
-    //    purity number drops (on "yes") with a little bump.
+    // Now and then the AI says something about a "Guilty" (never about the
+    // other two answers, never in a play-off, never on the last statement).
+    // Then the answered statement stays on screen, its answer pressed, with
+    // the AI's reply under it, and the play moves on after the reading time
+    // or at the next tap (see "hold" below).
+    busy = true;
+    pressAnswer(value);
+    if (!inPlayoff && maybeRemark(state.index, value)) {
+      updateLive();
+      return;
+    }
+    busy = false;
+
+    const next = nextPosition(state.index);
+    if (next === null) {
+      // The end of a play: the card leaves, then the result arrives with its
+      // reveal (none with reduced motion). Nothing else ever asks for the
+      // reveal. The finished play goes into this device's history (never a
+      // preview, a peek or a reply link: they do not come through here).
+      busy = true;
+      updateLive();
+      const reduce = reducedMotion();
+      const card = app.querySelector('.q-card');
+      if (card && !reduce) card.classList.add('q-leaving', 'leave-' + value);
+      setTimeout(() => {
+        busy = false;
+        if (state.screen !== 'question') return; // e.g. a preview link took over
+        state.screen = 'result';
+        const finished = currentScore();
+        track('finish', 'play');
+        track('result:' + finished.typeId, 'play');
+        extras.rememberPlay(deviceStorage(), finished.typeId);
+        render({ moveFocus: true, reveal: !reduce });
+      }, reduce ? 0 : MOTION.last);
+      return;
+    }
+    if (next >= state.drawn.length) track('tiebreak', 'play');
+    state.index = next;
+    stepTo('next', value, true);
+  }
+
+  // The picked button, pressed (and ticked) on the card being answered.
+  function pressAnswer(value) {
     app.querySelectorAll('.btn-answer').forEach((btn) => {
       const picked = btn.getAttribute('data-answer') === value;
       btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
       btn.classList.toggle('is-confirming', picked);
     });
-    updateLive(value === 'yes' && !inPlayoff);
-    // Now and then the AI says something about a "Guilty" (never about the
-    // other two answers, never in a play-off, never on the last statement).
-    // Then the answered statement stays on screen with the AI's reply under
-    // it, and the play moves on after the reading time or at the next tap.
-    if (!inPlayoff && maybeRemark(state.index, value)) return;
+  }
 
-    // 2. The card slides out, 3. the next statement (or the result) comes in.
+  // Draws the statement at state.index and moves the cards (see MOTION).
+  // way: 'next' (the old card leaves in the direction of `value`, the new
+  // one rises behind it) or 'prev' (the new card returns from the side
+  // `value` sent it, the old one sinks behind). flash: show the press on
+  // the button that was used.
+  function stepTo(way, value, flash) {
     const reduce = reducedMotion();
-    setTimeout(() => {
-      const card = app.querySelector('.q-card');
-      if (card && !reduce) {
-        // Drop the entrance animation first: while an animation is attached
-        // it wins over the leaving transition (see styles.css).
-        card.classList.remove('enter-next', 'enter-prev');
-        card.classList.add('is-leaving');
-      }
-      setTimeout(() => {
-        busy = false;
-        if (state.screen !== 'question') return; // e.g. a preview link took over
-        const next = nextPosition(state.index);
-        if (next === null) {
-          // The end of a play: the result arrives with its reveal (none with
-          // reduced motion). Nothing else ever asks for the reveal. The
-          // finished play goes into this device's history (never a preview,
-          // a peek or a reply link: they do not come through here).
-          state.screen = 'result';
-          const finished = currentScore();
-          track('finish', 'play');
-          track('result:' + finished.typeId, 'play');
-          extras.rememberPlay(deviceStorage(), finished.typeId);
-          render({ moveFocus: true, reveal: !reduce });
-        } else {
-          if (next >= state.drawn.length) track('tiebreak', 'play');
-          state.index = next;
-          render({ moveFocus: true, enter: 'next' });
-        }
-      }, reduce ? 0 : LEAVE_MS);
-    }, reduce ? REDUCED_CONFIRM_MS : CONFIRM_MS);
+    const oldCard = app.querySelector('.q-card');
+    const oldRect = oldCard && oldCard.getBoundingClientRect();
+    const oldNum = document.getElementById('liveNum');
+    const oldPurity = oldNum ? (oldNum.dataset.to || oldNum.textContent) : null;
+    const enter = reduce ? 'swap' : (way === 'next' ? 'rise' : 'return-' + (value || 'no'));
+    render({ moveFocus: true, enter: enter });
+    if (reduce || state.screen !== 'question') return;
+    const stage = app.querySelector('.q-stage');
+    if (oldCard && stage) {
+      // The old card, exactly where it was, above (next) or below (back) the new one.
+      const box = stage.getBoundingClientRect();
+      oldCard.className = 'q-card q-ghost ' + (way === 'next' ? 'leave-' + value : 'recede');
+      oldCard.setAttribute('aria-hidden', 'true');
+      oldCard.querySelectorAll('[id], [data-focus], [tabindex]').forEach((n) => {
+        n.removeAttribute('id'); n.removeAttribute('data-focus'); n.removeAttribute('tabindex');
+      });
+      oldCard.style.cssText = 'left:' + (oldRect.left - box.left) + 'px;top:' + (oldRect.top - box.top) + 'px;' +
+        'width:' + oldRect.width + 'px;height:' + oldRect.height + 'px';
+      stage.appendChild(oldCard);
+      const drop = () => oldCard.remove();
+      oldCard.addEventListener('animationend', drop, { once: true });
+      setTimeout(drop, MOTION.leave + 400); // in case the animation never runs
+    }
+    if (flash) {
+      const btn = app.querySelector('.btn-answer[data-answer="' + value + '"]');
+      if (btn) btn.classList.add('is-flash');
+    }
+    const num = document.getElementById('liveNum');
+    if (num && oldPurity !== null) rollNumber(num, oldPurity, num.textContent);
   }
 
   // Back one statement (its answer stays and is shown); from the first one,
@@ -1271,7 +1339,9 @@
       return;
     }
     state.index -= 1;
-    render({ moveFocus: true, enter: 'prev' });
+    const id = statementAt(state.index);
+    const given = (state.index >= state.drawn.length ? state.playoffAnswers : state.answers)[id];
+    stepTo('prev', given, false);
   }
 
   // Keyboard: Y / N answer, as do the arrows (← = Never, → = Guilty, matching
@@ -1369,17 +1439,33 @@
   }
 
   // Updates the running purity number in place after an answer.
-  function updateLive(bump) {
+  function updateLive() {
     const num = document.getElementById('liveNum');
     if (!num) return;
-    num.textContent = String(currentScore().purity);
-    if (bump) {
-      num.classList.remove('bump');
-      void num.offsetWidth; // restart the CSS animation
-      num.classList.add('bump');
-    }
+    rollNumber(num, num.dataset.to || num.textContent, String(currentScore().purity));
   }
 
+  // The purity number rolls to a new value: the old one slides up and out,
+  // the new one comes up from below (transform and opacity only). With
+  // reduced motion, or no change, it is just set.
+  function rollNumber(num, from, to) {
+    num.dataset.to = to;
+    if (num.rollSwap) clearTimeout(num.rollSwap);
+    if (num.roll) num.roll.cancel();
+    if (from === to || reducedMotion() || !num.animate) {
+      num.textContent = to;
+      return;
+    }
+    num.textContent = from;
+    num.roll = num.animate([
+      { transform: 'none', opacity: 1 },
+      { transform: 'translateY(-45%)', opacity: 0, offset: 0.42 },
+      { transform: 'translateY(45%)', opacity: 0, offset: 0.43 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: MOTION.purity, easing: 'cubic-bezier(.3, 0, .2, 1)' });
+    num.rollSwap = setTimeout(() => { num.textContent = to; }, MOTION.purity * 0.42);
+    num.roll.onfinish = num.roll.oncancel = () => { if (num.dataset.to === to) num.textContent = to; };
+  }
 
   // ---------- The AI's remarks while answering ----------
   /*
@@ -1458,18 +1544,8 @@
   // The reading time is up: the card leaves as after any answer.
   function endHoldOnTime() {
     if (!hold) return;
-    const card = app.querySelector('.q-card');
-    const reduce = reducedMotion();
-    if (card && !reduce) {
-      card.classList.remove('enter-next', 'enter-prev');
-      card.classList.add('is-leaving');
-    }
-    hideRemark();
-    clearTimeout(hold.timer);
-    hold.timer = setTimeout(() => {
-      releaseHold();
-      if (state.screen === 'question') render({ moveFocus: true, enter: 'next' });
-    }, reduce ? 0 : LEAVE_MS);
+    releaseHold();
+    if (state.screen === 'question') stepTo('next', 'yes', false);
   }
 
   // A tap, click or key during the hold: skip on (or go back), and nothing
@@ -1489,7 +1565,8 @@
     if (back) state.index = held;
     else if (state.index === held) return; // cannot happen: the play has moved on
     saveState();
-    render({ moveFocus: true, enter: back ? null : 'next' });
+    if (back) render({ moveFocus: true, enter: 'swap' });
+    else stepTo('next', 'yes', false);
   }
 
   // The remark node: a small "AI" tag and the line.

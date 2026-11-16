@@ -43,7 +43,7 @@ test('reveal rules: only the last answer of a play asks for it, never with reduc
   // answer() is the only caller, and it passes reveal: !reduce.
   assert.strictEqual((src.match(/reveal: !reduce/g) || []).length, 1);
   assert.strictEqual((src.match(/render\([^)]*reveal:/g) || []).length, 1, 'no other render asks for a reveal');
-  const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
+  const ans = src.match(/function answer\(value, tapped\) \{([\s\S]*?)\n {2}\}/)[1];
   assert.match(ans, /const reduce = reducedMotion\(\);/);
   // ...only when there is no next statement (and no play-off statement) left.
   assert.match(ans, /const next = nextPosition\(state\.index\);\s*if \(next === null\) \{[\s\S]*?render\(\{ moveFocus: true, reveal: !reduce \}\)/);

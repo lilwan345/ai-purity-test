@@ -276,8 +276,8 @@ test('play history: the last 20 finished plays, a summary from 3 on, and blocked
 
 test('app.js: the play-off flow, its statistics event, no remarks in it, and the history only from a finished play', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-  const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
-  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) return;/);
+  const ans = src.match(/function answer\(value, tapped\) \{([\s\S]*?)\n {2}\}/)[1];
+  assert.match(ans, /if \(!inPlayoff && maybeRemark\(state\.index, value\)\) \{\s*updateLive\(\);\s*return;\s*\}/);
   assert.match(ans, /if \(next >= state\.drawn\.length\) track\('tiebreak', 'play'\);/);
   assert.match(ans, /extras\.rememberPlay\(deviceStorage\(\), finished\.typeId\);/);
   assert.strictEqual((src.match(/extras\.rememberPlay\(/g) || []).length, 1, 'only a finished play is recorded');

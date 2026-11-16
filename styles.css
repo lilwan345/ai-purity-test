@@ -390,14 +390,15 @@ body.on-question { overflow-x: hidden; }
 }
 .q-bar span {
   display: block;
+  width: 100%;
   height: 100%;
-  border-radius: inherit;
+  transform-origin: left center;
   background: var(--ink);
 }
-/* app.js passes the previous width in --from, so the bar grows (or shrinks
-   on Back) from where it was instead of jumping. */
-.q-bar span.is-moving { animation: bar-move 360ms var(--spring) both; }
-@keyframes bar-move { from { width: var(--from); } }
+/* app.js sets scaleX(done / total) and passes the previous one in --from, so
+   the bar eases (forward or back) from where it was instead of jumping. */
+.q-bar span.is-moving { animation: bar-move 300ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes bar-move { from { transform: scaleX(var(--from)); } }
 .q-count {
   flex: none;
   font-size: 13px;
@@ -426,14 +427,14 @@ body.on-question { overflow-x: hidden; }
   font-size: 20px;
   font-variant-numeric: tabular-nums;
 }
-.q-purity-num.bump { animation: bump 260ms var(--spring); }
-@keyframes bump { 50% { transform: scale(1.25); } }
+/* The number rolls to a new value (app.js, rollNumber: Web Animations) */
 
 /* The statement on its white "form" card: the hero of the screen */
 /* The card sits a little above the middle of the free space: centred, but
    with extra room underneath, so it reads as "up where the eyes are" while
    the buttons stay down where the thumb is. */
 .q-stage {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -443,6 +444,8 @@ body.on-question { overflow-x: hidden; }
 .q-card {
   /* About four lines of English, so the card keeps one size whether the
      statement is short or long. */
+  position: relative;
+  z-index: 1;
   min-height: 236px;
   padding: 22px 22px 28px;
   background: var(--sheet);
@@ -500,21 +503,74 @@ html[lang^="zh"] .q-text {
    it would otherwise box the title or sit on the card people screenshot. */
 [data-focus]:focus { outline: none; }
 
-/* Moving between statements: the card leaves to one side, the next one
-   glides in from the other. Back reverses the direction. A plain ease-out
-   (no spring) so the text is still by the time you read it.
-   Fill mode "backwards" (not "both") matters: a finished animation that
-   kept holding its end state would override the .is-leaving transition
-   below, and the card would blink out instead of sliding away. */
-.q-card.enter-next { animation: card-in-next 260ms cubic-bezier(.2, .8, .2, 1) backwards; }
-.q-card.enter-prev { animation: card-in-prev 260ms cubic-bezier(.2, .8, .2, 1) backwards; }
-@keyframes card-in-next { from { opacity: 0; transform: translateX(24px); } }
-@keyframes card-in-prev { from { opacity: 0; transform: translateX(-24px); } }
-.q-card.is-leaving {
-  opacity: 0;
-  transform: translateX(-24px);
-  transition: opacity 140ms ease-in, transform 140ms ease-in;
+/* Moving between statements (app.js, MOTION and stepTo). Only transform and
+   opacity move.
+   - The answered card stays as a ghost on top of the new one, exactly where
+     it was, and is flicked away the way of the answer: Guilty to the right,
+     Never to the left (with a slight turn), Not sure a little downward. It
+     moves at once and slows as it goes (the iOS-like curve below), and stays
+     opaque until it has mostly cleared the new card, so the two statements'
+     text never shows through each other; it fades only at the end. 260 ms
+     (Not sure: 160 ms, a short sink and fade, so the two statements barely
+     cross-fade).
+   - The new card rises from behind it: slightly smaller and lower, fading in,
+     300 ms. The two overlap, so no frame is ever empty, and the new card has
+     its final size from the first frame (nothing jumps if the line count
+     differs).
+   - Back: the previous card returns, opaque, from the side it left, over the
+     current one, which sinks behind it and fades at the end.
+   Entrances use fill mode "backwards": once done, nothing holds a transform
+   on the card. */
+.q-ghost {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  pointer-events: none;
 }
+.q-ghost.recede { z-index: 0; }
+.q-ghost.leave-yes, .q-card.q-leaving.leave-yes { animation: card-leave-yes 260ms cubic-bezier(.32, .72, 0, 1) forwards; }
+.q-ghost.leave-no, .q-card.q-leaving.leave-no { animation: card-leave-no 260ms cubic-bezier(.32, .72, 0, 1) forwards; }
+.q-ghost.leave-unsure, .q-card.q-leaving.leave-unsure { animation: card-leave-unsure 160ms cubic-bezier(.32, .72, 0, 1) forwards; }
+.q-ghost.recede { animation: card-recede 260ms cubic-bezier(.32, .72, 0, 1) forwards; }
+@keyframes card-leave-yes {
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translateX(105%) rotate(4deg); }
+}
+@keyframes card-leave-no {
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translateX(-105%) rotate(-4deg); }
+}
+@keyframes card-leave-unsure { to { opacity: 0; transform: translateY(10%) scale(.95); } }
+@keyframes card-recede {
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translateY(16px) scale(.95); }
+}
+
+.q-card.enter-rise { animation: card-rise 300ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.q-card.enter-return-yes { animation: card-return-yes 300ms cubic-bezier(.32, .72, 0, 1) backwards; }
+.q-card.enter-return-no { animation: card-return-no 300ms cubic-bezier(.32, .72, 0, 1) backwards; }
+.q-card.enter-return-unsure { animation: card-return-unsure 300ms cubic-bezier(.22, 1, .36, 1) backwards; }
+@keyframes card-rise { from { opacity: 0; transform: translateY(16px) scale(.95); } }
+@keyframes card-return-yes { from { transform: translateX(105%) rotate(4deg); } }
+@keyframes card-return-no { from { transform: translateX(-105%) rotate(-4deg); } }
+@keyframes card-return-unsure { from { opacity: 0; transform: translateY(10%) scale(.95); } }
+
+/* The button that was used, on the next statement's row: a short press that
+   lets go (a fading ink layer and a small scale), so the choice registers
+   without holding anything up. */
+.btn-answer.is-flash { animation: btn-release 220ms cubic-bezier(.22, 1, .36, 1); }
+.btn-answer.is-flash::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: var(--ink);
+  pointer-events: none;
+  animation: btn-flash 220ms ease-out forwards;
+}
+.btn-unsure.is-flash::after { background: var(--ink-soft); }
+@keyframes btn-release { from { transform: scale(.96); } }
+@keyframes btn-flash { from { opacity: .9; } to { opacity: 0; } }
 
 /* Answer buttons, pinned to the bottom so a long statement on a small phone
    can never push them off screen. */

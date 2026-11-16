@@ -101,7 +101,7 @@ test('app.js: every count goes through track(), with a name from the list, and n
   // Previews, peeks, the grid and reply links never send finish or result.
   const finishCalls = src.match(/track\('finish', 'play'\)/g) || [];
   assert.strictEqual(finishCalls.length, 1);
-  const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
+  const ans = src.match(/function answer\(value, tapped\) \{([\s\S]*?)\n {2}\}/)[1];
   assert.match(ans, /track\('finish', 'play'\)/);
   assert.match(ans, /track\('result:' \+ finished\.typeId, 'play'\)/);
   // The only network code: sending through sendStat, and reading the public

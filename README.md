@@ -71,9 +71,18 @@ the characters are the only decoration.
 
 - One statement per screen, with two big buttons at the bottom: **Never** (left)
   and **Guilty** (right), and between them a smaller, quieter **Not sure** for
-  a statement the player doesn't get or can't remember. Tapping one fills it
-  (the big ones with a tick), the card slides away and the next statement
-  glides in. The three buttons keep the same size and place on every
+  a statement the player doesn't get or can't remember. An answer is
+  recorded and the next statement is on screen in the same frame, so input
+  is never held up (30 keys in 3 seconds all count, in order); the motion
+  plays over it in about 300 ms (`MOTION` and `stepTo` in `app.js`, the
+  keyframes in `styles.css`, `tests/motion.test.js`): the used button gives
+  a short press, the answered card is flicked away the way of the answer
+  (Guilty right, Never left, Not sure a little down) while the next card
+  rises from behind it, the purity number rolls to its new value and the
+  progress bar eases to its new length. Back reverses it: the previous card
+  comes back from the side it left. Only transform and opacity move; with
+  reduced motion the statement just changes. Two taps on the buttons within
+  120 ms count as one (a double tap), keys are never limited. The three buttons keep the same size and place on every
   statement, from 360 px phones up. The footer is hidden on these screens,
   so the page is exactly one window tall.
 - **Large windows.** From 900 px wide the question screen grows with the
