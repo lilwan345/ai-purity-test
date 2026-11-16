@@ -740,7 +740,7 @@ globalThis.APT_CONTENT = {
     { id: "s24", dim: "heart", band: "mild", text: { en: "Asked AI how to turn down plans without sounding rude", zh: "想推掉一个约，问 AI 怎么说才不得罪人" } },
     { id: "s74", dim: "heart", band: "mild", text: { en: "Ran a text past AI before sending it, like it's my PR team", zh: "消息发出去之前，先给 AI 过目，像请了个公关" } },
     { id: "s75", dim: "heart", band: "mild", text: { en: "Asked AI what to talk about before a date or a party, like cramming for a test", zh: "约会、聚会前问 AI 能聊点啥，跟考前划重点似的" } },
-    { id: "s76", dim: "heart", band: "mild", text: { en: "Asked AI how to reply to a text, like one I'd left on read for days", zh: "不知道咋回的消息，问过 AI，比如那种晾了好几天的" } },
+    { id: "s76", dim: "heart", band: "mild", text: { en: "Asked AI how to reply to a text, like one I'd left on read for days", zh: "不知道怎么回的消息，问过 AI 该怎么回，包括晾了好几天的那条" } },
     // medium
     { id: "s25", dim: "heart", band: "medium", text: { en: "Asked AI about something going on with a friend. It has never had a friend.", zh: "朋友之间有点事，问了 AI，可它自己都没朋友" } },
     { id: "s26", dim: "heart", band: "medium", text: { en: "Asked AI whether someone likes me, based on very little evidence", zh: "问 AI ta 是不是喜欢我，证据少得可怜" } },

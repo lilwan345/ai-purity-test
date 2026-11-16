@@ -1515,7 +1515,7 @@ html.is-revealing .topbar { pointer-events: none; }
 }
 .ai-remark.is-on { opacity: 1; transform: none; }
 /* Beside the card (wide windows): the tail on the left, towards the card */
-.ai-remark.is-side { border-radius: 14px 14px 14px 4px; transform: translateX(-6px); }
+.ai-remark.is-side { max-width: min(var(--room, 320px), 320px); border-radius: 14px 14px 14px 4px; transform: translateX(-6px); }
 .ai-remark.is-side.is-on { transform: none; }
 /* During the hold the answers are locked: the picked one stays pressed, the
    others step back a little. */
@@ -2034,3 +2034,104 @@ html[lang^="zh"] .trace :is(.trace-q, .trace-a, .trace-note, .trace-header) { wo
 html[lang^="zh"] .lp-stat-value { font-family: var(--font-display), var(--font-body); }
 .lp-stat-text { font-size: calc(var(--u, 1px) * 14); line-height: 1.45; color: var(--ink-soft); }
 html[lang^="zh"] .lp-stat-text { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* ---------- The question screen on large windows ----------
+   The same idea as the landing page: from 900px everything on the question
+   screen is measured in --u, one "question pixel", exactly 1px at 1280 x 800
+   (the size it was designed at) and larger as the window grows, up to 1.5px
+   so it never turns into a poster. The values below are the ones the rules
+   above use at that size, times --u, so the proportions (and the number of
+   lines a statement takes) stay the same. The column itself is a little
+   wider than the scaled card (the gutter does not scale), so a statement can
+   only ever need fewer lines, never more. The whole group sits a little above
+   the vertical centre (free space above : below = 1 : 1.4). Under 900px
+   nothing here applies. */
+@media (min-width: 900px) {
+  body.on-question {
+    --u: clamp(1px, min(calc(0.0390625vw + 0.0625vh), 0.0952vw), 1.5px);
+  }
+  body.on-question .app { display: flex; flex-direction: column; max-width: calc(var(--u) * 600); }
+  body.on-question .quiz { flex: 1; min-height: 0; padding-top: 0; }
+  body.on-question .quiz::before,
+  body.on-question .quiz::after { content: ''; flex: 1 1 0; min-height: 3vh; }
+  body.on-question .quiz::after { flex-grow: 1.4; }
+
+  body.on-question .q-head { gap: calc(var(--u) * 12); }
+  body.on-question .q-back {
+    gap: calc(var(--u) * 6);
+    min-height: calc(var(--u) * 44);
+    margin-left: calc(var(--u) * -10);
+    padding: 0 calc(var(--u) * 10);
+    font-size: calc(var(--u) * 15);
+  }
+  body.on-question .q-back-arrow { font-size: calc(var(--u) * 17); }
+  body.on-question .q-progress { gap: calc(var(--u) * 10); }
+  body.on-question .q-bar { height: calc(var(--u) * 4); border-radius: calc(var(--u) * 2); }
+  body.on-question .q-count { font-size: calc(var(--u) * 13); }
+  body.on-question .q-purity { padding-left: calc(var(--u) * 12); gap: calc(var(--u) * 5); }
+  body.on-question .q-purity-label { font-size: calc(var(--u) * 13); }
+  body.on-question .q-purity-num { font-size: calc(var(--u) * 20); }
+
+  body.on-question .q-stage { padding: calc(var(--u) * 28) 0; }
+  body.on-question .q-card {
+    min-height: calc(var(--u) * (72 + 13 * 1.5 + 14 + 3 * 36 * 1.22));
+    padding: calc(var(--u) * 32) calc(var(--u) * 36) calc(var(--u) * 40);
+    border-radius: calc(var(--u) * 20);
+    box-shadow: 0 1px 0 var(--rule), 0 calc(var(--u) * 18) calc(var(--u) * 36) calc(var(--u) * -26) rgba(28, 37, 65, .4);
+  }
+  html[lang^="zh"] body.on-question .q-card { min-height: calc(var(--u) * (72 + 13 * 1.65 + 14 + 3 * 33 * 1.45)); }
+  body.on-question .q-playoff { margin: calc(var(--u) * -6) 0 calc(var(--u) * 12); font-size: calc(var(--u) * 15); }
+  body.on-question .q-dim { gap: calc(var(--u) * 12); margin-bottom: calc(var(--u) * 14); font-size: calc(var(--u) * 13); }
+  body.on-question .q-text { font-size: calc(var(--u) * 36); }
+  html[lang^="zh"] body.on-question .q-text { font-size: calc(var(--u) * 33); }
+
+  body.on-question .q-bottom { padding: calc(var(--u) * 8) 0 calc(var(--u) * 24); }
+  body.on-question .q-answers { gap: calc(var(--u) * 16); }
+  body.on-question .btn-answer {
+    min-height: calc(var(--u) * 64);
+    padding: 0 calc(var(--u) * 12);
+    border-width: calc(var(--u) * 2);
+    font-size: calc(var(--u) * 19);
+  }
+  body.on-question .answer-tick { width: calc(var(--u) * 22); height: calc(var(--u) * 22); margin: calc(var(--u) * -11) calc(var(--u) * 6) 0 0; }
+  body.on-question .btn-unsure {
+    min-height: calc(var(--u) * 48);
+    padding: 0 calc(var(--u) * 16);
+    border-width: calc(var(--u) * 1.5);
+    font-size: calc(var(--u) * 15);
+  }
+
+  /* The AI's reply bubble (on its own layer; app.js places it from the card) */
+  body.on-question .ai-remark {
+    max-width: min(78vw, calc(var(--u) * 340));
+    padding: calc(var(--u) * 7) calc(var(--u) * 13) calc(var(--u) * 8);
+    border-radius: calc(var(--u) * 14) calc(var(--u) * 4) calc(var(--u) * 14) calc(var(--u) * 14);
+    font-size: calc(var(--u) * 14);
+  }
+  body.on-question .ai-remark.is-side {
+    max-width: min(var(--room, 320px), calc(var(--u) * 320));
+    border-radius: calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 4);
+  }
+  html[lang^="zh"] body.on-question .ai-remark { font-size: calc(var(--u) * 15); }
+  body.on-question .ai-remark-tag {
+    margin: 0 calc(var(--u) * 7) 0 calc(var(--u) * -3);
+    padding: 0 calc(var(--u) * 6);
+    font-size: calc(var(--u) * 11);
+    line-height: calc(var(--u) * 17);
+  }
+}
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  body.on-question .btn-answer { padding: 0 calc(var(--u) * 40); }
+  body.on-question .btn-unsure { padding: 0 calc(var(--u) * 16); }
+  body.on-question .answer-key {
+    right: calc(var(--u) * 16);
+    min-width: calc(var(--u) * 22);
+    height: calc(var(--u) * 22);
+    padding: 0 calc(var(--u) * 4);
+    border-width: calc(var(--u) * 1.5);
+    border-radius: calc(var(--u) * 6);
+    font-size: calc(var(--u) * 12);
+  }
+  body.on-question .btn-unsure .answer-key { margin-left: calc(var(--u) * 8); min-width: calc(var(--u) * 20); height: calc(var(--u) * 20); font-size: calc(var(--u) * 11); }
+  body.on-question .q-keys { margin-top: calc(var(--u) * 12); font-size: calc(var(--u) * 13); }
+}

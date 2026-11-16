@@ -1515,19 +1515,24 @@
     remarkNode.lastChild.textContent = text;
     const box = card.getBoundingClientRect();
     const root = document.documentElement;
-    const room = root.clientWidth - box.right - 16 - 16;
-    const side = room >= 220;
-    remarkNode.classList.toggle('is-side', side);
     remarkNode.classList.remove('is-on');
+    // On large windows the question screen grows with --u (styles.css); the
+    // bubble's text grows with it, and so do these gaps. 1 under 900px.
+    remarkNode.style.cssText = '';
+    const u = parseFloat(getComputedStyle(remarkNode).fontSize) / (state.lang === 'zh' ? 15 : 14) || 1;
+    const room = root.clientWidth - box.right - 16 * u - 16;
+    const side = room >= 200 * u;
+    remarkNode.classList.toggle('is-side', side);
     if (side) {
-      remarkNode.style.cssText = 'left:' + (box.right + 16) + 'px;max-width:' + Math.min(room, 320) + 'px;top:0px';
+      // The width limit is in styles.css (--room: what the window leaves).
+      remarkNode.style.cssText = 'left:' + (box.right + 16 * u) + 'px;--room:' + Math.floor(room) + 'px;top:0px';
       const h = remarkNode.offsetHeight;
-      remarkNode.style.top = Math.round(box.bottom - h - 18) + 'px';
+      remarkNode.style.top = Math.round(box.bottom - h - 18 * u) + 'px';
     } else {
-      remarkNode.style.cssText = 'right:' + Math.max(16, root.clientWidth - box.right + 12) + 'px;top:0px';
+      remarkNode.style.cssText = 'right:' + Math.max(16, root.clientWidth - box.right + 12 * u) + 'px;top:0px';
       const h = remarkNode.offsetHeight;
-      const limit = answers.getBoundingClientRect().top - 10 - h;
-      remarkNode.style.top = Math.round(Math.min(box.bottom + 10, limit)) + 'px';
+      const limit = answers.getBoundingClientRect().top - 10 * u - h;
+      remarkNode.style.top = Math.round(Math.min(box.bottom + 10 * u, limit)) + 'px';
     }
     void remarkNode.offsetWidth; // restart the entrance
     remarkNode.classList.add('is-on');

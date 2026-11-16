@@ -76,6 +76,17 @@ the characters are the only decoration.
   glides in. The three buttons keep the same size and place on every
   statement, from 360 px phones up. The footer is hidden on these screens,
   so the page is exactly one window tall.
+- **Large windows.** From 900 px wide the question screen grows with the
+  window like the landing page: every size on it (the card, the statement,
+  the section label, back, progress and purity, the three answers with their
+  key badges, the keyboard line, the play-off line and the AI's reply bubble)
+  is a multiple of `--u`, which is exactly 1 px at 1280 x 800 and grows with
+  the window up to 1.5 px (about 1.13 at 1440 x 900, 1.34 at 1408 x 1300,
+  1.43 at 1920 x 1080, 1.5 at 2560 x 1440). The column is a little wider than
+  the scaled card, so a statement never needs more lines than at 1280 x 800.
+  The whole group sits a little above the vertical centre (free space above
+  and below 1 : 1.4). Under 900 px nothing changes
+  (`tests/question-scale.test.js`).
 - **Which statements, in what order**: each play draws 30 from the bank with
   `drawStatements(content, seed)` in `scoring.js`: in every section 2 mild,
   2 medium and 2 extreme, picked uniformly at random. The ten mild ones come
