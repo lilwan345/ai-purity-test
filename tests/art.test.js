@@ -333,13 +333,18 @@ test('packArt: a drawing in art-src/d/out wins over art-src/c/out; the rest stay
   });
 });
 
-test('reveal: a drawing with plates gets the print path (plates pass, then the ink in order); others keep the marker path', () => {
+test('reveal: a drawing with plates gets the print path (the pen draws the ink in order, then the plates come in under it); others keep the marker path', () => {
   const block = appSource.slice(appSource.indexOf('function startReveal('), appSource.indexOf('// ---------- Result ----------'));
   assert.match(block, /const plates = art\.querySelector\('g\.plates'\);\s*const inkGroup = art\.querySelector\('g\.ink'\);\s*if \(plates && inkGroup\) \{/);
-  // The plates come in as one pass at drawAt, the ink after them, in document order (no sort).
-  assert.match(block, /play\(pass, \[\{ opacity: 0, transform: 'translate\(3px, 2px\)' \}, \{ opacity: 1, transform: 'translate\(0px, 0px\)' \}\],\s*REVEAL\.drawAt, REVEAL\.platesMs/);
-  assert.match(block, /inkAt \+= REVEAL\.platesMs \+ 60;\s*inkMs -= REVEAL\.platesMs \+ 60;/);
+  // The pen draws the ink first, from drawAt, in document order (no sort);
+  // the plates come in as one pass after it, so the finished picture never
+  // shows before the pen has drawn it.
+  assert.match(block, /inkMs -= REVEAL\.platesMs \+ 60;\s*const platesAt = inkAt \+ inkMs \+ 60;/);
+  assert.doesNotMatch(block, /inkAt \+= REVEAL\.platesMs/);
+  assert.match(block, /play\(pass, \[\{ opacity: 0, transform: 'translate\(3px, 2px\)' \}, \{ opacity: 1, transform: 'translate\(0px, 0px\)' \}\],\s*platesAt, REVEAL\.platesMs/);
   assert.match(block, /lines = Array\.from\(inkGroup\.querySelectorAll\('path'\)\)/);
+  // On a dark card the pen draws in chalk, and only dark ink lines switch.
+  assert.match(block, /if \(dark\) \{[\s\S]*?isDarkInk\(stroke\)[\s\S]*?\{ stroke: CHALK_STROKE \}, \{ stroke: stroke \}\], platesAt, REVEAL\.platesMs/);
   const printPart = block.slice(block.indexOf('if (plates && inkGroup) {'), block.indexOf('} else {\n        // The marker drawings'));
   assert.doesNotMatch(printPart, /sortArt|\.sort\(|halo: entry/);
   // The marker drawings: unchanged (sorted by length, halos, white scribble first on dark cards).

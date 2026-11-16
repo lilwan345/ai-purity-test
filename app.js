@@ -1806,7 +1806,7 @@
     artMaxScale: 2.4,                 // while drawn, the figure is this much bigger at most, centred on the card
     artBackAt: 2860, artBackMs: 380,  // then it shrinks to its place as the code comes down
     darkWhiteMs: 380,                 // dark cards: the white scribble first, then the ink in the rest
-    platesMs: 380,                    // print drawings: the colour plates in one pass, then the ink in the rest
+    platesMs: 380,                    // print drawings: the pen draws the ink, then the colour plates come in under it in one pass
     travelShare: 0.22,                // share of drawMs the pen spends moving between lines
     fillMs: 360,                      // white scribble / accent as quick strokes, after the ink
     codeAt: 2900, codeMs: 380,        // the code slams down...
@@ -1821,6 +1821,16 @@
     end: 4560                         // tidy up
   };
   const INK_STROKE = '#1C2541';
+  // Print drawings on a dark card: the colour the pen draws in before the
+  // colour plates arrive (the cream of the drawings' paper).
+  const CHALK_STROKE = '#F3EDE2';
+  // True for a computed stroke that is dark ink (low luminance), so only the
+  // ink lines switch to chalk, never a coloured line.
+  function isDarkInk(stroke) {
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(String(stroke || ''));
+    if (!m) return false;
+    return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) < 90;
+  }
   let reveal = null;   // { finish } while one plays
 
   function finishReveal() {
@@ -2063,23 +2073,34 @@
       const plates = art.querySelector('g.plates');
       const inkGroup = art.querySelector('g.ink');
       if (plates && inkGroup) {
-        // A two-plate print: the colour plates come in as one pass (a short
-        // fade, settling into their off-register place), then the pen draws
-        // the ink paths in the order they were drawn. Dots and eyes are tiny
-        // round-capped paths: they appear as the pen reaches them.
+        // A two-plate print, made the way it is printed in reverse: the pen
+        // first draws the line drawing on the empty card (the ink paths in
+        // the order they were drawn; dots and eyes are tiny round-capped
+        // paths that appear as the pen reaches them), then the colour plates
+        // come in under it as one pass, settling into their off-register
+        // place. Colour first would show the finished picture before the pen
+        // had drawn anything. On a dark card the ink would hardly show on
+        // its own, so the pen draws in cream and the lines turn to ink as
+        // the colour arrives.
+        inkMs -= REVEAL.platesMs + 60;
+        const platesAt = inkAt + inkMs + 60;
         const pass = document.createElementNS(SVG_NS, 'g');
         plates.parentNode.insertBefore(pass, plates);
         pass.appendChild(plates);
         play(pass, [{ opacity: 0, transform: 'translate(3px, 2px)' }, { opacity: 1, transform: 'translate(0px, 0px)' }],
-          REVEAL.drawAt, REVEAL.platesMs, 'cubic-bezier(.2, .7, .3, 1)');
-        inkAt += REVEAL.platesMs + 60;
-        inkMs -= REVEAL.platesMs + 60;
+          platesAt, REVEAL.platesMs, 'cubic-bezier(.2, .7, .3, 1)');
         lines = Array.from(inkGroup.querySelectorAll('path')).map((node) => {
           let len = 0;
           try { len = node.getTotalLength(); } catch (e) { len = 0; }
           const tiny = len < 2;
           if (tiny) node.style.opacity = '0';
           else prep(node);
+          if (dark) {
+            const stroke = getComputedStyle(node).stroke;
+            if (isDarkInk(stroke)) {
+              play(node, [{ stroke: CHALK_STROKE }, { stroke: stroke }], platesAt, REVEAL.platesMs, 'ease-out');
+            }
+          }
           return { node: node, halo: null, len: Math.max(len, 0.01), tiny: tiny, map: toRoot(art, node) };
         });
       } else {
