@@ -383,7 +383,108 @@
     return Boolean(play) && (play.seedFromLink === true || Boolean(play.challenge));
   }
 
+  // ======================================================================
+  // 5. VISIT STATISTICS (GoatCounter)
+  //
+  // The owner counts visits and results with GoatCounter. What is sent is
+  // fixed here and nowhere else:
+  //   - a page view of the landing page, always with the path "/"
+  //   - events, each a name from STAT_EVENTS (or result:<type id>)
+  //   - the screen width (GoatCounter's own "s" field), and with the page
+  //     view only, the ORIGIN of a referrer on another site
+  //     ("https://www.xiaohongshu.com", never a path or a query)
+  // Never sent: the address's query (?seed=, ?vs=, ?re= and ?from= hold the
+  // play and answer codes), statement ids, answers, the purity, the seed.
+  // GoatCounter's own count.js always adds location.search to every hit and
+  // the full referrer by default, so it is not used: statUrl builds the
+  // documented /count request itself. And only the real site counts:
+  // https://lilwan345.github.io, nothing from file://, localhost or a copy.
+  // ======================================================================
+  var STAT_ENDPOINT = 'https://leowan34.goatcounter.com/count';
+  var STAT_HOST = 'lilwan345.github.io';
+  var STAT_EVENTS = [
+    'start', 'finish', 'tiebreak', 'save-image', 'copy-link', 'challenge-made', 'challenge-opened',
+    'compare-shown', 'reply-opened', 'new-questions', 'start-over', 'lang:en', 'lang:zh'
+  ];
+
+  // True when a name may be sent: "/" (the page view), a fixed event, or
+  // result:<one of the 14 type ids>.
+  function statNameOk(name) {
+    if (name === '/') return true;
+    if (STAT_EVENTS.indexOf(name) !== -1) return true;
+    var m = /^result:([a-z_]+)$/.exec(String(name));
+    return Boolean(m) && scoring.TYPE_IDS.indexOf(m[1]) !== -1;
+  }
+
+  // Counting happens only on the real site, over https.
+  function statsAllowed(loc) {
+    return Boolean(loc) && loc.protocol === 'https:' && loc.hostname === STAT_HOST;
+  }
+
+  // The origin of a referrer on another site, or '' (same site, none, junk).
+  function externalOrigin(referrer, ownHost) {
+    try {
+      var u = new URL(String(referrer));
+      if (!/^https?:$/.test(u.protocol) || u.hostname === ownHost) return '';
+      return u.origin;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /*
+   * statUrl(name, opts) -> the request URL, or null for a name not on the
+   * list. opts: { screen (width), referrer (an origin; page view only),
+   * rnd (cache buster) }. Only p, t, e, s, r and rnd ever appear.
+   */
+  function statUrl(name, opts) {
+    if (!statNameOk(name)) return null;
+    var o = opts || {};
+    var pageView = name === '/';
+    var parts = [
+      'p=' + encodeURIComponent(name),
+      't=' + encodeURIComponent(pageView ? 'AI Purity Test' : name)
+    ];
+    if (!pageView) parts.push('e=true');
+    if (typeof o.screen === 'number' && o.screen > 0) parts.push('s=' + Math.round(o.screen));
+    if (pageView && typeof o.referrer === 'string' && /^https?:\/\/[^/?#]+$/.test(o.referrer)) {
+      parts.push('r=' + encodeURIComponent(o.referrer));
+    }
+    parts.push('rnd=' + encodeURIComponent(String(o.rnd || Math.random().toString(36).slice(2, 7)).replace(/[^0-9a-z]/g, '')));
+    return STAT_ENDPOINT + '?' + parts.join('&');
+  }
+
+  /*
+   * sendStat(name, env) -> true when a request was handed to env.send.
+   * env: { location, referrer, screen, send(url) }. In the page, env is the
+   * real window; tests pass a stub. Never throws.
+   */
+  function sendStat(name, env) {
+    try {
+      var e = env || {};
+      if (!statsAllowed(e.location)) return false;
+      var url = statUrl(name, {
+        screen: e.screen,
+        referrer: name === '/' ? externalOrigin(e.referrer, STAT_HOST) : ''
+      });
+      if (!url || typeof e.send !== 'function') return false;
+      e.send(url);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   var api = {
+    // statistics
+    STAT_ENDPOINT: STAT_ENDPOINT,
+    STAT_HOST: STAT_HOST,
+    STAT_EVENTS: STAT_EVENTS,
+    statNameOk: statNameOk,
+    statsAllowed: statsAllowed,
+    externalOrigin: externalOrigin,
+    statUrl: statUrl,
+    sendStat: sendStat,
     // leaving and coming back
     landingChoice: landingChoice,
     restartKeepsSet: restartKeepsSet,

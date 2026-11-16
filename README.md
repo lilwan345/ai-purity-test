@@ -5,7 +5,8 @@ of 105, shows them one at a time, mildest first, and you answer each
 with "Guilty" or "Never" (or a small "Not sure", which counts as "Never").
 You get a purity score from 0 to 100 plus
 one of 14 comic "types", each with its own hand-drawn character, on a card you can save as a picture. English and Simplified Chinese. It is for fun and has zero science
-in it. Nothing gets stored on a server or sent anywhere.
+in it. Answers stay in the browser; the only thing sent anywhere is a
+visit count (see "Statistics").
 
 ## Run it locally
 
@@ -134,19 +135,36 @@ Useful URL parameters:
   (`content.remarks`: English at most 40 characters, Chinese at most 14, no
   emoji or exclamation marks), never twice in one play. The bubble is
   `aria-hidden`, so screen readers keep reading the statement.
-- **The reveal.** After the last answer the result does not just appear:
-  a short beat, the card lands empty, the character draws itself line by line
-  like a marker (its white scribble and accent colour fade in after the
-  lines), the code lands, and then the rest of the page is there, about 2 s in
-  all (`REVEAL` in `app.js`; cleaned up at 2.05 s). A tap or any key skips to
-  the end, and taps cannot hit the still-invisible buttons. With "reduce
-  motion" there is none. It plays only at the end of a play, never on a
-  refresh, a language switch, `?preview=` or when coming back from the grid.
-  For the drawing the character's SVG from `art.js` is put inline on top of
-  the card's `<img>` and removed afterwards; everything else is Web
-  Animations on the existing elements, cancelled at the end, so the settled
-  card (and the PNG) is exactly what it is without the reveal.
-
+- **The reveal.** After the last answer the result is staged, about 4.5 s
+  in all (`REVEAL` in `app.js` holds every number; `tests/reveal.test.js`
+  checks the order and the limits):
+  1. *Stage* (0.2 s): the page empties and the card is lifted into view,
+     centred and up to 1.3 times its size, like something held up.
+  2. *Pen* (0.65-2.45 s): a small marker travels along each ink line as it
+     appears (`getPointAtLength`), slightly tilted, lifting and moving between
+     lines; longest lines first, time in proportion to length. The white
+     scribble and the accent colour follow as quick strokes. On the six dark
+     cards the white scribble goes first, or the navy line would hardly show.
+  3. *Impact* (2.9-3.3 s): the code falls from up to 2.5 times its size (less
+     when a long code would leave the window, never under 1.3) with a hard,
+     slightly overshooting stop; the card takes a 2.6 degree knock that springs
+     back, a ring of ink specks is thrown off the letters, and phones with a
+     vibration motor give one 18 ms buzz.
+  4. *Numbers* (3.3-3.9 s): purity counts down from 100, the match counts up,
+     the section squares fill row by row.
+  5. *Settle* (3.9-4.3 s): the card moves into its real place and size; then
+     the first four blocks of the page arrive 80 ms apart, in reading order
+     (on a laptop the right column together with the buttons under the card;
+     on a phone the blocks under it). Anything further down is simply there.
+  A tap or any key skips to the end at once, and taps cannot hit the
+  still-invisible buttons. With "reduce motion" there is none. It plays only
+  at the end of a play, never on a refresh, a language switch, `?preview=` or
+  when coming back from the grid. The drawing is the character's SVG from
+  `art.js` put inline over the card's `<img>`; the pen and the specks are
+  extra elements; the counting numbers change their text for a moment. All of
+  it is removed or put back at the end and every motion is a cancelled Web
+  Animation, so the settled card (and the PNG) is exactly what a refresh
+  shows.
 - **The landing on large windows.** From 900 px the landing is two columns.
   Its type, buttons and stickers are sized in a "landing pixel" (`--u` in
   `styles.css`): exactly 1 px at 1280 x 800 and larger on bigger windows (the
@@ -312,8 +330,8 @@ or for the four special types how they are reached), the type's character
   the merged result (which means the same rule was met). Then one flag goes into `localStorage`
   (`apt-hidden-unlocked-v1` = `1`; helpers `hiddenUnlocked` /
   `rememberHiddenUnlocked` in `scoring.js`) and the card stays open, even after
-  New questions. It holds no answers, so the footer's "your answers never leave
-  this device" stays true. Previews and peeks never unlock it;
+  New questions. It holds no answers, so the footer's promise that nobody
+  records which statements anyone admitted stays true. Previews and peeks never unlock it;
   `?preview=soulmate` still shows the type for QA. To lock it again, clear the
   site's data.
 - **Back**: the grid and a peek are layers on top of the current screen. Each
@@ -449,6 +467,45 @@ An empty list `[]` means the content is valid.
   friend's result is the hidden type, the comparison shows it (it is their
   real result), but the grid stays locked until you earn it.
 
+## Statistics
+
+The owner counts visits and results with GoatCounter (account
+`leowan34`). The helper is `track(name, once)` in `app.js`, which hands a name
+to `sendStat` in `extras.js`; `statUrl` there builds the request, so what can
+be sent is decided in one place.
+
+- **Only on the real site**: `https://lilwan345.github.io`. Nothing is sent
+  from `file://`, `localhost` or any other host (`statsAllowed`).
+- **What is sent**: a GET to `https://leowan34.goatcounter.com/count` with
+  `p` (the name), `t` (the same name, or "AI Purity Test" for the page view),
+  `e=true` for events, `s` (the screen width) and `rnd` (a cache buster). The
+  page view of the landing also carries `r`, the origin of a referrer on
+  another site (such as `https://www.xiaohongshu.com`), never its path. The
+  request goes out with no cookies and no Referer header (`referrerPolicy:
+  'no-referrer'`), and if it is blocked, slow or offline nothing on the page
+  notices.
+- **Names** (each at most once per play or per page load):
+  - `/`: a page view, once per page load, when the landing page shows;
+  - `lang:en` / `lang:zh`: the landing's language, once per page load and language;
+  - `start`: the first answer of a play;
+  - `finish` and `result:<type id>`: the result reached by finishing a play
+    (never a preview, a peek, the grid or a reply link);
+  - `tiebreak`: that play's lead was decided by a tie-break;
+  - `save-image`, `copy-link`, `challenge-made`: once per play;
+  - `challenge-opened`: the landing opened from a challenge link (per page load);
+  - `compare-shown`: the comparison on a challenged player's result (per play);
+  - `reply-opened`: a reply link opened (per page load);
+  - `new-questions`, `start-over`: each tap.
+- **Never sent**: the address's query (`?seed=`, `?vs=`, `?re=` and `?from=`
+  hold the play and answer codes), statement ids, answers, the purity, the
+  seed, or a referrer from this site.
+- **Why not GoatCounter's own `count.js`**: it always adds `location.search`
+  to every hit (and the full referrer by default), which would send the seed
+  and answer codes. So the page builds GoatCounter's documented `/count`
+  request itself and loads no third-party script at all.
+- `tests/stats.test.js` checks the list, the fields, the host guard and that
+  every call in `app.js` uses a listed name.
+
 ## Publishing
 
 GitHub Pages lets browsers keep `styles.css` and the scripts for 10 minutes,
@@ -464,7 +521,7 @@ that all of them carry the same, non-empty version.
 
 ## Fonts
 
-The page uses system fonts and makes no network requests. Codes and scores use
+The page uses system fonts and loads no fonts from the network. Codes and scores use
 Avenir Next Condensed, which only Apple devices have. Everywhere else they fall
 back to "APT Display": Anton (SIL Open Font License, `fonts/Anton-OFL.txt`),
 cut down to plain ASCII (about 5 KB) and embedded in `styles.css` as base64.
@@ -539,7 +596,7 @@ colour.
   card, small on the two pairing cards, and as three character stickers above
   the code stickers on the landing page (`TEASER_ART` in `app.js`; never the
   hidden type). The only exception to "never inline" is the result reveal,
-  which puts the card's SVG inline for about 2 s to draw its lines and then
+  which puts the card's SVG inline for a few seconds to draw its lines and then
   removes it. Apart from that, the only motion is the stickers' existing
   entrance; "reduce motion" switches off both.
 - **In the PNG.** A canvas can only draw an image that has finished loading,

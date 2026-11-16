@@ -199,7 +199,7 @@ globalThis.APT_CONTENT = {
     replyIntro:         { en: "Your friend played your 30 and sent this back.", zh: "朋友答完了你的 30 条，把对比发了回来。" },
     replyStart:         { en: "Take the test yourself", zh: "我也测一次" },
 
-    footer:         { en: "For fun only, with zero science in it. Your answers stay on this device unless you share a challenge link.", zh: "纯属娱乐，零科学含量。答案只留在这台设备上，除非你自己发出挑战链接。" }
+    footer:         { en: "The site counts visits and which result people get, never which statements anyone admitted. Only a challenge link carries answers, and only to whoever you send it to.", zh: "网站只统计访问次数和大家测出的类型，不记录任何人认了哪几条。只有挑战链接会带上答案，也只到你发给的人手里。" }
   },
 
   /*

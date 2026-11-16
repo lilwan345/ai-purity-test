@@ -1452,15 +1452,32 @@ html[lang^="zh"] .tcard-hint { word-break: keep-all; overflow-wrap: anywhere; }
 
 /* ---------- The result reveal (app.js, startReveal) ---------- */
 /* While it plays, Web Animations hold every piece at its starting point;
-   these rules only keep the normal entrance and the card's <img> out of
-   the way (the inline drawing sits on top of it), and stop taps from
-   reaching buttons that are not visible yet. */
+   these rules only keep the normal entrance and the card's <img> out of the
+   way (the inline drawing sits on top of it), let the code, the pen and the
+   specks reach past the card's edge, keep the page from scrolling sideways
+   while something is large, and stop taps from reaching buttons that are not
+   visible yet (a tap anywhere skips to the end). */
+html.is-revealing { overflow-x: hidden; }
+html.is-revealing .topbar { pointer-events: none; }
 .result.is-revealing { pointer-events: none; }
 .result.is-revealing .card-wrap,
 .result.was-revealed .card-wrap { animation: none; }
+.result.is-revealing .card-wrap { position: relative; z-index: 10; will-change: transform; }
+.result.is-revealing .card { overflow: visible; }
 .result.is-revealing img.card-art { visibility: hidden; }
-.result.is-revealing .card-code { transform-origin: 0 100%; }
 .reveal-art { overflow: visible; }
+.reveal-specks { position: absolute; width: 0; height: 0; pointer-events: none; }
+.reveal-speck {
+  position: absolute;
+  left: -1cqw;
+  top: -1cqw;
+  width: 2cqw;
+  height: 2cqw;
+  border-radius: 50%;
+  background: var(--type-fg);
+}
+.reveal-speck.is-big { left: -1.5cqw; top: -1.5cqw; width: 3cqw; height: 3cqw; border-radius: 46% 54% 50% 50%; }
+.reveal-speck.is-small { left: -0.6cqw; top: -0.6cqw; width: 1.2cqw; height: 1.2cqw; }
 
 /* ---------- The AI's remark while answering (app.js, showRemark) ---------- */
 /* A small chat bubble above the Guilty button, on its own fixed layer so the

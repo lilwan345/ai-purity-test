@@ -64,7 +64,7 @@ every one of them is decorative (empty alt text).
 | `linkCopied` | Toast after copying |
 | `copyFailed` | Toast if copying fails |
 | `shareText` | Text sent with Share ({code}, {name}, {purity}) |
-| `footer` | Footer on the landing and result screens (hidden while answering) |
+| `footer` | Footer on the landing and result screens (hidden while answering). Must stay true: the site counts visits and results, never which statements anyone admitted; only a challenge link carries answers (README "Statistics") |
 | **Result card additions** | (also drawn in the saved PNG) |
 | `cardMatch` | Card, small label above the match number, right of the score (capitalised in English) |
 | `cardAlso` | Card, small label left of the secondary type's chip (capitalised in English) |

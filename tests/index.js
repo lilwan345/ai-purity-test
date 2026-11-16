@@ -10,3 +10,5 @@ require('./draw.test.js');
 require('./fairness.test.js');
 require('./art.test.js');
 require('./extras.test.js');
+require('./reveal.test.js');
+require('./stats.test.js');

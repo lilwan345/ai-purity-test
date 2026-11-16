@@ -418,7 +418,7 @@ test('app.js: the title is a link home, the landing offers continue / start over
   // Start over: the link's set is kept by restartKeepsSet, otherwise a fresh
   // set; either way a new play (no answers, no remarks shown yet, statement 1).
   const restart = src.match(/function restartPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];
-  assert.match(restart, /if \(extras\.restartKeepsSet\(state\)\) \{\s*state\.answers = \{\};\s*state\.index = 0;\s*state\.remarked = \[\];/);
+  assert.match(restart, /if \(extras\.restartKeepsSet\(state\)\) \{\s*playNo \+= 1;\s*state\.answers = \{\};\s*state\.index = 0;\s*state\.remarked = \[\];/);
   assert.match(restart, /startPlay\(\);/);
   assert.match(restart, /go\('question'\)/);
   const startPlay = src.match(/function startPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];

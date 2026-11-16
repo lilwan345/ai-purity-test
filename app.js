@@ -72,8 +72,8 @@
    *
    * Every picture is used as an <img> from a data: URI, never as inline
    * markup: decorative (alt=""), no ids that could clash, nothing that runs.
-   * (One exception: the result reveal puts the card's SVG inline for about
-   * two seconds to draw its lines, then removes it; see startReveal.)
+   * (One exception: the result reveal puts the card's SVG inline for a
+   * few seconds to draw its lines, then removes it; see startReveal.)
    * The same URI feeds the canvas for the saved PNG. Canvas can only draw an
    * image that has finished loading, so all of them are loaded and decoded
    * at startup (preloadArt), and "Save image" waits for its one if needed.
@@ -299,6 +299,7 @@
 
   // A new play with a new seed ("New questions" on the result, via startOver).
   function startPlay() {
+    playNo += 1;
     state.seed = scoring.makeSeed();
     state.drawn = scoring.drawStatements(content, state.seed);
     state.seedFromLink = false;
@@ -312,6 +313,47 @@
   // Even reaching window.localStorage can throw when storage is blocked.
   function deviceStorage() {
     try { return window.localStorage; } catch (e) { return null; }
+  }
+
+  // ---------------------------------------------------------------------
+  // Visit statistics (GoatCounter; README "Statistics")
+  // ---------------------------------------------------------------------
+  /*
+   * track('start', 'play') sends one count. extras.sendStat decides what
+   * goes out (a fixed name, the screen width, and for the landing's page
+   * view the origin of an outside referrer; never the address's query, an
+   * id, an answer, the purity or the seed) and sends nothing anywhere but
+   * the real site. `once`: 'play' = at most once per play, 'load' = at most
+   * once per page load. Every call site is one line.
+   */
+  const trackedOnce = new Set();
+  let playNo = 0;   // goes up with every new play (new questions, start over)
+  function track(name, once) {
+    const key = once === 'play' ? name + '|' + playNo : name;
+    if (once) {
+      if (trackedOnce.has(key)) return;
+      trackedOnce.add(key);
+    }
+    extras.sendStat(name, {
+      location: location,
+      referrer: document.referrer,
+      screen: window.screen ? window.screen.width : 0,
+      send: sendStatRequest
+    });
+  }
+  // A fire-and-forget GET with no cookies and no Referer. If it is blocked,
+  // slow or offline, nothing on the page notices.
+  function sendStatRequest(url) {
+    try {
+      fetch(url, { mode: 'no-cors', credentials: 'omit', referrerPolicy: 'no-referrer', keepalive: true, cache: 'no-store' })
+        .catch(() => {});
+    } catch (e) {
+      try {
+        const img = new Image();
+        img.referrerPolicy = 'no-referrer';
+        img.src = url;
+      } catch (e2) { /* not important */ }
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -509,6 +551,8 @@
   }
 
   function renderLanding() {
+    track('/', 'load');
+    track('lang:' + state.lang, 'load');
     // A challenge never shows what the sender got before the end, so it
     // has its own line instead of the friend banner.
     const friend = state.from && !state.challenge ? typesById[state.from] : null;
@@ -594,7 +638,9 @@
    * gets a fresh set, like "New questions".
    */
   function restartPlay() {
+    track('start-over');
     if (extras.restartKeepsSet(state)) {
+      playNo += 1;
       state.answers = {};
       state.index = 0;
       state.remarked = [];
@@ -827,8 +873,10 @@
   function answer(value) {
     if (busy || state.screen !== 'question') return;
     const statement = statementsById[state.drawn[state.index]];
+    const firstAnswer = answeredCount() === 0;
     state.answers[statement.id] = value;
     saveState();
+    if (firstAnswer) track('start', 'play');
     busy = true;
 
     // 1. Confirmation: the picked button fills in and draws its tick, and the
@@ -861,6 +909,10 @@
           // The end of a play: the result arrives with its reveal (none with
           // reduced motion). Nothing else ever asks for the reveal.
           state.screen = 'result';
+          const finished = currentScore();
+          track('finish', 'play');
+          track('result:' + finished.typeId, 'play');
+          if (finished.tieBreak) track('tiebreak', 'play');
           render({ moveFocus: true, reveal: !reduce });
         } else {
           state.index += 1;
@@ -1003,29 +1055,53 @@
 
   // ---------- The result reveal ----------
   /*
-   * After the last answer of a play: a short beat, the card lands empty,
-   * the character draws itself stroke by stroke like a marker, its white
-   * scribble and accent fade in, the code lands, then everything else is
-   * there. About 2 s; a tap or a key skips to the end; never with reduced
-   * motion (answer() does not ask for it then), never on a refresh, a
-   * language switch, a preview or a way back from another layer.
+   * The moment the quiz builds to. After the last answer of a play:
+   *   1. stage    the page empties and the card is held up, larger and
+   *               centred in the window (everything else is absent)
+   *   2. pen      a marker tip travels along each ink line as it appears,
+   *               longest lines first, lifting and moving between lines;
+   *               the white scribble and accent colour follow as quick
+   *               strokes (on a dark card the white goes first, or the navy
+   *               line would hardly show)
+   *   3. impact   the type code slams down from big to size with a hard,
+   *               slightly overshooting stop; the card takes the knock and
+   *               a ring of ink specks is thrown off the letters (and on a
+   *               phone, one short vibration)
+   *   4. numbers  purity counts down from 100, the match counts up, the
+   *               section squares fill row by row
+   *   5. settle   the card moves into its real place and size, then the
+   *               rest of the page arrives block by block, in reading order
+   * About 4.5 s (REVEAL.end); a tap or a key skips to the end at once; never
+   * with reduced motion (answer() does not ask for it then), never on a
+   * refresh, a language switch, a preview or a way back from another layer.
    *
-   * The card itself is built exactly as always. For the drawing, the
-   * character's SVG (trusted markup from art.js) is put inline on top of
-   * the card's <img> for the length of the reveal, and removed afterwards,
-   * so the settled card, and the PNG made from the same model, are the same
-   * as without a reveal. Everything else is Web Animations on the existing
-   * elements, cancelled at the end.
+   * The card is built exactly as always. The drawing is the character's SVG
+   * (trusted markup from art.js) put inline over the card's <img> for the
+   * length of the reveal; the pen and the specks are extra
+   * elements; the counting numbers change text for a moment. Everything is
+   * removed or put back at the end, and every motion is a Web Animation
+   * (transform and opacity, apart from the drawn lines), cancelled at the
+   * end, so the settled card and the PNG made from the same model are the
+   * same as after a refresh.
    */
   const REVEAL = {
-    beat: 250,          // nothing yet
-    cardMs: 520,        // the card lands (same spring as the normal "slap")
-    drawAt: 450, drawMs: 1000,   // the ink lines, one after another
-    fillAt: 1300, fillMs: 300,   // white scribble, accent colour, eyes
-    darkFillMs: 700,             // on a dark card the white scribble fades in under the lines instead
-    codeAt: 1550, codeMs: 320,   // the code lands
-    restAt: 1800, restMs: 220,   // everything else
-    end: 2050           // tidy up (well under 2.5 s)
+    beat: 200,                        // the page empties
+    cardAt: 200, cardMs: 420,         // the card is lifted into view, held up in the middle
+    stageMaxScale: 1.3,               // how much larger than its real size, at most
+    drawAt: 650, drawMs: 1800,        // the pen draws the ink lines (light cards)
+    darkWhiteMs: 380,                 // dark cards: the white scribble first, then the ink in the rest
+    travelShare: 0.22,                // share of drawMs the pen spends moving between lines
+    fillMs: 360,                      // white scribble / accent as quick strokes, after the ink
+    codeAt: 2900, codeMs: 380,        // the code slams down...
+    codeFromScale: 2.5,               // ...from this size, or as big as the window allows
+    codeMinFromScale: 1.3,            //    (a long code on a phone), but never less than this
+    impactAt: 3140,                   // ...and hits here: knock, specks, vibration
+    knockMs: 340, knockDeg: 2.6,
+    wordsAt: 3200, wordsMs: 220,      // name, tagline and the top line
+    numbersAt: 3300, numbersMs: 600,  // purity down, match up, squares row by row
+    settleAt: 3880, settleMs: 420,    // the card moves to its real place
+    restAt: 4100, restStep: 80, restMs: 220, restMax: 4,   // the page, block by block (the first four)
+    end: 4560                         // tidy up
   };
   const INK_STROKE = '#1C2541';
   let reveal = null;   // { finish } while one plays
@@ -1054,24 +1130,94 @@
     }
   }
 
+  // The marker, drawn in the art's own units (viewBox 240): the tip at 0,0,
+  // the body leaning to the upper right. Navy with a white die-cut edge, so
+  // it reads on light and dark cards alike.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function makePen() {
+    const pen = document.createElementNS(SVG_NS, 'g');
+    pen.setAttribute('class', 'reveal-pen');
+    pen.innerHTML = // static markup, not content
+      '<g stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round">' +
+      '<path d="M0 0 L-5 -12 L5 -12 Z" fill="' + INK_STROKE + '"/>' +
+      '<rect x="-7" y="-20" width="14" height="9" rx="2" fill="#FFFFFF" stroke="' + INK_STROKE + '" stroke-width="2"/>' +
+      '<rect x="-8.5" y="-66" width="17" height="47" rx="5" fill="' + INK_STROKE + '"/>' +
+      '<rect x="-8.5" y="-74" width="17" height="11" rx="4" fill="' + INK_STROKE + '"/>' +
+      '</g>' +
+      '<path d="M-3 -60 L-3 -28" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity=".55"/>';
+    return pen;
+  }
+
+  // Splits the drawing: ink lines (each with the white halo drawn under it
+  // on dark cards), white scribble, accent colour, filled dots (eyes).
+  function sortArt(svg) {
+    const ink = [];
+    const whites = [];
+    const accents = [];
+    const dots = [];
+    let pendingHalo = null;
+    svg.querySelectorAll('path, circle').forEach((node) => {
+      const stroke = (node.getAttribute('stroke') || INK_STROKE).toUpperCase();
+      if (node.nodeName !== 'path' || typeof node.getTotalLength !== 'function') { dots.push(node); return; }
+      if (stroke === '#FFFFFF' && parseFloat(node.getAttribute('stroke-width')) >= 9) { pendingHalo = node; return; }
+      if (stroke === INK_STROKE) {
+        const halo = pendingHalo && pendingHalo.getAttribute('d') === node.getAttribute('d') ? pendingHalo : null;
+        if (pendingHalo && !halo) whites.push(pendingHalo);
+        ink.push({ node: node, halo: halo });
+        pendingHalo = null;
+        return;
+      }
+      if (pendingHalo) { whites.push(pendingHalo); pendingHalo = null; }
+      if (stroke === '#FFFFFF') whites.push(node);
+      else accents.push(node);
+    });
+    if (pendingHalo) whites.push(pendingHalo);
+    return { ink: ink, whites: whites, accents: accents, dots: dots };
+  }
+
+  // Maps a path's own coordinates to the svg's (merged and brain_lite are
+  // drawn mirrored inside a transformed group).
+  function toRoot(svg, node) {
+    try {
+      const m = svg.getScreenCTM().inverse().multiply(node.getScreenCTM());
+      return (p) => ({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f });
+    } catch (e) {
+      return (p) => p;
+    }
+  }
+
   function startReveal(section, typeId) {
     if (typeof section.animate !== 'function') return;
+    const type = typesById[typeId];
+    const dark = Boolean(type) && textColorOn(type.color) === WHITE;
     const anims = [];
-    let overlay = null;
+    const extrasNodes = [];       // overlays to remove at the end
+    const restore = [];           // [node, text] to put back at the end
+    const restoreAttrs = [];      // [node, attribute, value] to put back at the end
     let timer = null;
-    const play = (node, frames, delay, duration, easing) => {
-      if (node) anims.push(node.animate(frames, { delay: delay, duration: duration, easing: easing || 'ease-out', fill: 'both' }));
+    let raf = 0;
+    const T0 = performance.now();
+    const play = (node, frames, delay, duration, easing, fill) => {
+      if (!node) return null;
+      const a = node.animate(frames, { delay: delay, duration: duration, easing: easing || 'ease-out', fill: fill || 'both' });
+      anims.push(a);
+      return a;
     };
     const spring = 'cubic-bezier(.34, 1.56, .64, 1)';
+    const hidden = [{ opacity: 0 }, { opacity: 0 }];
 
     function finish() {
       if (!reveal) return;
       reveal = null;
       clearTimeout(timer);
+      cancelAnimationFrame(raf);
       document.removeEventListener('pointerdown', finish, true);
       document.removeEventListener('keydown', onKey, true);
       anims.forEach((a) => { try { a.cancel(); } catch (e) { /* already gone */ } });
-      if (overlay) overlay.remove();
+      extrasNodes.forEach((node) => node.remove());
+      restore.forEach((pair) => { pair[0].textContent = pair[1]; });
+      restoreAttrs.forEach((r) => { if (r[2] === null) r[0].removeAttribute(r[1]); else r[0].setAttribute(r[1], r[2]); });
+      document.documentElement.classList.remove('is-revealing');
       // was-revealed keeps the card from playing its normal entrance again
       // (it already landed); the card itself is untouched.
       section.classList.remove('is-revealing');
@@ -1082,66 +1228,296 @@
     }
     reveal = { finish: finish };
     section.classList.add('is-revealing');
+    document.documentElement.classList.add('is-revealing');
 
-    // 1. The card lands, empty, after the beat.
     const wrap = section.querySelector('.card-wrap');
-    const settle = wrap ? parseFloat(getComputedStyle(wrap).getPropertyValue('--settle')) || 0 : 0;
-    play(wrap, [
-      { opacity: 0, transform: 'rotate(-6deg) scale(.88)' },
-      { opacity: 1, transform: 'rotate(' + settle + 'deg) scale(1)' }
-    ], REVEAL.beat, REVEAL.cardMs, spring);
+    const frame = section.querySelector('.card-frame');
+    const card = section.querySelector('.card');
+    if (!wrap || !card) { finish(); return; }
 
-    // 2. The character draws itself.
-    const img = section.querySelector('img.card-art');
-    overlay = img ? inlineArt(typeId) : null;
-    if (overlay) {
-      img.after(overlay);
-      // Ink lines are drawn one after another, in the drawing's own order.
-      // A thick white line right under an ink line is its halo (the six
-      // dark cards have them on limbs and shoes): it is drawn with its line.
-      // Everything else (white scribble, accent colour, filled eyes) fades in.
-      const ink = [];
-      const fills = [];
-      overlay.querySelectorAll('path, circle').forEach((node) => {
-        const own = node.getAttribute('stroke');
-        const stroke = (own || INK_STROKE).toUpperCase();
-        const drawable = node.nodeName === 'path' && typeof node.getTotalLength === 'function';
-        const halo = drawable && stroke === '#FFFFFF' && parseFloat(node.getAttribute('stroke-width')) >= 9;
-        if (drawable && (stroke === INK_STROKE || halo)) ink.push(node);
-        else fills.push(node);
-      });
-      const lengths = ink.map((node) => { try { return node.getTotalLength(); } catch (e) { return 0; } });
-      const total = lengths.reduce((a, b) => a + b, 0) || 1;
-      let at = REVEAL.drawAt;
-      ink.forEach((node, i) => {
-        const len = lengths[i];
-        const ms = Math.max(12, REVEAL.drawMs * len / total);
-        // The dash starts just off the line, so a round cap cannot show as a dot.
-        node.style.strokeDasharray = len + ' ' + (len + 24);
-        play(node, [{ strokeDashoffset: len + 12 }, { strokeDashoffset: 0 }], at, ms, 'ease-in-out');
-        at += ms;
-      });
-      // On a dark card a navy line barely shows until the white scribble is
-      // behind it, so there the scribble fades in slowly while the lines draw.
-      const type = typesById[typeId];
-      const dark = type && textColorOn(type.color) === WHITE;
-      fills.forEach((node) => {
-        const accent = !/^#FFFFFF$/i.test(node.getAttribute('stroke') || '');
-        if (dark && !accent) play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.drawAt, REVEAL.darkFillMs);
-        else play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.fillAt, REVEAL.fillMs);
-      });
+    // Measure first, before anything moves.
+    const code = card.querySelector('.card-code');
+    const codeLine = code && code.firstElementChild;
+    let textW = code ? code.offsetWidth : 0;
+    if (code) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(codeLine || code);
+        textW = range.getBoundingClientRect().width || textW;
+      } catch (e) { /* keep the box width */ }
     }
 
-    // 3. The code lands.
-    play(section.querySelector('.card-code'), [
-      { opacity: 0, transform: 'translateY(-8%) scale(1.12)' },
-      { opacity: 1, transform: 'none' }
-    ], REVEAL.codeAt, REVEAL.codeMs, spring);
+    // Everything but the card is absent until the card has settled.
+    const restBlocks = [];
+    const left = section.querySelector('.result-left');
+    const actions = section.querySelector('.result-actions');
+    const badge = section.querySelector('.preview-badge');
+    const body = section.querySelector('.result-body');
+    const bodyBlocks = body ? Array.from(body.children) : [];
+    const topbar = document.querySelector('.topbar');
+    const footer = document.querySelector('.site-footer');
+    const viewH = window.innerHeight;
+    const viewW = document.documentElement.clientWidth;
+    // Reading order: on a laptop the buttons under the card come in with the
+    // top of the right column; on a phone they are simply the next block.
+    const sideBySide = left && body && body.getBoundingClientRect().top < left.getBoundingClientRect().bottom - 40;
+    if (sideBySide) {
+      restBlocks.push(bodyBlocks[0], actions);
+      bodyBlocks.slice(1).forEach((b) => restBlocks.push(b));
+    } else {
+      restBlocks.push(actions);
+      bodyBlocks.forEach((b) => restBlocks.push(b));
+    }
+    const near = restBlocks.filter((b) => b && b.getBoundingClientRect().top < viewH * 1.05).slice(0, REVEAL.restMax);
+    const far = restBlocks.filter((b) => b && near.indexOf(b) === -1);
 
-    // 4. Then the rest is there.
-    const rest = Array.from(section.querySelectorAll('.card-top, .card-words, .card-bottom, .result-actions, .result-body'));
-    rest.push(document.querySelector('.site-footer'));
-    rest.forEach((node) => play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.restAt, REVEAL.restMs));
+    // 1. Stage: where the card really sits, and where it is held up.
+    const real = wrap.getBoundingClientRect();
+    const settle = parseFloat(getComputedStyle(wrap).getPropertyValue('--settle')) || 0;
+    const topSpace = topbar ? topbar.getBoundingClientRect().bottom : 0;
+    const scale = Math.max(1, Math.min(REVEAL.stageMaxScale,
+      (viewH - topSpace - 32) / real.height, (viewW - 24) / real.width));
+    const dx = viewW / 2 - (real.left + real.width / 2);
+    const dy = topSpace + (viewH - topSpace) / 2 - (real.top + real.height / 2) - 6;
+    const staged = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + scale.toFixed(3) + ') rotate(0deg)';
+    const settled = 'translate(0px,0px) scale(1) rotate(' + settle + 'deg)';
+    play(wrap, [
+      { opacity: 0, transform: staged.replace(/scale\([^)]*\)/, 'scale(' + (scale * 0.86).toFixed(3) + ')').replace('rotate(0deg)', 'rotate(-5deg)') },
+      { opacity: 1, transform: staged }
+    ], REVEAL.cardAt, REVEAL.cardMs, spring);
+    // 5a. ...and back to its real place later. (Two animations on one
+    // element: the later one takes over when it starts.)
+    play(wrap, [{ transform: staged }, { transform: settled }], REVEAL.settleAt, REVEAL.settleMs,
+      'cubic-bezier(.3, .7, .2, 1)', 'forwards');
+
+    [topbar, footer, badge, actions].concat(bodyBlocks).forEach((node) => {
+      if (node) play(node, hidden, 0, REVEAL.restAt, 'linear', 'forwards');
+    });
+
+    // 2. The pen.
+    const img = section.querySelector('img.card-art');
+    const art = img ? inlineArt(typeId) : null;
+    let penJob = null;
+    if (art) {
+      img.after(art);
+      extrasNodes.push(art);
+      const parts = sortArt(art);
+      // Every line is hidden first: nothing may flash complete before it is drawn.
+      const prep = (node) => {
+        let len = 0;
+        try { len = node.getTotalLength(); } catch (e) { len = 0; }
+        node.style.strokeDasharray = len + ' ' + (len + 40);
+        node.style.strokeDashoffset = String(len + 20);
+        return len;
+      };
+      const lines = parts.ink.map((entry) => {
+        const len = prep(entry.node);
+        if (entry.halo) prep(entry.halo);
+        return { node: entry.node, halo: entry.halo, len: len, map: toRoot(art, entry.node) };
+      }).filter((l) => l.len > 0);
+      // Longest lines first: the outline, then the details.
+      lines.sort((a, b) => b.len - a.len);
+      const quick = (list, at, ms) => {
+        list.forEach((node, i) => {
+          const len = prep(node);
+          const each = Math.max(90, ms * 0.55);
+          const delay = at + (list.length > 1 ? (ms - each) * i / (list.length - 1) : 0);
+          play(node, [{ strokeDashoffset: len + 20 }, { strokeDashoffset: 0 }], delay, each, 'cubic-bezier(.5, 0, .3, 1)');
+        });
+      };
+      let inkAt = REVEAL.drawAt;
+      let inkMs = REVEAL.drawMs;
+      if (dark) {
+        quick(parts.whites, REVEAL.drawAt, REVEAL.darkWhiteMs);
+        inkAt += REVEAL.darkWhiteMs + 60;
+        inkMs -= REVEAL.darkWhiteMs + 60;
+        quick(parts.accents, inkAt + inkMs, REVEAL.fillMs);
+      } else {
+        quick(parts.whites.concat(parts.accents), inkAt + inkMs, REVEAL.fillMs);
+      }
+      parts.dots.forEach((node, i) => play(node, [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1)' }],
+        inkAt + inkMs + 40 * i, 200, spring));
+      parts.dots.forEach((node) => { node.style.transformBox = 'fill-box'; node.style.transformOrigin = 'center'; });
+
+      // The schedule: each line gets time in proportion to its length; the
+      // moves between lines share travelShare of the time by distance.
+      const start = (l) => l.map(l.node.getPointAtLength(0));
+      const stop = (l) => l.map(l.node.getPointAtLength(l.len));
+      const moves = lines.map((l, i) => {
+        if (i === 0) return 0;
+        const a = stop(lines[i - 1]);
+        const b = start(l);
+        return Math.hypot(b.x - a.x, b.y - a.y);
+      });
+      const totalLen = lines.reduce((sum, l) => sum + l.len, 0) || 1;
+      const totalMove = moves.reduce((sum, m) => sum + m, 0) || 1;
+      const drawTime = inkMs * (1 - REVEAL.travelShare);
+      const moveTime = inkMs * REVEAL.travelShare;
+      let t = inkAt;
+      const steps = [];
+      lines.forEach((l, i) => {
+        if (i > 0) {
+          const ms = moveTime * moves[i] / totalMove;
+          steps.push({ kind: 'move', t0: t, t1: t + ms, from: stop(lines[i - 1]), to: start(l) });
+          t += ms;
+        }
+        const ms = Math.max(10, drawTime * l.len / totalLen);
+        steps.push({ kind: 'draw', t0: t, t1: t + ms, line: l });
+        t += ms;
+      });
+      const pen = makePen();
+      pen.style.opacity = '0';
+      art.appendChild(pen);
+      penJob = { steps: steps, pen: pen, startAt: inkAt, endAt: t, done: 0, first: lines.length ? start(lines[0]) : { x: 120, y: 120 } };
+    }
+
+    // 3. Impact.
+    if (code) {
+      // Scale around the middle of the letters, as big as the window allows.
+      const from = Math.max(REVEAL.codeMinFromScale, Math.min(REVEAL.codeFromScale, (viewW * 0.96) / (textW * scale)));
+      restoreAttrs.push([code, 'style', code.getAttribute('style')]);
+      code.style.transformOrigin = (textW / 2).toFixed(1) + 'px 55%';
+      const hit = (REVEAL.impactAt - REVEAL.codeAt) / REVEAL.codeMs;
+      // Solid almost at once, then it falls: accelerating all the way down,
+      // a hard stop a touch under size, and back.
+      play(code, [
+        { opacity: 0, transform: 'scale(' + from.toFixed(2) + ')', easing: 'linear' },
+        { opacity: 1, transform: 'scale(' + (from * 0.93).toFixed(2) + ')', offset: hit * 0.18, easing: 'cubic-bezier(.6, 0, .95, .5)' },
+        { opacity: 1, transform: 'scale(.94)', offset: hit, easing: 'cubic-bezier(.2, .8, .3, 1)' },
+        { opacity: 1, transform: 'scale(1)' }
+      ], REVEAL.codeAt, REVEAL.codeMs, 'linear');
+      // The card takes the hit.
+      play(frame, [
+        { transform: 'rotate(0deg)' },
+        { transform: 'rotate(' + REVEAL.knockDeg + 'deg) translateY(1%)', offset: 0.18 },
+        { transform: 'rotate(-1deg)', offset: 0.5 },
+        { transform: 'rotate(.35deg)', offset: 0.78 },
+        { transform: 'rotate(0deg)' }
+      ], REVEAL.impactAt, REVEAL.knockMs, 'ease-out', 'none');
+      // A ring of ink specks thrown off the edge of the code. (offsetLeft
+      // and offsetTop ignore transforms: the card is the offset parent.)
+      const codeH = code.offsetHeight;
+      const ring = el('div', {
+        class: 'reveal-specks', 'aria-hidden': 'true',
+        style: 'left:' + (code.offsetLeft + textW / 2).toFixed(1) + 'px;top:' +
+          (code.offsetTop + codeH * 0.52).toFixed(1) + 'px'
+      });
+      const count = 16;
+      const rx = textW / 2 + codeH * 0.08;
+      const ry = codeH * 0.42;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + (i % 2 ? 0.14 : -0.09);
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const push = codeH * (0.28 + (i % 3) * 0.1);
+        const speck = el('i', { class: 'reveal-speck' + (i % 4 === 0 ? ' is-big' : (i % 3 === 0 ? ' is-small' : '')) });
+        ring.appendChild(speck);
+        const at = (k) => 'translate(' + (cos * (rx + push * k)).toFixed(1) + 'px,' + (sin * (ry + push * k)).toFixed(1) + 'px)';
+        play(speck, [
+          { opacity: 0, transform: at(0) + ' scale(.5)' },
+          { opacity: 1, transform: at(0.55) + ' scale(1)', offset: 0.3 },
+          { opacity: 0, transform: at(1) + ' scale(.7)' }
+        ], REVEAL.impactAt - 10, 420, 'cubic-bezier(.15, .7, .3, 1)');
+      }
+      card.appendChild(ring);
+      extrasNodes.push(ring);
+    }
+
+    // Name, tagline, the top line: once the code is down.
+    ['.card-top', '.card-words'].forEach((sel) => play(card.querySelector(sel),
+      [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], REVEAL.wordsAt, REVEAL.wordsMs));
+
+    // 4. The numbers.
+    play(card.querySelector('.card-bottom'), [{ opacity: 0 }, { opacity: 1 }], REVEAL.numbersAt - 60, 160);
+    const purityNode = card.querySelector('.card-purity-num');
+    const matchNode = card.querySelector('.card-match-num span');
+    const counters = [];
+    [[purityNode, 100], [matchNode, 0]].forEach((pair) => {
+      const node = pair[0];
+      if (!node) return;
+      const target = parseInt(node.textContent, 10);
+      if (!Number.isFinite(target)) return;
+      restore.push([node, node.textContent]);
+      node.textContent = String(pair[1]);
+      counters.push({ node: node, from: pair[1], to: target, last: pair[1] });
+    });
+    const rows = Array.from(card.querySelectorAll('.bar-squares'));
+    const perRow = REVEAL.numbersMs * 0.45;
+    rows.forEach((row, r) => {
+      const on = Array.from(row.querySelectorAll('i.on'));
+      on.forEach((sq, i) => play(sq, [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'scale(1)' }],
+        REVEAL.numbersAt + r * (REVEAL.numbersMs - perRow - 120) / Math.max(1, rows.length - 1) + i * perRow / 10, 140, spring));
+    });
+
+    // 5b. The rest of the page, block by block.
+    if (topbar) play(topbar, [{ opacity: 0 }, { opacity: 1 }], REVEAL.restAt, REVEAL.restMs);
+    near.forEach((node, i) => play(node, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }],
+      REVEAL.restAt + i * REVEAL.restStep, REVEAL.restMs, 'cubic-bezier(.2, .7, .3, 1)'));
+    far.concat([footer, badge]).forEach((node) => {
+      if (node && near.indexOf(node) === -1) play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.restAt + near.length * REVEAL.restStep, 1);
+    });
+
+    // One loop moves the pen, draws the lines and counts the numbers.
+    let buzzed = false;
+    const coarse = (() => { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
+    function frameTick(now) {
+      const t = now - T0;
+      if (penJob) {
+        const job = penJob;
+        while (job.done < job.steps.length && job.steps[job.done].t1 <= t) {
+          const s = job.steps[job.done];
+          if (s.kind === 'draw') {
+            s.line.node.style.strokeDashoffset = '0';
+            if (s.line.halo) s.line.halo.style.strokeDashoffset = '0';
+          }
+          job.done += 1;
+        }
+        let x = job.first.x;
+        let y = job.first.y;
+        let lift = 1;
+        let alpha = 0;
+        if (t >= job.startAt - 160 && t < job.endAt + 220) {
+          alpha = Math.min(1, (t - (job.startAt - 160)) / 160, Math.max(0, (job.endAt + 220 - t) / 220));
+          const s = job.steps[job.done];
+          if (!s) {
+            const last = job.steps[job.steps.length - 1];
+            const end = last.kind === 'draw' ? last.line.map(last.line.node.getPointAtLength(last.line.len)) : last.to;
+            const p = Math.min(1, (t - job.endAt) / 220);
+            x = end.x + 30 * p; y = end.y - 40 * p; lift = 1;
+          } else if (t < s.t0) {
+            lift = 1;
+          } else if (s.kind === 'draw') {
+            const p = (t - s.t0) / (s.t1 - s.t0);
+            const at = s.line.len * p;
+            const point = s.line.map(s.line.node.getPointAtLength(at));
+            x = point.x; y = point.y; lift = 0;
+            const off = String(s.line.len - at);
+            s.line.node.style.strokeDashoffset = off;
+            if (s.line.halo) s.line.halo.style.strokeDashoffset = off;
+          } else {
+            const p = (t - s.t0) / (s.t1 - s.t0);
+            const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+            x = s.from.x + (s.to.x - s.from.x) * e;
+            y = s.from.y + (s.to.y - s.from.y) * e;
+            lift = Math.sin(Math.PI * p);
+          }
+        }
+        job.pen.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + (y - 7 * lift).toFixed(1) + ') rotate(' + (32 + 5 * lift).toFixed(1) + ') scale(1.25)');
+        job.pen.style.opacity = alpha.toFixed(2);
+      }
+      if (t >= REVEAL.impactAt && !buzzed) {
+        buzzed = true;
+        if (coarse && navigator.vibrate) { try { navigator.vibrate(18); } catch (e) { /* not important */ } }
+      }
+      const p = Math.max(0, Math.min(1, (t - REVEAL.numbersAt) / (REVEAL.numbersMs - 80)));
+      const eased = 1 - Math.pow(1 - p, 3);
+      counters.forEach((c) => {
+        const v = Math.round(c.from + (c.to - c.from) * eased);
+        if (v !== c.last) { c.node.textContent = String(v); c.last = v; }
+      });
+      if (t < REVEAL.end) raf = requestAnimationFrame(frameTick);
+    }
+    raf = requestAnimationFrame(frameTick);
 
     document.addEventListener('pointerdown', finish, true);
     document.addEventListener('keydown', onKey, true);
@@ -1436,6 +1812,7 @@
       !state.peek && renderActions(model)
     ]);
 
+    if (!isSample && state.challenge) track('compare-shown', 'play');
     const body = el('div', { class: 'result-body', style: typeVars }, [
       // After a challenge, the comparison comes first: it is what they came for.
       !isSample && state.challenge && renderCompare({
@@ -1894,6 +2271,7 @@
   }
 
   function copyChallengeLink() {
+    track('challenge-made', 'play');
     const url = challengeUrl();
     if (url) copyText(url, t('challengeCopied'));
     else toast(t('copyFailed'));
@@ -2074,6 +2452,7 @@
   // "New questions" on the result: a new seed, so a new set of 30, straight
   // to the first statement (the landing page has nothing new to say).
   function startOver() {
+    track('new-questions');
     startPlay();
     state.preview = null;
     state.from = null;
@@ -2764,6 +3143,7 @@
   }
 
   function saveImage(model) {
+    track('save-image', 'play');
     // The character was loaded at startup (preloadArt), so this is normally
     // synchronous. On a slow device, wait for it first: a saved card without
     // its character is the one thing this button must not produce.
@@ -2850,6 +3230,7 @@
   }
 
   function copyLink() {
+    track('copy-link', 'play');
     copyText(shareUrl(), t('linkCopied'));
   }
 
@@ -2932,6 +3313,8 @@
   // and sessionStorage keep it through a refresh.
   // The same for ?vs= and ?re=: kept while they mean something, removed
   // when they were broken (or ignored, as on a preview).
+  if (state.reply) track('reply-opened', 'load');
+  else if (state.challenge && state.screen === 'landing') track('challenge-opened', 'load');
   if (state.reply) setUrlParams({ seed: compareLink.seed });
   else setUrlParams({ seed: seedParam(), vs: challengeParam(), re: null });
 

@@ -2,3 +2,6 @@
 node_modules/
 # an early content draft, kept locally for reference only
 content/draft.json
+
+# private working data (panel answers used for checks)
+.local/
