@@ -30,6 +30,11 @@ test('reveal timeline: stages in order, the whole thing about 4.5 s', () => {
   assert.ok(R.restAt >= R.settleAt + R.settleMs * 0.5);
   assert.ok(R.restStep >= 70 && R.restStep <= 110);
   assert.ok(R.restAt + (R.restMax - 1) * R.restStep + R.restMs <= R.end + 20, 'the last block is in by the end');
+  // The figure is drawn big and centred, 2 to 2.4 times its size, and shrinks
+  // back to its place in the same beat as the code slams in.
+  assert.ok(R.artMaxScale >= 2 && R.artMaxScale <= 2.4);
+  assert.ok(R.artBackAt >= R.drawAt + R.drawMs + R.fillMs - 20, 'the figure is finished before it shrinks');
+  assert.ok(R.artBackAt >= R.codeAt - 100 && R.artBackAt + R.artBackMs <= R.codeAt + R.codeMs + 60, 'it shrinks with the code');
   // Held up, a little larger, never huge.
   assert.ok(R.stageMaxScale > 1 && R.stageMaxScale <= 1.4);
 });
@@ -40,7 +45,8 @@ test('reveal rules: only the last answer of a play asks for it, never with reduc
   assert.strictEqual((src.match(/render\([^)]*reveal:/g) || []).length, 1, 'no other render asks for a reveal');
   const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
   assert.match(ans, /const reduce = reducedMotion\(\);/);
-  assert.match(ans, /if \(state\.index >= state\.drawn\.length - 1\) \{[\s\S]*?render\(\{ moveFocus: true, reveal: !reduce \}\)/);
+  // ...only when there is no next statement (and no play-off statement) left.
+  assert.match(ans, /const next = nextPosition\(state\.index\);\s*if \(next === null\) \{[\s\S]*?render\(\{ moveFocus: true, reveal: !reduce \}\)/);
   // render() starts it only on the player's own result (no preview, no reply link, no layer on top).
   assert.match(src, /if \(opts\.reveal && !state\.reply && layer === 'base' && state\.screen === 'result' && !state\.preview\) \{\s*startReveal\(/);
   // Any later render ends a reveal still playing (a language switch, say).

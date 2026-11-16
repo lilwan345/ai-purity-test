@@ -12,3 +12,4 @@ require('./art.test.js');
 require('./extras.test.js');
 require('./reveal.test.js');
 require('./stats.test.js');
+require('./playoff.test.js');

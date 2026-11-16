@@ -65,7 +65,12 @@
     'compareBoth', 'compareBothNone', 'compareOnlyFriend', 'compareOnlyYou', 'compareMeta',
     'sendBack', 'sendBackNote', 'replyIntro', 'replyStart',
     // leaving a play and coming back (the title in the top bar, the landing's buttons)
-    'continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel'
+    'continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel',
+    // the play-off, the personal reason lines and the play history
+    'playoffIntro', 'playoffAgain', 'playoffCount', 'playoffProgress', 'matchPlayoff', 'matchPlayoffLot',
+    'reasonDimContrast', 'reasonDimAll', 'reasonDimOne', 'reasonDimSome', 'reasonAnalogCount', 'reasonAnalogNone',
+    'reasonAnalogPassed', 'reasonBalancedCounts', 'reasonBalancedMax', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven',
+    'reasonHeaviestPassed', 'reasonPassedNone', 'reasonSoulmate', 'historyLine', 'historyAllDifferent', 'listAnd', 'typesPlays'
   ];
 
   // The four DEPTH bands of a dimension in a result (how far the player went
@@ -407,6 +412,53 @@
   }
 
   /*
+   * THE PLAY-OFF. When two sections are still exactly level after every
+   * tie-break that the 30 answers allow (points, the heavier admitted
+   * statement, the number of statements), the player gets up to three short
+   * rounds instead of a lot: each round shows one statement from each of the
+   * two sections, both of the same band, medium first, then mild, then
+   * extreme. After each round the section whose play-off statements carry
+   * more admitted points wins. Level after all three: the lot decides, as
+   * before, and the result says so.
+   *
+   * playoffRounds(content, drawnIds, tiedDims) -> [{ band, ids: [a, b] }, x3]
+   *  - each statement is drawn uniformly from the statements of that section
+   *    and band that this play did NOT show (5 of the 7 in a full bank);
+   *  - which of the two comes first is a coin flip;
+   *  - the generator is made from this play's drawn ids (which come from the
+   *    seed) under its own label, so the same play always gets the same
+   *    play-off, and the draw of the 30 (label "apt-draw-v1"), the lot
+   *    ("apt-lot-v1") and the remarks ("apt-remarks-v1") are untouched.
+   * The two sections are taken in DIM_KEYS order, so the rounds do not depend
+   * on which of the two the lot happened to put first. Returns [] when the
+   * pair is not two real sections or a stratum has nothing unseen left.
+   */
+  var PLAYOFF_BANDS = ['medium', 'mild', 'extreme'];
+
+  function playoffRounds(content, drawnIds, tiedDims) {
+    var pair = DIM_KEYS.filter(function (key) { return Array.from(tiedDims || []).indexOf(key) !== -1; });
+    if (pair.length !== 2) return [];
+    var drawn = Array.from(drawnIds || []);
+    var inDraw = {};
+    drawn.forEach(function (id) { inDraw[id] = true; });
+    var strata = strataOf(content);
+    var next = makeGenerator('apt-playoff-v1|' + drawn.join(','));
+    var rounds = [];
+    for (var b = 0; b < PLAYOFF_BANDS.length; b++) {
+      var band = PLAYOFF_BANDS[b];
+      var ids = [];
+      for (var d = 0; d < 2; d++) {
+        var pool = strata[pair[d]][band].filter(function (s) { return !inDraw[s.id]; });
+        if (!pool.length) return [];
+        ids.push(pool[randomBelow(next, pool.length)].id);
+      }
+      if (randomBelow(next, 2) === 1) ids.reverse();
+      rounds.push({ band: band, ids: ids });
+    }
+    return rounds;
+  }
+
+  /*
    * admitByCounts(content, drawnIds, counts) -> admitted ids.
    * counts: { school: [mild, medium, extreme], ... } says how many of the
    * shown statements of each stratum to admit (0, 1 or 2); missing
@@ -476,7 +528,7 @@
    * rules: optional, only so tools/simulate.js can try other thresholds.
    * Pure and deterministic: same answers and same draw, same result.
    */
-  function score(answers, content, drawnIds, rules) {
+  function score(answers, content, drawnIds, rules, playoffAnswers) {
     rules = rules || RULES;
 
     var byId = {};
@@ -592,10 +644,12 @@
       return dimType(dominant);
     }
 
-    var typeId;
-    if (total >= rules.mergedMinTotal || everyDimHigh) typeId = 'merged';
-    else if (hiddenRule) typeId = 'soulmate';
-    else typeId = typeWithoutSoulmate();
+    function decideType() {
+      if (total >= rules.mergedMinTotal || everyDimHigh) return 'merged';
+      if (hiddenRule) return 'soulmate';
+      return typeWithoutSoulmate();
+    }
+    var typeId = decideType();
 
     // How an exact two-way tie for the lead was settled, but only when that
     // lead decides a section type (the type itself, or the type underneath
@@ -607,6 +661,27 @@
       if (topWeight[dominant] !== topWeight[runnerUp]) tieBreak = 'top';
       else if (perDim[dominant] !== perDim[runnerUp]) tieBreak = 'count';
       else tieBreak = 'lot';
+    }
+
+    // The play-off (see playoffRounds), only where the lot would decide.
+    // Its answers change nothing but which of the two sections leads:
+    // purity, points, depth, lite or deep, the match, the evidence and the
+    // section rows all stay on the 30.
+    var playoff = null;
+    if (tieBreak === 'lot') {
+      playoff = settlePlayoff(playoffRounds(content, drawn, tiedDims), playoffAnswers || {}, byId);
+      if (playoff.winner) {
+        if (playoff.winner !== dominant) {
+          ranked[0] = runnerUp;
+          ranked[1] = dominant;
+          ranked.forEach(function (key, i) { rankIndex[key] = i; });
+          dominant = ranked[0];
+          runnerUp = ranked[1];
+          tiedDims = [dominant, runnerUp];
+          typeId = decideType();
+        }
+        tieBreak = 'playoff';
+      }
     }
 
     // --- 4. Secondary type (a runner-up leaning, or null) -----------------
@@ -700,6 +775,7 @@
       runnerUpDim: points[runnerUp] > 0 ? runnerUp : null,
       tiedDims: tiedDims,
       tieBreak: tieBreak,
+      playoff: playoff,
       typeId: typeId,
       secondaryTypeId: secondaryTypeId,
       evidenceIds: evidenceIds,
@@ -707,6 +783,44 @@
       matchCap: matchCap,
       hiddenRule: hiddenRule
     };
+  }
+
+  /*
+   * settlePlayoff(rounds, answers, byId) -> {
+   *   rounds        the three rounds (playoffRounds)
+   *   played        rounds with both statements answered, counted from the
+   *                 first; a round not fully answered ends the count
+   *   points        { dim: admitted play-off points so far } for the two sections
+   *   winner        the section ahead after a played round, or null
+   *   decidedRound  1, 2 or 3 when a winner was found, else null
+   *   complete      true when there is a winner or all rounds were played
+   *                 (then a level play-off falls back to the lot)
+   * }
+   * answers: { id: 'yes' | 'no' | 'unsure' }, the play-off answers only.
+   * Only "yes" counts, as everywhere else.
+   */
+  function settlePlayoff(rounds, answers, byId) {
+    var out = { rounds: rounds, played: 0, points: {}, winner: null, decidedRound: null, complete: false };
+    rounds.forEach(function (round) {
+      round.ids.forEach(function (id) { if (byId[id]) out.points[byId[id].dim] = 0; });
+    });
+    for (var i = 0; i < rounds.length; i++) {
+      var ids = rounds[i].ids;
+      var done = ids.every(function (id) { return ANSWER_VALUES.indexOf(answers[id]) !== -1; });
+      if (!done) break;
+      out.played = i + 1;
+      ids.forEach(function (id) {
+        if (answers[id] === 'yes' && byId[id]) out.points[byId[id].dim] += statementWeight(byId[id]);
+      });
+      var dims = Object.keys(out.points);
+      if (dims.length === 2 && out.points[dims[0]] !== out.points[dims[1]]) {
+        out.winner = out.points[dims[0]] > out.points[dims[1]] ? dims[0] : dims[1];
+        out.decidedRound = i + 1;
+        break;
+      }
+    }
+    out.complete = out.winner !== null || out.played === rounds.length;
+    return out;
   }
 
   /**
@@ -1134,6 +1248,8 @@
     score: score,
     statementWeight: statementWeight,
     tieLotOrder: tieLotOrder,
+    playoffRounds: playoffRounds,
+    PLAYOFF_BANDS: PLAYOFF_BANDS,
     admitByCounts: admitByCounts,
     strataOf: strataOf,
     SEED_ALPHABET: SEED_ALPHABET,

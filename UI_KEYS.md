@@ -13,7 +13,10 @@ Words in `{braces}` are filled in by app.js and must be kept (they may move with
 `secondarySoulmate` / `secondaryMerged` {code} {name};
 `seeType` {code}; `peekNote` {code}; `peekBackTo` {code};
 `typesCollected` {n} {total}; `comparePurity` {n}; `comparePurerYou` / `comparePurerFriend` {pts} (already "12 points");
-`compareTie` {n}; `compareMeta` {dim} {weight}.
+`compareTie` {n}; `compareMeta` {dim} {weight};
+`playoffCount` / `playoffProgress` {n} {total}; `matchPlayoff` {dim} {dim2} {a} {round}; `matchPlayoffLot` {dim} {dim2} {a};
+the `reason…` lines: see their rows ({quote} is one of the player's statements, quoted by app.js); `historyLine` {n} {list} {most}; `historyAllDifferent` {n} {list};
+`listAnd` {a} {b}; `typesPlays` {n}.
 In the `secondary…` lines each language may use {code}, {name} or both: the English
 type names read badly mid-sentence ("part The Text Decoder"), so English uses the code.
 `validateContent` in scoring.js reports any key that is missing.
@@ -37,6 +40,10 @@ every one of them is decorative (empty alt text).
 | `langSwitch` | Language button label (name of the OTHER language) |
 | `langSwitchLabel` | Language button: hidden hint read after the visible word ("中文 – Switch to Chinese") |
 | `progress` | Question screen, read out by screen readers before each statement ({n}, {total}). The visible "12 / 30" is plain numbers and needs no text. |
+| `playoffIntro` | On the card of the first play-off round's two statements (after statement 30, when two sections are dead level): one plain line |
+| `playoffAgain` | Same place, rounds 2 and 3 (the round before ended level) |
+| `playoffCount` | Question screen header during a play-off, in place of "30 / 30" ({n} = 1 or 2 within the round, {total} = 2) |
+| `playoffProgress` | Read out by screen readers before each play-off statement |
 | `closeEnoughHint` | Question screen, statements 1-3 of a play only: short form of `closeEnough` at the right end of the section label. It shares that line, so keep it ≤ 22 characters / 8 Chinese characters (a test checks) |
 | `liveLabel` | Question screen, small label before the running purity; also the small label above the score on the card (capitalised in English) |
 | `back` | Back button on the question screen (icon only; this is its accessible name) |
@@ -84,12 +91,24 @@ every one of them is decorative (empty alt text).
 | `matchDim` | Section type: the lead beats the runner-up ({a} points to {b}) |
 | `matchDimAlone` | Section type, no other section touched |
 | `matchTieTop` / `matchTieCount` / `matchTieLot` | Section type tied with one other: which tie-break decided. `matchTieLot` says plainly that nothing in the answers separated them and it was decided by lot (`tieBreak: 'lot'`) |
+| `matchPlayoff` | Section type whose tie went to a play-off and was settled: names both sections and the round ({dim} = the winner) |
+| `matchPlayoffLot` | Section type whose play-off ended level after three rounds, so the lot decided. Must say so plainly |
 | `matchCapOne` / `matchCapTwo` | Added after the above when one or two answers capped the match ({cap}) |
 | `matchBalanced` / `matchBalancedExact` | Balanced: the gap between the heaviest and lightest touched section, or "exactly the same" |
 | `matchMerged` / `matchSoulmate` / `matchUntouched` | What the match number means for those types |
 | `matchSample` | In place of the above on a preview or peek |
 | `unsureNote` | Last line of the verdict, only when the player answered "Not sure" at least once ({n} = how many, can be 1, so no plural pronoun; {total} = statements in the play). Never on the card, a preview or a peek |
 | `unsureMany` | Added after `unsureNote` from 8 "Not sure" answers on (`UNSURE_MANY` in scoring.js): the purity is probably flattering |
+| `reasonDimContrast` | Section types, first of the two personal lines: {n} of {shown} admitted in the lead section {dim}, and the average {avg} over the other four |
+| `reasonDimAll` / `reasonDimOne` / `reasonDimSome` | Section types, second line: everything shown in {dim} was admitted; the one statement passed on; the heaviest of several passed on ({quote}) |
+| `reasonAnalogCount` / `reasonAnalogNone` / `reasonAnalogPassed` | ANALOG: how short the list is ({n} of {total}, or empty), then a mild statement they passed on ({quote}) |
+| `reasonBalancedCounts` / `reasonBalancedMax` | SAMPLER: admitted per section ({list}), then the most in any one section ({n} of {shown}) |
+| `reasonMergedSpread` / `reasonMergedZero` / `reasonMergedEven` | PLUG-IN: {total} of {all}, the most {max} of {shown} in one section, the fewest {min} (or the one untouched section {dim}, or the same {max} in every section) |
+| `reasonHeaviestPassed` / `reasonPassedNone` | PLUG-IN and the hidden type, second line: the heaviest statement passed on ({quote}), or none at all ({all}) |
+| `reasonSoulmate` | Hidden type, first line: all {n} Bond statements, {h} of {hs} extreme Heart |
+| `historyLine` | Last line of the verdict from 3 finished plays on this device: the last {n} (at most 5) with counts ({list}, type codes) and the most frequent ({most}) |
+| `historyAllDifferent` | Same place, when each of the last plays was a different type ({n}, {list} of codes) |
+| `listAnd` | Joins two codes in `historyLine` when two types tie for most often |
 | **Other result sections** | |
 | `signsTitle` | Heading over the three telltale signs |
 | `dimsTitle` | Heading over the section-by-section list |
@@ -125,6 +144,7 @@ every one of them is decorative (empty alt text).
 | `typesBack` | Back button on a type opened from the grid |
 | `typesBackHome` / `typesBackQuiz` | The grid's back button when the screen underneath is the landing page / a question (on a result it reuses `peekBack`, on a preview `peekBackTo`) |
 | `typesCollected` | Under the grid's intro, once at least one type is collected on this device ({n} of {total} = 14) |
+| `typesPlays` | Screen-reader text on a collected card whose stamp shows a number: how many of the recent finished plays ended on it |
 | `typesCollectedMark` | Screen-reader word on a collected card (the stamp itself is decorative) |
 
 | **Compare with a friend** (challenge and reply links; README "Compare with a friend") | |

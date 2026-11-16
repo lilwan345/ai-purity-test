@@ -90,7 +90,7 @@ test('readCompareLink: a challenge, a reply, and every broken variant falls back
   const vs = encodeAnswers(SEED, DRAWN, [DRAWN[1], DRAWN[12]]);
   const re = encodeAnswers(SEED, DRAWN, [DRAWN[12], DRAWN[25]]);
   const challenge = readCompareLink({ seed: SEED, vs: vs, re: null }, content);
-  assert.deepStrictEqual(challenge, { seed: SEED, drawn: DRAWN, vs: [DRAWN[1], DRAWN[12]], re: null });
+  assert.deepStrictEqual(challenge, { seed: SEED, drawn: DRAWN, vs: [DRAWN[1], DRAWN[12]], vsPlayoff: {}, re: null, rePlayoff: null });
   const reply = readCompareLink({ seed: SEED.toUpperCase(), vs: vs, re: re }, content);
   assert.deepStrictEqual(reply.re, [DRAWN[12], DRAWN[25]]);
   assert.strictEqual(reply.seed, SEED);
@@ -418,7 +418,7 @@ test('app.js: the title is a link home, the landing offers continue / start over
   // Start over: the link's set is kept by restartKeepsSet, otherwise a fresh
   // set; either way a new play (no answers, no remarks shown yet, statement 1).
   const restart = src.match(/function restartPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];
-  assert.match(restart, /if \(extras\.restartKeepsSet\(state\)\) \{\s*playNo \+= 1;\s*state\.answers = \{\};\s*state\.index = 0;\s*state\.remarked = \[\];/);
+  assert.match(restart, /if \(extras\.restartKeepsSet\(state\)\) \{\s*playNo \+= 1;\s*state\.playoffAnswers = \{\};\s*state\.answers = \{\};\s*state\.index = 0;\s*state\.remarked = \[\];/);
   assert.match(restart, /startPlay\(\);/);
   assert.match(restart, /go\('question'\)/);
   const startPlay = src.match(/function startPlay\(\) \{([\s\S]*?)\n {2}\}/)[1];

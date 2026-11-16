@@ -24,21 +24,27 @@
   // 1. ANSWER CODES AND THE COMPARISON
   //
   // A challenge link carries one player's answers for a play as 8 characters
-  // of 0-9 and a-z: 6 for the answers, 2 to check them.
-  //   - answers: bit i is 1 when the i-th statement of the play (in asking
-  //     order) was answered Guilty. "Not sure" and "Never" are both 0, so the
-  //     code holds exactly what score() sees. 30 bits fit in 6 base-36
+  // of 0-9 and a-z (10 when the play needed a play-off):
+  //   - answers (6): bit i is 1 when the i-th statement of the play (in
+  //     asking order) was answered Guilty. "Not sure" and "Never" are both 0,
+  //     so the code holds exactly what score() sees. 30 bits fit in 6 base-36
   //     characters (36^6 > 2^30).
-  //   - check: two characters made from the seed, the 30 drawn ids and the
-  //     answer part. A typo, a code pasted onto another seed, or a link from
-  //     before the statement bank changed (same seed, other statements) fails
-  //     the check, and the page falls back to its normal behaviour.
+  //   - play-off (2, only when there was one): how many play-off rounds were
+  //     played (1-3) and which of their statements were answered Guilty, as
+  //     one number, played x 64 + bits, so the friend's browser settles the
+  //     same tie the same way. Codes without it (all codes made before the
+  //     play-off existed) stay valid.
+  //   - check (2): made from the seed, the 30 drawn ids and everything before
+  //     it. A typo, a code pasted onto another seed, or a link from before the
+  //     statement bank changed (same seed, other statements) fails the check,
+  //     and the page falls back to its normal behaviour.
   // The check stops accidents, not people: anyone who reads this file can
   // make a valid code. That is fine, because the code only says which
   // statements were admitted; every type and number is recomputed from it.
   // ======================================================================
-  var CODE_PATTERN = /^[0-9a-z]{8}$/;
+  var CODE_PATTERN = /^(?:[0-9a-z]{8}|[0-9a-z]{10})$/;
   var ANSWER_PART = 6;
+  var PLAYOFF_PART = 2;
 
   function checkPart(seed, drawnIds, answerPart) {
     var h = scoring.hash128('apt-vs-v1|' + seed + '|' + drawnIds.join(',') + '|' + answerPart);
@@ -50,49 +56,96 @@
       drawnIds.length > 0 && drawnIds.length <= 30;
   }
 
+  // The play-off as a number: rounds played (from the first, both statements
+  // answered) x 64 + one bit per play-off statement answered Guilty.
+  function playoffNumber(playoff) {
+    if (!playoff || !Array.isArray(playoff.rounds)) return 0;
+    var answers = playoff.answers || {};
+    var played = 0;
+    var bits = 0;
+    for (var i = 0; i < playoff.rounds.length && i < 3; i++) {
+      var ids = playoff.rounds[i].ids;
+      if (!ids.every(function (id) { return scoring.ANSWER_VALUES.indexOf(answers[id]) !== -1; })) break;
+      played = i + 1;
+      ids.forEach(function (id, k) { if (answers[id] === 'yes') bits += Math.pow(2, 2 * i + k); });
+    }
+    return played ? played * 64 + bits : 0;
+  }
+
   /*
-   * encodeAnswers(seed, drawnIds, admittedIds) -> "0k3x9qa7" (8 characters),
-   * or null when the seed or the draw is not usable.
-   * admittedIds: array or Set of the ids answered Guilty; ids outside the
-   * draw are ignored.
+   * encodeAnswers(seed, drawnIds, admittedIds [, playoff]) -> "0k3x9qa7"
+   * (8 characters, or 10 with a play-off), or null when the seed or the draw
+   * is not usable. admittedIds: array or Set of the ids answered Guilty; ids
+   * outside the draw are ignored. playoff: { rounds (result.playoff.rounds),
+   * answers ({ id: 'yes' | 'no' | 'unsure' }) }, or nothing.
    */
-  function encodeAnswers(seed, drawnIds, admittedIds) {
+  function encodeAnswers(seed, drawnIds, admittedIds, playoff) {
     if (!validDraw(seed, drawnIds)) return null;
     var yes = new Set(Array.from(admittedIds || []));
     var bits = 0;
     drawnIds.forEach(function (id, i) { if (yes.has(id)) bits += Math.pow(2, i); });
     var answerPart = bits.toString(36).padStart(ANSWER_PART, '0');
+    var extra = playoffNumber(playoff);
+    if (extra) answerPart += extra.toString(36).padStart(PLAYOFF_PART, '0');
     return answerPart + checkPart(seed, drawnIds, answerPart);
   }
 
   /*
-   * decodeAnswers(code, seed, drawnIds) -> the admitted ids in asking order,
-   * or null when the code is malformed (wrong length, other characters, a
-   * number too large for the draw) or does not belong to this seed and draw.
-   * Upper case is accepted (a link typed by hand); nothing else is.
+   * decodeAnswerSet(code, seed, drawnIds [, content]) -> { admitted, playoff }
+   * or null. admitted: the Guilty ids of the 30, in asking order. playoff:
+   * { id: 'yes' | 'no' } for the play-off statements that were played ({}
+   * when none). A code with a play-off part is only valid when this play
+   * really ends in a tie for the lot and the rounds it names exist; content
+   * is needed to check that (without it the play-off part is ignored).
+   * Rejected: wrong length, other characters, a number too large, a failed
+   * check. Upper case is accepted (a link typed by hand); nothing else is.
    */
-  function decodeAnswers(code, seed, drawnIds) {
+  function decodeAnswerSet(code, seed, drawnIds, content) {
     if (typeof code !== 'string' || !validDraw(seed, drawnIds)) return null;
     var c = code.trim().toLowerCase();
     if (!CODE_PATTERN.test(c)) return null;
-    var answerPart = c.slice(0, ANSWER_PART);
-    if (c.slice(ANSWER_PART) !== checkPart(seed, drawnIds, answerPart)) return null;
-    var bits = parseInt(answerPart, 36);
+    var body = c.slice(0, c.length - 2);
+    if (c.slice(-2) !== checkPart(seed, drawnIds, body)) return null;
+    var bits = parseInt(body.slice(0, ANSWER_PART), 36);
     if (!(bits >= 0) || bits >= Math.pow(2, drawnIds.length)) return null;
-    var out = [];
+    var admitted = [];
     drawnIds.forEach(function (id, i) {
-      if (Math.floor(bits / Math.pow(2, i)) % 2 === 1) out.push(id);
+      if (Math.floor(bits / Math.pow(2, i)) % 2 === 1) admitted.push(id);
     });
-    return out;
+    var playoff = {};
+    if (body.length > ANSWER_PART && content) {
+      var extra = parseInt(body.slice(ANSWER_PART), 36);
+      var played = Math.floor(extra / 64);
+      var pbits = extra % 64;
+      if (!(played >= 1 && played <= 3) || pbits >= Math.pow(2, 2 * played)) return null;
+      var base = scoring.score(admitted, content, drawnIds);
+      if (base.tieBreak !== 'lot' || !base.playoff) return null;
+      var rounds = base.playoff.rounds;
+      if (played > rounds.length) return null;
+      for (var i = 0; i < played; i++) {
+        rounds[i].ids.forEach(function (id, k) {
+          playoff[id] = Math.floor(pbits / Math.pow(2, 2 * i + k)) % 2 === 1 ? 'yes' : 'no';
+        });
+      }
+    }
+    return { admitted: admitted, playoff: playoff };
+  }
+
+  // decodeAnswers(code, seed, drawnIds [, content]) -> just the admitted ids
+  // of the 30 (in asking order), or null.
+  function decodeAnswers(code, seed, drawnIds, content) {
+    var set = decodeAnswerSet(code, seed, drawnIds, content);
+    return set ? set.admitted : null;
   }
 
   /*
    * readCompareLink({ seed, vs, re }, content) -> what a link asks for:
-   *   null                              not a comparison link, or a broken one
-   *   { seed, drawn, vs: ids, re: null }    a challenge: play the same 30, then compare
-   *   { seed, drawn, vs: ids, re: ids }     a reply: show the comparison straight away
-   * vs = the challenger's answers, re = the answers of the friend who played
-   * the challenge and sent it back. Every value that is present must be
+   *   null                                    not a comparison link, or a broken one
+   *   { seed, drawn, vs, vsPlayoff, re: null }  a challenge: play the same 30, then compare
+   *   { seed, drawn, vs, vsPlayoff, re, rePlayoff }  a reply: show the comparison straight away
+   * vs = the challenger's admitted ids, re = those of the friend who played
+   * the challenge and sent it back; the *Playoff maps hold their play-off
+   * answers ({} when there was none). Every value that is present must be
    * valid, or the whole thing is ignored (the page then treats the link as
    * an ordinary one). Never throws.
    */
@@ -103,14 +156,17 @@
       var seed = scoring.normalizeSeed(q.seed);
       if (!seed) return null;
       var drawn = scoring.drawStatements(content, seed);
-      var vs = decodeAnswers(q.vs, seed, drawn);
+      var vs = decodeAnswerSet(q.vs, seed, drawn, content);
       if (!vs) return null;
       var re = null;
       if (q.re !== null && q.re !== undefined) {
-        re = decodeAnswers(q.re, seed, drawn);
+        re = decodeAnswerSet(q.re, seed, drawn, content);
         if (!re) return null;
       }
-      return { seed: seed, drawn: drawn, vs: vs, re: re };
+      return {
+        seed: seed, drawn: drawn, vs: vs.admitted, vsPlayoff: vs.playoff,
+        re: re ? re.admitted : null, rePlayoff: re ? re.playoff : null
+      };
     } catch (e) {
       return null;
     }
@@ -126,7 +182,7 @@
   }
 
   /*
-   * comparePlays(content, drawnIds, mineIds, friendIds) -> {
+   * comparePlays(content, drawnIds, mineIds, friendIds [, minePlayoff, friendPlayoff]) -> {
    *   mine, friend          the two scoring.score() results
    *   purer                 'mine' | 'friend' | 'tie'
    *   gap                   how many purity points apart (0 for a tie)
@@ -146,7 +202,7 @@
    */
   var COMPARE_LIMITS = { both: 3, onlyFriend: 2, onlyMine: 2 };
 
-  function comparePlays(content, drawnIds, mineIds, friendIds) {
+  function comparePlays(content, drawnIds, mineIds, friendIds, minePlayoff, friendPlayoff) {
     var drawn = Array.from(drawnIds || []);
     var inDraw = new Set(drawn);
     var byId = {};
@@ -156,8 +212,9 @@
 
     var mineSet = new Set(Array.from(mineIds || []).filter(function (id) { return inDraw.has(id); }));
     var friendSet = new Set(Array.from(friendIds || []).filter(function (id) { return inDraw.has(id); }));
-    var mine = scoring.score(Array.from(mineSet), content, drawn);
-    var friend = scoring.score(Array.from(friendSet), content, drawn);
+    // Each side's play-off answers (if any) settle only that side's tie.
+    var mine = scoring.score(Array.from(mineSet), content, drawn, null, minePlayoff || {});
+    var friend = scoring.score(Array.from(friendSet), content, drawn, null, friendPlayoff || {});
 
     var both = [], onlyFriend = [], onlyMine = [];
     drawn.forEach(function (id) {
@@ -350,6 +407,156 @@
   }
 
   // ======================================================================
+  // 3b. PLAY HISTORY
+  //
+  // One play shows only 6 statements per section, so another draw can give
+  // another type. The types of the last HISTORY_MAX finished plays are kept
+  // on this device (localStorage, the type ids joined by commas, oldest
+  // first; same safety as the collection), and from MIN_HISTORY plays on the
+  // result says which type came up most often. Previews, peeks and reply
+  // links never add to it: only finishing a play does (app.js, answer()).
+  // ======================================================================
+  var HISTORY_KEY = 'apt-history-v1';
+  var HISTORY_MAX = 20;
+  var MIN_HISTORY = 3;
+  var HISTORY_SHOWN = 5;
+
+  function playHistory(storage) {
+    var raw = null;
+    try { raw = storage ? storage.getItem(HISTORY_KEY) : null; } catch (e) { raw = null; }
+    if (typeof raw !== 'string' || !raw) return [];
+    return raw.split(',').map(function (id) { return id.trim(); })
+      .filter(function (id) { return scoring.TYPE_IDS.indexOf(id) !== -1; })
+      .slice(-HISTORY_MAX);
+  }
+
+  // Adds one finished play. Returns true when it was stored.
+  function rememberPlay(storage, typeId) {
+    if (scoring.TYPE_IDS.indexOf(typeId) === -1 || !storage) return false;
+    var list = playHistory(storage).concat([typeId]).slice(-HISTORY_MAX);
+    try {
+      storage.setItem(HISTORY_KEY, list.join(','));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /*
+   * historySummary(list) -> null below MIN_HISTORY plays, else
+   *   { n: plays looked at (the last HISTORY_SHOWN), counts: [{ typeId, count }]
+   *     most first (equal counts: the more recent first), most: [typeIds with
+   *     the top count] }
+   */
+  function historySummary(list) {
+    var all = Array.from(list || []).filter(function (id) { return scoring.TYPE_IDS.indexOf(id) !== -1; });
+    if (all.length < MIN_HISTORY) return null;
+    var recent = all.slice(-HISTORY_SHOWN);
+    var counts = {};
+    var lastSeen = {};
+    recent.forEach(function (id, i) { counts[id] = (counts[id] || 0) + 1; lastSeen[id] = i; });
+    var rows = Object.keys(counts).map(function (id) { return { typeId: id, count: counts[id] }; })
+      .sort(function (a, b) { return (b.count - a.count) || (lastSeen[b.typeId] - lastSeen[a.typeId]); });
+    var top = rows[0].count;
+    return { n: recent.length, counts: rows, most: rows.filter(function (r) { return r.count === top; }).map(function (r) { return r.typeId; }) };
+  }
+
+  // How many of the kept plays ended on each type: { typeId: count }.
+  function historyCounts(list) {
+    var out = {};
+    Array.from(list || []).forEach(function (id) { if (scoring.TYPE_IDS.indexOf(id) !== -1) out[id] = (out[id] || 0) + 1; });
+    return out;
+  }
+
+  // ======================================================================
+  // 3c. THE PERSONAL REASON LINES
+  //
+  // Two short lines under "Why you got this", built from the player's own
+  // 30 answers and the same result the card shows, so they can never
+  // disagree with it:
+  //   1. a contrast in plain numbers (how much of the lead section against
+  //      the rest; for the four special results, what fits that result)
+  //   2. a counter-proof: a statement they did NOT admit that marks the edge
+  //      of the result, quoted, or that they admitted everything there.
+  // reasonLines(result, content, drawnIds, admittedIds) -> two lines, each
+  //   { key (a ui key), vars (numbers, section keys, a list), quoteId (or null) }
+  // app.js turns section keys into names and the quoteId into the statement.
+  // ======================================================================
+  function reasonLines(result, content, drawnIds, admittedIds) {
+    var byId = {};
+    (content.statements || []).forEach(function (s) { if (s && s.id) byId[s.id] = s; });
+    var drawn = Array.from(drawnIds || []).filter(function (id) { return byId[id]; });
+    var yes = new Set(Array.from(admittedIds || []));
+    var order = {};
+    drawn.forEach(function (id, i) { order[id] = i; });
+    var passed = drawn.filter(function (id) { return !yes.has(id); });
+    var weight = function (id) { return scoring.statementWeight(byId[id]); };
+    var heaviest = function (ids) {
+      return ids.slice().sort(function (a, b) { return (weight(b) - weight(a)) || (order[a] - order[b]); })[0] || null;
+    };
+    var lightest = function (ids) {
+      return ids.slice().sort(function (a, b) { return (weight(a) - weight(b)) || (order[a] - order[b]); })[0] || null;
+    };
+    var dims = scoring.DIM_KEYS;
+    var per = result.perDim;
+    var shown = result.shown;
+    var all = result.drawnCount;
+    var type = result.typeId;
+    var passedLine = passed.length
+      ? { key: 'reasonHeaviestPassed', vars: {}, quoteId: heaviest(passed) }
+      : { key: 'reasonPassedNone', vars: { all: all }, quoteId: null };
+
+    if (type.indexOf('_') > 0) {
+      var lead = result.dominantDim;
+      var others = dims.filter(function (k) { return k !== lead; });
+      var avg = others.reduce(function (sum, k) { return sum + per[k]; }, 0) / others.length;
+      var passedHere = passed.filter(function (id) { return byId[id].dim === lead; });
+      return [
+        { key: 'reasonDimContrast', vars: { n: per[lead], shown: shown[lead], dim: lead, avg: String(Math.round(avg * 10) / 10) }, quoteId: null },
+        passedHere.length === 0
+          ? { key: 'reasonDimAll', vars: { dim: lead }, quoteId: null }
+          : { key: passedHere.length === 1 ? 'reasonDimOne' : 'reasonDimSome', vars: { dim: lead }, quoteId: heaviest(passedHere) }
+      ];
+    }
+    if (type === 'untouched') {
+      var mild = passed.filter(function (id) { return byId[id].band === 'mild'; });
+      return [
+        result.total === 0
+          ? { key: 'reasonAnalogNone', vars: { total: all }, quoteId: null }
+          : { key: 'reasonAnalogCount', vars: { n: result.total, total: all }, quoteId: null },
+        { key: 'reasonAnalogPassed', vars: {}, quoteId: (mild.length ? mild[0] : lightest(passed)) }
+      ];
+    }
+    if (type === 'balanced') {
+      var top = Math.max.apply(null, dims.map(function (k) { return per[k]; }));
+      return [
+        { key: 'reasonBalancedCounts', vars: { list: dims.map(function (k) { return { dim: k, n: per[k] }; }) }, quoteId: null },
+        { key: 'reasonBalancedMax', vars: { n: top, shown: shown[dims[0]] }, quoteId: null }
+      ];
+    }
+    if (type === 'merged') {
+      var counts = dims.map(function (k) { return per[k]; });
+      var max = Math.max.apply(null, counts);
+      var min = Math.min.apply(null, counts);
+      var empty = dims.filter(function (k) { return per[k] === 0; });
+      return [
+        empty.length
+          ? { key: 'reasonMergedZero', vars: { total: result.total, all: all, max: max, shown: shown[dims[0]], dim: empty[0] }, quoteId: null }
+          : (max === min
+            ? { key: 'reasonMergedEven', vars: { total: result.total, all: all, max: max, shown: shown[dims[0]] }, quoteId: null }
+            : { key: 'reasonMergedSpread', vars: { total: result.total, all: all, max: max, min: min, shown: shown[dims[0]] }, quoteId: null }),
+        passedLine
+      ];
+    }
+    // The hidden type.
+    var heartExtremes = drawn.filter(function (id) { return byId[id].dim === 'heart' && byId[id].band === 'extreme'; });
+    return [
+      { key: 'reasonSoulmate', vars: { n: shown.bond, h: heartExtremes.filter(function (id) { return yes.has(id); }).length, hs: heartExtremes.length }, quoteId: null },
+      passedLine
+    ];
+  }
+
+  // ======================================================================
   // 4. LEAVING A PLAY AND COMING BACK
   //
   // The title in the top bar leads back to the landing page at any time,
@@ -476,6 +683,15 @@
   }
 
   var api = {
+    // play history and the personal reason lines
+    HISTORY_KEY: HISTORY_KEY,
+    HISTORY_MAX: HISTORY_MAX,
+    MIN_HISTORY: MIN_HISTORY,
+    playHistory: playHistory,
+    rememberPlay: rememberPlay,
+    historySummary: historySummary,
+    historyCounts: historyCounts,
+    reasonLines: reasonLines,
     // statistics
     STAT_ENDPOINT: STAT_ENDPOINT,
     STAT_HOST: STAT_HOST,
@@ -491,6 +707,7 @@
     // comparison
     encodeAnswers: encodeAnswers,
     decodeAnswers: decodeAnswers,
+    decodeAnswerSet: decodeAnswerSet,
     readCompareLink: readCompareLink,
     comparePlays: comparePlays,
     COMPARE_LIMITS: COMPARE_LIMITS,

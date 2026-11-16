@@ -229,7 +229,12 @@
     reply: null,
     // Statements of this play (indexes) that already got one of the AI's
     // remarks; extras.remarkFor keeps it to 4, never two in a row.
-    remarked: []
+    remarked: [],
+    // Answers to play-off statements ({ id: 'yes' | 'no' | 'unsure' }), only
+    // when two sections ended dead level (scoring.playoffRounds). Positions
+    // 30 and up of state.index are the play-off statements.
+    playoffAnswers: {},
+    challengePlayoff: {}
   };
 
   // The ids answered "yes": this is what scoring.score counts. "Not sure"
@@ -264,7 +269,8 @@
         answers: state.answers,
         screen: state.screen,
         index: state.index,
-        remarked: state.remarked
+        remarked: state.remarked,
+        playoff: state.playoffAnswers
       }));
     } catch (e) { /* storage unavailable: fine */ }
   }
@@ -295,11 +301,30 @@
     // The remarks already shown, only when this is the same play carrying on.
     const kept = saved && saved.seed === play.seed && Array.isArray(saved.remarked) ? saved.remarked : [];
     state.remarked = kept.filter((i) => Number.isInteger(i) && i >= 0 && i < play.drawn.length).slice(0, extras.REMARK_RULES.maxPerPlay);
+    // Play-off answers carry on with the same play only, and only for real
+    // statements outside the 30 with a known answer.
+    state.playoffAnswers = {};
+    if (saved && saved.seed === play.seed && saved.playoff && typeof saved.playoff === 'object') {
+      Object.keys(saved.playoff).forEach((id) => {
+        if (statementsById[id] && play.drawn.indexOf(id) === -1 && scoring.ANSWER_VALUES.indexOf(saved.playoff[id]) !== -1) {
+          state.playoffAnswers[id] = saved.playoff[id];
+        }
+      });
+    }
+    // A refresh during a play-off goes back to it (resumePlay only knows the 30).
+    if (state.screen !== 'landing' && playoffPending()) {
+      const seq = playoffShown(playoffState());
+      const at = saved && Number.isInteger(saved.index) ? saved.index - state.drawn.length : -1;
+      const firstOpen = seq.findIndex((id) => !state.playoffAnswers[id]);
+      state.screen = 'question';
+      state.index = state.drawn.length + (at >= 0 && at < seq.length ? at : Math.max(0, firstOpen));
+    }
   }
 
   // A new play with a new seed ("New questions" on the result, via startOver).
   function startPlay() {
     playNo += 1;
+    state.playoffAnswers = {};
     state.seed = scoring.makeSeed();
     state.drawn = scoring.drawStatements(content, state.seed);
     state.seedFromLink = false;
@@ -605,7 +630,13 @@
   // answered: back to the result, or start over. No confirm dialog anywhere:
   // leaving never loses anything, and starting over is a deliberate tap.
   function landingActions() {
-    const choice = extras.landingChoice(state.answers, state.drawn.length, state.index);
+    let choice = extras.landingChoice(state.answers, state.drawn.length, state.index);
+    // All 30 answered but a play-off still open: continue into it.
+    if (choice.kind === 'result' && playoffPending()) {
+      const seq = playoffShown(playoffState());
+      const open = Math.max(0, seq.findIndex((id) => !state.playoffAnswers[id]));
+      choice = { kind: 'continue', position: state.drawn.length, playoffAt: state.drawn.length + open };
+    }
     if (choice.kind === 'start') {
       return el('button', {
         class: 'btn btn-primary btn-big',
@@ -615,8 +646,10 @@
     }
     const primary = choice.kind === 'result'
       ? el('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => go('result') }, [t('peekBack')])
-      : el('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => go('question') },
-        [t('continuePlay', { n: choice.position, total: state.drawn.length })]);
+      : el('button', {
+        class: 'btn btn-primary btn-big', type: 'button',
+        onclick: () => { if (choice.playoffAt !== undefined) state.index = choice.playoffAt; go('question'); }
+      }, [t('continuePlay', { n: choice.position, total: state.drawn.length })]);
     const keepsSet = extras.restartKeepsSet(state);
     return el('div', { class: 'landing-actions' }, [
       el('div', { class: 'landing-buttons' }, [
@@ -641,6 +674,7 @@
     track('start-over');
     if (extras.restartKeepsSet(state)) {
       playNo += 1;
+      state.playoffAnswers = {};
       state.answers = {};
       state.index = 0;
       state.remarked = [];
@@ -706,11 +740,22 @@
 
   // enter: 'next' | 'prev' | undefined — which side the card slides in from.
   function renderQuestion(enter) {
-    const statement = statementsById[state.drawn[state.index]];
+    const statement = statementsById[statementAt(state.index)];
+    if (!statement) {
+      // A play-off position that no longer exists (the tie was settled or
+      // went away): the play is finished.
+      state.screen = 'result';
+      return renderResult();
+    }
     const dim = dimsByKey[statement.dim];
     const n = state.index + 1;
     const total = state.drawn.length;
-    const given = state.answers[statement.id]; // 'yes' | 'no' | 'unsure' | undefined
+    // In a play-off: which round (0-2) and which of its two statements (1-2).
+    const inPlayoff = state.index >= total;
+    const playoffRound = inPlayoff ? Math.floor((state.index - total) / 2) : -1;
+    const playoffN = inPlayoff ? (state.index - total) % 2 + 1 : 0;
+    const playoffLine = inPlayoff ? (playoffRound === 0 ? t('playoffIntro') : t('playoffAgain')) : '';
+    const given = (inPlayoff ? state.playoffAnswers : state.answers)[statement.id]; // 'yes' | 'no' | 'unsure' | undefined
 
     const backBtn = el('button', {
       class: 'btn btn-ghost btn-icon q-back',
@@ -723,7 +768,7 @@
 
     // The bar shows how many statements lie behind you. When arriving from
     // a neighbour, it animates from that neighbour's width (--from).
-    const pct = (i) => (i / total * 100).toFixed(2) + '%';
+    const pct = (i) => (Math.min(i, total) / total * 100).toFixed(2) + '%';
     const from = enter === 'next' ? state.index - 1 : (enter === 'prev' ? state.index + 1 : null);
     const fill = el('span', {
       class: from === null ? '' : 'is-moving',
@@ -736,7 +781,8 @@
       backBtn,
       el('div', { class: 'q-progress', 'aria-hidden': 'true' }, [
         el('div', { class: 'q-bar' }, [fill]),
-        el('span', { class: 'q-count', text: n + ' / ' + total })
+        el('span', { class: 'q-count' + (inPlayoff ? ' is-playoff' : ''),
+          text: inPlayoff ? t('playoffCount', { n: playoffN, total: 2 }) : n + ' / ' + total })
       ]),
       el('p', { class: 'q-purity' }, [
         el('span', { class: 'q-purity-label', text: t('liveLabel') }),
@@ -747,13 +793,16 @@
     // On the first few statements, a quiet "close enough counts" sits at the
     // right end of the section label: it uses space the label leaves empty,
     // so the card and the buttons do not move when it goes away.
-    const card = el('div', { class: 'q-card' + (enter ? ' enter-' + enter : '') }, [
+    const card = el('div', { class: 'q-card' + (enter ? ' enter-' + enter : '') + (inPlayoff ? ' is-playoff' : '') }, [
+      inPlayoff && el('p', { class: 'q-playoff', 'aria-hidden': 'true', text: playoffLine }),
       el('p', { class: 'q-dim', 'aria-hidden': 'true' }, [
         el('span', { text: L(dim.name) }),
         state.index < CLOSE_ENOUGH_FOR && el('span', { class: 'q-hint', text: t('closeEnoughHint') })
       ]),
       el('h1', { class: 'q-text', tabindex: '-1', 'data-focus': true }, [
-        el('span', { class: 'visually-hidden', text: t('progress', { n: n, total: total }) + ', ' + L(dim.name) + ': ' }),
+        el('span', { class: 'visually-hidden', text: inPlayoff
+          ? playoffLine + ' ' + t('playoffProgress', { n: playoffN, total: 2 }) + ', ' + L(dim.name) + ': '
+          : t('progress', { n: n, total: total }) + ', ' + L(dim.name) + ': ' }),
         el('span', { id: 'qStatement' }, statementPieces(L(statement.text)))
       ])
     ]);
@@ -872,9 +921,12 @@
 
   function answer(value) {
     if (busy || state.screen !== 'question') return;
-    const statement = statementsById[state.drawn[state.index]];
+    const statementId = statementAt(state.index);
+    if (!statementId) return;
+    const inPlayoff = state.index >= state.drawn.length;
     const firstAnswer = answeredCount() === 0;
-    state.answers[statement.id] = value;
+    if (inPlayoff) state.playoffAnswers[statementId] = value;
+    else state.answers[statementId] = value;
     saveState();
     if (firstAnswer) track('start', 'play');
     busy = true;
@@ -886,11 +938,11 @@
       btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
       btn.classList.toggle('is-confirming', picked);
     });
-    updateLive(value === 'yes');
+    updateLive(value === 'yes' && !inPlayoff);
     // Now and then the AI says something about a "Guilty" (never about the
-    // other two answers). It floats above the buttons on its own layer, so
-    // the next statement comes in on time and nothing moves.
-    maybeRemark(state.index, value);
+    // other two answers, never in a play-off). It floats above the buttons on
+    // its own layer, so the next statement comes in on time and nothing moves.
+    if (!inPlayoff) maybeRemark(state.index, value);
 
     // 2. The card slides out, 3. the next statement (or the result) comes in.
     const reduce = reducedMotion();
@@ -905,17 +957,21 @@
       setTimeout(() => {
         busy = false;
         if (state.screen !== 'question') return; // e.g. a preview link took over
-        if (state.index >= state.drawn.length - 1) {
+        const next = nextPosition(state.index);
+        if (next === null) {
           // The end of a play: the result arrives with its reveal (none with
-          // reduced motion). Nothing else ever asks for the reveal.
+          // reduced motion). Nothing else ever asks for the reveal. The
+          // finished play goes into this device's history (never a preview,
+          // a peek or a reply link: they do not come through here).
           state.screen = 'result';
           const finished = currentScore();
           track('finish', 'play');
           track('result:' + finished.typeId, 'play');
-          if (finished.tieBreak) track('tiebreak', 'play');
+          extras.rememberPlay(deviceStorage(), finished.typeId);
           render({ moveFocus: true, reveal: !reduce });
         } else {
-          state.index += 1;
+          if (next >= state.drawn.length) track('tiebreak', 'play');
+          state.index = next;
           render({ moveFocus: true, enter: 'next' });
         }
       }, reduce ? 0 : LEAVE_MS);
@@ -975,7 +1031,57 @@
   // The player's result so far, on this play's drawn statements (purity =
   // round(100 * (1 - admitted / 30))).
   function currentScore() {
-    return scoring.score(yesIds(), content, state.drawn);
+    return scoring.score(yesIds(), content, state.drawn, null, state.playoffAnswers);
+  }
+
+  // ---------- The play-off ----------
+  /*
+   * When two sections end dead level after every tie-break the 30 answers
+   * allow, scoring.score() returns result.playoff: up to three rounds of two
+   * statements (one per section, same band). The player answers them after
+   * statement 30, as positions 30, 31, ... of state.index; a round is only
+   * shown once the one before it ended level. The answers decide only which
+   * of the two sections leads (scoring.js), so purity and everything else
+   * stay on the 30. No remarks during it; Back works as usual.
+   */
+  function playoffState() {
+    const p = currentScore().playoff;
+    return p && p.rounds.length ? p : null;
+  }
+  // The play-off statements shown so far, in order (the rounds played, plus
+  // the one being played when it is not settled yet).
+  function playoffShown(p) {
+    if (!p) return [];
+    const rounds = p.complete ? p.played : Math.min(p.rounds.length, p.played + 1);
+    return p.rounds.slice(0, rounds).reduce((list, r) => list.concat(r.ids), []);
+  }
+  // True while the 30 are all answered and a play-off is still to be played.
+  function playoffPending() {
+    if (answeredCount() < state.drawn.length) return false;
+    const p = playoffState();
+    return Boolean(p && !p.complete);
+  }
+  // The statement at a position: one of the 30, or a play-off statement.
+  function statementAt(index) {
+    if (index < state.drawn.length) return state.drawn[index];
+    return playoffShown(playoffState())[index - state.drawn.length] || null;
+  }
+  // Where to go after answering a position: the next of the 30, the next
+  // play-off statement, or null when the play is finished.
+  function nextPosition(index) {
+    const total = state.drawn.length;
+    if (index + 1 < total) return index + 1;
+    const p = playoffState();
+    if (!p || p.complete) return null;
+    const seq = playoffShown(p);
+    if (index + 1 - total < seq.length) return index + 1;
+    const open = seq.findIndex((id) => !state.playoffAnswers[id]);
+    return open === -1 ? null : total + open;
+  }
+  // The play-off as a challenge link needs it (extras.encodeAnswers).
+  function playoffForCode() {
+    const p = currentScore().playoff;
+    return p ? { rounds: p.rounds, answers: state.playoffAnswers } : null;
   }
 
   // Updates the running purity number in place after an answer.
@@ -1058,12 +1164,14 @@
    * The moment the quiz builds to. After the last answer of a play:
    *   1. stage    the page empties and the card is held up, larger and
    *               centred in the window (everything else is absent)
-   *   2. pen      a marker tip travels along each ink line as it appears,
-   *               longest lines first, lifting and moving between lines;
+   *   2. pen      the figure is drawn big, centred on the card (up to 2.4x
+   *               its size); a marker tip travels along each ink line as it
+   *               appears, longest lines first, lifting and moving between lines;
    *               the white scribble and accent colour follow as quick
    *               strokes (on a dark card the white goes first, or the navy
    *               line would hardly show)
-   *   3. impact   the type code slams down from big to size with a hard,
+   *   3. impact   the figure shrinks and glides to its place while the type
+   *               code slams down from big to size with a hard,
    *               slightly overshooting stop; the card takes the knock and
    *               a ring of ink specks is thrown off the letters (and on a
    *               phone, one short vibration)
@@ -1089,6 +1197,8 @@
     cardAt: 200, cardMs: 420,         // the card is lifted into view, held up in the middle
     stageMaxScale: 1.3,               // how much larger than its real size, at most
     drawAt: 650, drawMs: 1800,        // the pen draws the ink lines (light cards)
+    artMaxScale: 2.4,                 // while drawn, the figure is this much bigger at most, centred on the card
+    artBackAt: 2860, artBackMs: 380,  // then it shrinks to its place as the code comes down
     darkWhiteMs: 380,                 // dark cards: the white scribble first, then the ink in the rest
     travelShare: 0.22,                // share of drawMs the pen spends moving between lines
     fillMs: 360,                      // white scribble / accent as quick strokes, after the ink
@@ -1236,6 +1346,9 @@
     if (!wrap || !card) { finish(); return; }
 
     // Measure first, before anything moves.
+    const cardBox = card.getBoundingClientRect();
+    const artImg = section.querySelector('img.card-art');
+    const artBox = artImg ? artImg.getBoundingClientRect() : null;
     const code = card.querySelector('.card-code');
     const codeLine = code && code.firstElementChild;
     let textW = code ? code.offsetWidth : 0;
@@ -1301,6 +1414,29 @@
     if (art) {
       img.after(art);
       extrasNodes.push(art);
+      // Big and centred on the card while it is drawn: the ink (its own
+      // bounding box, plus the line width) as large as the card allows, at
+      // most artMaxScale. A plain transform on the SVG, so it is drawn as
+      // vector at that size; it shrinks back to its place with the code.
+      if (artBox && artBox.width > 0) {
+        let ink = { x: 20, y: 20, width: 200, height: 200 };
+        try {
+          const b = art.getBBox();
+          if (b.width > 0 && b.height > 0) ink = { x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8 };
+        } catch (e) { /* keep the guess */ }
+        const unit = artBox.width / 240;   // px per drawing unit at its real size
+        const big = Math.max(1, Math.min(REVEAL.artMaxScale,
+          (cardBox.width * 0.86) / (ink.width * unit), (cardBox.height * 0.78) / (ink.height * unit)));
+        const inkCx = (ink.x + ink.width / 2) * unit;
+        const inkCy = (ink.y + ink.height / 2) * unit;
+        const tx = cardBox.width / 2 - (artBox.left - cardBox.left) - big * inkCx;
+        const ty = cardBox.height * 0.47 - (artBox.top - cardBox.top) - big * inkCy;
+        const bigTransform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + big.toFixed(3) + ')';
+        art.style.transformOrigin = '0 0';
+        art.style.transform = bigTransform;
+        play(art, [{ transform: bigTransform }, { transform: 'translate(0px,0px) scale(1)' }],
+          REVEAL.artBackAt, REVEAL.artBackMs, 'cubic-bezier(.55, 0, .25, 1)', 'forwards');
+      }
       const parts = sortArt(art);
       // Every line is hidden first: nothing may flash complete before it is drawn.
       const prep = (node) => {
@@ -1502,7 +1638,7 @@
             lift = Math.sin(Math.PI * p);
           }
         }
-        job.pen.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + (y - 7 * lift).toFixed(1) + ') rotate(' + (32 + 5 * lift).toFixed(1) + ') scale(1.25)');
+        job.pen.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + (y - 7 * lift).toFixed(1) + ') rotate(' + (32 + 5 * lift).toFixed(1) + ')');
         job.pen.style.opacity = alpha.toFixed(2);
       }
       if (t >= REVEAL.impactAt && !buzzed) {
@@ -1784,7 +1920,7 @@
     // A sample player stands in for ?preview= and while peeking at another type.
     const sampleType = state.peek || state.preview;
     const ticked = sampleType ? sampleIds(sampleType) : yesIds();
-    const result = scoring.score(ticked, content, state.drawn);
+    const result = scoring.score(ticked, content, state.drawn, null, sampleType ? {} : state.playoffAnswers);
     if (sampleType && result.typeId !== sampleType) {
       console.warn('[AI Purity Test] the sample answers for "' + sampleType + '" now score as "' +
         result.typeId + '". Update SAMPLE_COUNTS in app.js.');
@@ -1817,6 +1953,7 @@
       // After a challenge, the comparison comes first: it is what they came for.
       !isSample && state.challenge && renderCompare({
         drawn: state.drawn, seed: state.seed, mine: ticked, friend: state.challenge,
+        minePlayoff: state.playoffAnswers, friendPlayoff: state.challengePlayoff,
         friendCode: state.challengeCode, sendBack: true
       }),
       renderVerdict(type, result, isSample),
@@ -1896,8 +2033,70 @@
         state.lang === 'zh' ? '' : ' ',
         isSample ? t('matchSample') : matchText(type, result)
       ]),
-      !isSample && unsureLine()
+      !isSample && unsureLine(),
+      !isSample && reasonBlock(result),
+      !isSample && historyLine()
     ]);
+  }
+
+  // Two lines built from the player's own answers (extras.reasonLines): a
+  // contrast in plain numbers, and a statement they did not admit that marks
+  // the edge of the result. The keys are written out so the tests can find
+  // them.
+  function reasonText(key, vars) {
+    switch (key) {
+      case 'reasonDimContrast': return t('reasonDimContrast', vars);
+      case 'reasonDimAll': return t('reasonDimAll', vars);
+      case 'reasonDimOne': return t('reasonDimOne', vars);
+      case 'reasonDimSome': return t('reasonDimSome', vars);
+      case 'reasonAnalogCount': return t('reasonAnalogCount', vars);
+      case 'reasonAnalogNone': return t('reasonAnalogNone', vars);
+      case 'reasonAnalogPassed': return t('reasonAnalogPassed', vars);
+      case 'reasonBalancedCounts': return t('reasonBalancedCounts', vars);
+      case 'reasonBalancedMax': return t('reasonBalancedMax', vars);
+      case 'reasonMergedSpread': return t('reasonMergedSpread', vars);
+      case 'reasonMergedZero': return t('reasonMergedZero', vars);
+      case 'reasonMergedEven': return t('reasonMergedEven', vars);
+      case 'reasonHeaviestPassed': return t('reasonHeaviestPassed', vars);
+      case 'reasonPassedNone': return t('reasonPassedNone', vars);
+      case 'reasonSoulmate': return t('reasonSoulmate', vars);
+      default: return '';
+    }
+  }
+  // A statement quoted inside a sentence: “...” in English, 「...」 in
+  // Chinese (quotes inside it become 『』).
+  function quoteStatement(id) {
+    const text = L(statementsById[id] && statementsById[id].text);
+    return state.lang === 'zh' ? '「' + text.replace(/「/g, '『').replace(/」/g, '』') + '」' : '“' + text + '”';
+  }
+  function reasonBlock(result) {
+    const sep = state.lang === 'zh' ? '、' : ', ';
+    const lines = extras.reasonLines(result, content, state.drawn, yesIds()).map((line) => {
+      const vars = Object.assign({}, line.vars);
+      if (vars.dim) vars.dim = L(dimsByKey[vars.dim].name);
+      if (Array.isArray(vars.list)) vars.list = vars.list.map((it) => L(dimsByKey[it.dim].name) + ' ' + it.n).join(sep);
+      if (line.quoteId) vars.quote = quoteStatement(line.quoteId);
+      return el('p', { class: 'verdict-reason' }, keepQuotes(reasonText(line.key, vars)));
+    });
+    return el('div', { class: 'verdict-reasons' }, lines);
+  }
+
+  // From three finished plays on this device: which types the last few
+  // were, and the most frequent (extras.historySummary).
+  function historyLine() {
+    const summary = extras.historySummary(extras.playHistory(deviceStorage()));
+    if (!summary) return null;
+    const sep = state.lang === 'zh' ? '、' : ', ';
+    const code = (id) => typesById[id].code;
+    // Every play a different type: no "most often" to name.
+    if (summary.counts[0].count === 1) {
+      const codes = summary.counts.map((c) => code(c.typeId));
+      return el('p', { class: 'verdict-history' }, keepWhole(t('historyAllDifferent', { n: summary.n, list: codes.join(sep) }), codes));
+    }
+    const list = summary.counts.map((c) => code(c.typeId) + ' ' + c.count).join(sep);
+    const most = summary.most.map(code);
+    const mostText = most.length === 1 ? most[0] : t('listAnd', { a: most.slice(0, -1).join(sep), b: most[most.length - 1] });
+    return el('p', { class: 'verdict-history' }, keepWhole(t('historyLine', { n: summary.n, list: list, most: mostText }), most));
   }
 
   // One quiet line under the match, only when the player answered "Not
@@ -1946,6 +2145,11 @@
     else if (result.tieBreak === 'count') text = t('matchTieCount', vars);
     // Nothing in the answers separates the two: scoring.js decided it by the
     // play's lot (fixed per play, fair across players). Say so plainly.
+    // Level answer for answer: a play-off settled it (scoring.playoffRounds),
+    // or, when the play-off ended level too (or could not be held), the play's
+    // lot (fixed per play, fair across players). Say which, plainly.
+    else if (result.tieBreak === 'playoff') text = t('matchPlayoff', Object.assign({ round: result.playoff.decidedRound }, vars));
+    else if (result.tieBreak === 'lot' && result.playoff && result.playoff.played > 0) text = t('matchPlayoffLot', vars);
     else if (result.tieBreak === 'lot') text = t('matchTieLot', vars);
     else text = t('matchDim', vars);
     // One or two answers cannot prove much: scoring.js capped the number.
@@ -2165,7 +2369,7 @@
    * the grid cards (no buttons: the friend's result is not a sample to peek at).
    */
   function renderCompare(opts) {
-    const cmp = extras.comparePlays(content, opts.drawn, opts.mine, opts.friend);
+    const cmp = extras.comparePlays(content, opts.drawn, opts.mine, opts.friend, opts.minePlayoff, opts.friendPlayoff);
     const mineType = typesById[cmp.mine.typeId];
     const friendType = typesById[cmp.friend.typeId];
 
@@ -2240,6 +2444,7 @@
       el('p', { class: 'seed-note-alone' }, [el('span', { class: 'seed-note', text: t('replyIntro') })]),
       renderCompare({
         drawn: r.drawn, seed: r.seed, mine: r.mine, friend: r.friend, sendBack: false,
+        minePlayoff: r.minePlayoff, friendPlayoff: r.friendPlayoff,
         heading: el('h1', { class: 'reply-title', tabindex: '-1', 'data-focus': true, text: t('compareTitle') })
       }),
       el('div', { class: 'reply-end' }, [
@@ -2266,7 +2471,7 @@
 
   // ?seed=<seed>&vs=<this play's answers>: a friend plays the same 30, then compares.
   function challengeUrl() {
-    const code = extras.encodeAnswers(state.seed, state.drawn, yesIds());
+    const code = extras.encodeAnswers(state.seed, state.drawn, yesIds(), playoffForCode());
     return code ? baseUrl() + '?seed=' + state.seed + '&vs=' + code + '&lang=' + state.lang : null;
   }
 
@@ -2279,7 +2484,9 @@
 
   // ?seed=...&vs=<challenger>&re=<mine>: opens straight on the comparison.
   function copySendBack(opts) {
-    const mine = extras.encodeAnswers(opts.seed, opts.drawn, opts.mine);
+    const minePlayoff = scoring.score(opts.mine, content, opts.drawn, null, opts.minePlayoff || {}).playoff;
+    const mine = extras.encodeAnswers(opts.seed, opts.drawn, opts.mine,
+      minePlayoff ? { rounds: minePlayoff.rounds, answers: opts.minePlayoff || {} } : null);
     if (!mine || !opts.friendCode) { toast(t('copyFailed')); return; }
     copyText(baseUrl() + '?seed=' + opts.seed + '&vs=' + opts.friendCode + '&re=' + mine + '&lang=' + state.lang, t('linkCopied'));
   }
@@ -2340,6 +2547,8 @@
     // storage still marks the type the player is looking back from).
     const collected = new Set(extras.collectedTypes(deviceStorage()));
     if (own) collected.add(own);
+    // How many of the recent finished plays ended on each type.
+    const plays = extras.historyCounts(extras.playHistory(deviceStorage()));
 
     document.title = t('typesTitle') + ' | ' + t('appName');
 
@@ -2347,7 +2556,7 @@
       return el('section', { class: 'types-group ' + extraClass }, [
         kicker(title),
         el('ul', { class: 'types-grid' }, ids.filter((id) => typesById[id]).map((id) =>
-          el('li', {}, [typeTile(typesById[id], id === own, hiddenOpen, collected.has(id))])))
+          el('li', {}, [typeTile(typesById[id], id === own, hiddenOpen, collected.has(id) ? (plays[id] || true) : false)])))
       ]);
     }
 
@@ -2386,8 +2595,10 @@
     return t('typesHidden');
   }
 
-  // A small ink stamp with a tick on a collected card (decorative; the card
-  // says "Collected" to screen readers instead).
+  // A small ink stamp with a tick on a collected card, or the number of
+  // recent plays that ended on it (decorative; the card says "Collected" and
+  // the count to screen readers instead). `collected`: false, true, or the
+  // number of recent plays.
   const STAMP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 12.5l4 4L18 8"/></svg>';
 
   function typeTile(type, mine, hiddenOpen, collected) {
@@ -2401,9 +2612,11 @@
       ]);
     }
     let stamp = null;
+    const playCount = typeof collected === 'number' ? collected : 0;
     if (collected) {
-      stamp = el('span', { class: 'tcard-stamp', 'aria-hidden': 'true' });
-      stamp.innerHTML = STAMP_SVG; // static markup, not content
+      stamp = el('span', { class: 'tcard-stamp' + (playCount ? ' has-count' : ''), 'aria-hidden': 'true' });
+      if (playCount) stamp.textContent = String(playCount);
+      else stamp.innerHTML = STAMP_SVG; // static markup, not content
     }
     return el('button', {
       class: 'tcard' + (mine ? ' is-mine' : ''),
@@ -2413,7 +2626,8 @@
       onclick: () => (mine ? closeLayer() : peekAt(type.id))
     }, tileParts(type, mine).concat([
       stamp,
-      collected && el('span', { class: 'visually-hidden', text: '. ' + t('typesCollectedMark') })
+      collected && el('span', { class: 'visually-hidden', text: '. ' + t('typesCollectedMark') +
+        (playCount ? ', ' + t('typesPlays', { n: playCount }) : '') })
     ]));
   }
 
@@ -3295,10 +3509,12 @@
   }
   if (compareLink && compareLink.re) {
     state.reply = {
-      seed: compareLink.seed, drawn: compareLink.drawn, mine: compareLink.vs, friend: compareLink.re
+      seed: compareLink.seed, drawn: compareLink.drawn, mine: compareLink.vs, friend: compareLink.re,
+      minePlayoff: compareLink.vsPlayoff, friendPlayoff: compareLink.rePlayoff
     };
   } else if (compareLink && compareLink.seed === state.seed && !state.preview) {
     state.challenge = compareLink.vs;
+    state.challengePlayoff = compareLink.vsPlayoff || {};
     state.challengeCode = params.get('vs').trim().toLowerCase();
   }
   if (state.preview) {

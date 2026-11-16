@@ -124,16 +124,33 @@ always includes an extreme statement.
 **Leading section** = the one with the most points. If exactly two are tied:
 1. the one where you admitted the heavier statement wins,
 2. then the one with more statements admitted,
-3. and if they are still level (a mirror image), **the play's lot decides**.
+3. and if they are still level (a mirror image), **a play-off decides**,
+4. and only if the play-off ends level too, **the play's lot**.
+
+**The play-off** (`playoffRounds` and `score(..., playoffAnswers)` in
+`scoring.js`). After statement 30 the player gets up to three short rounds,
+in the order medium, mild, extreme. Each round shows two statements, one from
+each of the two tied sections, both of that band. Each is drawn uniformly
+from the statements of that section and band that this play did **not**
+show (5 of the 7), and which of the two comes first is a coin flip. The
+generator is made from the play's drawn statements (so from its seed) under
+its own label, so the same play always gets the same play-off, and the draw
+of the 30, the lot and the remarks are untouched. After each round the
+section whose play-off statements carry more admitted points wins and the
+play-off ends. Level after all three: the lot decides and the result says
+so. The play-off answers decide **only** which of the two sections leads.
+Purity, points, depth, lite or deep, the match, the evidence and the section
+rows all stay on the 30, so two friends on the same link stay comparable.
+`tieBreak` is `'playoff'` when the play-off settled it.
 
 The lot is a random order of the five sections made from the play itself (a
 hash of its drawn statements, which come from its seed). So the same play
 always gives the same result, but across players every section wins a lot
 equally often. The old rule (a fixed order: Bond, Heart, Brain, Adulting,
-School) quietly favoured Bond in every mirror tie. The result screen says
-plainly when a tie was decided by lot (`tieBreak: 'lot'`). With six
-statements per section, mirror ties are common: about **8% of all players**
-get a section type decided this way.
+School) quietly favoured Bond in every mirror tie. With six statements per
+section, mirror ties are common: about **7.7% of all players** need the
+play-off; it settles about two thirds of them, so about **2.7%** still end
+with "the lot decided" (it was 7.7% before the play-off).
 
 Deep or lite depends only on the leading section, not on your total. A full
 School section and nothing else is CRAMBOT even though it is only 6 of 30.
@@ -221,7 +238,8 @@ bank of the same shape). Counts are written mild/medium/extreme.
 | Exam season with a crush | school 2/2/0, heart 1/2/0, work, bond 1/0/0 | 9 | school_lite | heart_lite | 55 |
 | Equal points, heavier answer wins | school 1/1/1, heart 2/2/0 | 7 | school_lite | heart_lite | 50 |
 | Equal points, more answers win | school 0/2/1, heart 2/1/1 | 7 | heart_deep | school_deep | 50 |
-| Dead heat, mirror image | school 2/1/0, heart 2/1/0 | 6 | lot: school_lite or heart_lite | the other | 50 |
+| Dead heat, mirror image | school 2/1/0, heart 2/1/0 | 6 | lot (after a level play-off): school_lite or heart_lite | the other | 50 |
+| Level on points, different shape | school 1/2/1, heart 2/0/2 | 8 | school_deep (play-off, round 1) | heart_deep | 50 |
 | Deep everywhere | 2/1/1 everywhere | 20 | merged | - | 58 |
 | Does everything | 2/2/2 everywhere | 30 | merged | soulmate | 100 |
 | Nearly everything, drew the line at love | all but heart's extremes and one bond extreme | 27 | merged | - | 85 |
@@ -235,7 +253,13 @@ Worth a closer look:
 - **Loyal, but tells it nothing**: a full Bond section without an extreme
   Heart statement is deep Bond, not the hidden type.
 - **Dead heat, mirror image**: nothing in the answers separates School and
-  Heart, so the lot decides; over 500 draws School won 48% to 52% of them.
+  Heart, and a persona answers a play-off statement Guilty when it admitted a
+  statement of that section and band in the 30, so its play-off stays level
+  and the lot decides; over 500 draws School won 48% to 52% of them.
+- **Level on points, different shape**: 8 points and 4 statements in both,
+  the heaviest band the same, so the 30 cannot separate them; the play-off's
+  first round is medium, where this player admits School things and no Heart
+  things, so School leads.
 - **One medium confession** is a known quirk: three mild answers are ANALOG
   while one medium one is TLDR. Its match is capped at 60.
 - **Evenly heavy, one short of PLUG-IN** and **Two thirds, one section left
@@ -280,11 +304,19 @@ therefore rarer (0.3%). In the 24-person test panel (section 10) it did not
 move (1.2% at both bars), because the people who met the hidden rule there
 admitted well under 20 per play.
 
-About 8% of all players reach their section type through an exact tie that
-nothing in their answers separates, so the lot decides it (with six
-statements per section, mirror-image answers are common). The result screen
-says so plainly. It is fair (each section wins 19.5% to 20.5% of those lots),
-but about one player in thirteen will see "this play's lot decided".
+About 7.7% of all players reach their section type through an exact tie that
+nothing in their 30 answers separates (with six statements per section,
+mirror-image answers are common). They now play it off: round 1 settles
+34.8% of these ties, round 2 14.7%, round 3 15.1%, and 35.4% stay level, so
+the lot decides for **2.7% of all players instead of 7.7%**. A tied player
+answers 4.3 extra statements on average. In the model, where each player has
+a true "reach" per section, the section the player really leans to more wins
+the tie **66.8%** of the time with the play-off, against 50.3% by lot alone.
+The type shares barely move (each section type changes by at most 0.1
+point), because the play-off only chooses between two sections that were
+level. On the 24-person panel (section 10, 3,000 draws each) the lot drops
+from 4.4% to 1.0% of plays, and the result names the section a respondent
+gave as their leaning in 72.9% of plays against 72.1% before.
 
 No type is above 20% and none below 2%, except the hidden type, which is
 meant to be rare. `bond_deep` sits slightly lower than the other deep types
@@ -331,8 +363,9 @@ tests). `tests/fairness.test.js` runs the same checks on 20,000 seeds on every
 | (d) every statement equally likely at each of the 10 places; no section always first | each section first in 19.9% to 20.2% of plays vs 20% | 33 tests, smallest p 0.0096 | 0.32 after correction |
 | (e) seeds one character apart give unrelated draws | 8.577 shared statements vs 8.571 for unrelated draws; generator bits flip 50.00% | chi2 29.3, 30 df | 0.63 after correction |
 | (f) the judging has no favourite section | lite 6.52% to 6.65% each; deep 6.58% to 6.72% each; lot wins 19.5% to 20.5% each | chi2 3.34, 4.46 and 4.96, 4 df | 0.50, 0.35 and 0.29 |
+| (g) the play-off has no favourite and leaves the draw alone | each statement is the play-off pick of its stratum 13.90% to 14.67% of the time vs 14.29%; the first section's statement comes first in 50.01% of rounds; the first section of each pair wins 48.8% to 50.9% of its play-offs; wins by section 19.7% to 20.7%; the draw of the 30 byte for byte the same (digest of 20,000 draws) | chi2 96.4 on 90 df; 0.02 on 1; 1.82 on 10; 2.99 on 4 | 0.30, 0.88, 0.998, 0.56 |
 
-The crypto-seed run passes all six as well: (a) 28.39% to 28.83%, chi2 67.0 on
+The crypto-seed run passes all seven as well ((g): picks chi2 113.4 on 90 df, p 0.048, 0.19 after correction; pairs chi2 3.89 on 10 df, p 0.95; draw digest identical): (a) 28.39% to 28.83%, chi2 67.0 on
 90 df, p 0.97; (b) chi2 268.7 on 300 df, p 0.90; (c) chi2 42,134 on 42,000 df,
 p 0.32; (d) smallest p 0.0017, 0.057 after correction; (e) 0.37 after
 correction; (f) lite chi2 2.65 (p 0.62), deep chi2 5.25 (p 0.26), lot wins
@@ -346,8 +379,9 @@ rule is about Bond and Heart on purpose; its own share (0.3%) is printed beside
 it. Every two-section mirror tie is also forced directly: each section wins
 50% of its ties within sampling error, and all 120 lot orders come up equally.
 
-**The checks can catch real mistakes.** The script also runs five
-deliberately broken versions and requires each to fail: `random % n` on a
+**The checks can catch real mistakes.** The script also runs six
+deliberately broken versions (the sixth: a play-off that always shows the
+first unseen statement instead of drawing) and requires each to fail: `random % n` on a
 byte, one statement forced into every play (the old flag idea), a shuffle by
 sorting with a random comparator, band groups left in section order (School
 always first), and the old fixed tie order. All five are caught with p below
@@ -434,6 +468,7 @@ invented people.
 | Level 1-10 by position in the file | A band per statement: mild / medium / extreme | Positions mean nothing when every play draws a different set |
 | Three flagged statements decide the hidden type | All six Bond statements shown + one extreme Heart | Forcing flagged statements into every play would make them far more common |
 | Fixed tie order (Bond first) | Lot from the play's seed | The fixed order favoured Bond in every mirror tie |
+| A mirror tie goes straight to the lot (7.7% of players) | Up to three play-off rounds first; the lot only when they end level (2.7%) (v4.2, November 2026) | Every result should have a reason in the player's own answers; in the model the play-off picks the section the player really leans to 67% of the time instead of 50% |
 | 19 points per section, merged at 42, untouched at 4, balanced from 10 | 12 points, merged at 25, untouched at 3, balanced from 6, spread 2 points | Re-tuned for 6 statements per section; shares stay between 2% and 20% |
 | Merged at 25 (v4) | Merged at 20 (v4.1, November 2026) | In a 24-person test panel the heaviest user (73 of 105 admitted) reached 25 in 5% of plays and merged was 0.2% of all plays; at 20 that person gets it in 78% and merged is 4% |
 | Heart, Brain and Bond statements much harder to admit than School (panel admit rate for mild: School 46%, Heart 26%, Brain 24%, Bond 24%) | 45 statements in Work, Heart, Brain, Bond and School rewritten around commoner acts; `s59` and `s60` swapped bands | School took 35% of panel results and Heart mild 1.5%. Balanced by rewriting, never by weighting sections in the rules |
@@ -458,7 +493,7 @@ answers (`evidenceIds`), so the copy does not have to guess.
 - **Deep types** always include an extreme statement: either 7+ of 12 points,
   or both extreme statements (as few as 2 answers, band only "mid"). Write
   about how far the answers reach, never about volume.
-- **The lead can be a tie**, possibly decided by lot. Say "X is your heaviest
+- **The lead can be a tie**, settled by a play-off or, rarely, by lot. Say "X is your heaviest
   section", never "X outweighs everything else".
 - **Untouched** players may have admitted up to 3 mild statements.
 - **Balanced** players either spread 6 or more answers evenly over all five
@@ -564,13 +599,23 @@ answers (`evidenceIds`), so the copy does not have to guess.
 **领头部分** = 分数最高的那个。恰好两个打平时：
 1. 认过更重那一条的部分胜出；
 2. 还平，认的条数多的胜出；
-3. 还是完全一样（镜像），**由这一局的抽签决定**。
+3. 还是完全一样（镜像），**加赛决定**；
+4. 加赛也打平，才**由这一局的抽签决定**。
+
+**加赛**（`scoring.js` 里的 `playoffRounds` 和 `score(..., playoffAnswers)`）：第 30 条之后，
+最多再来三轮，顺序是中度、轻度、重度。每轮两条，两个打平的部分各一条、同一档次，各自从
+这一局**没出过**的同部分同档次题里（7 条里剩下的 5 条）均匀抽一条，谁先出也是抛硬币。
+用的随机数由这一局抽到的题（也就是种子）加上单独的标签生成，所以同一局永远是同一场加赛，
+而 30 条的抽题、抽签和 AI 插话都不受影响。每轮结束后，加赛里认下的分数更多的部分胜出，
+加赛结束；三轮都平，就抽签，结果页会直说。加赛的答案**只**决定两个打平的部分谁领头：纯度、
+分数、深度、lite 还是 deep、匹配度、证据和逐部分那几行都还是按那 30 条算，所以同一个链接上的
+两个朋友照样可以比。加赛定下来的，`tieBreak` 是 `'playoff'`。
 
 抽签是用这一局本身（它抽到的题，也就是它的种子）算出的五个部分的随机顺序。所以同一局
 永远是同一个结果，但放到所有玩家身上，每个部分赢签的次数一样多。旧规则用固定顺序
-（羁绊、感情、脑子、正经事、学业），每次镜像打平都偷偷偏向羁绊。结果页会直说这是抽签
-决定的（`tieBreak: 'lot'`）。每部分只有 6 条，镜像打平并不少见：大约 **8% 的玩家**
-的部分类型是这样决定的。
+（羁绊、感情、脑子、正经事、学业），每次镜像打平都偷偷偏向羁绊。每部分只有 6 条，镜像打平
+并不少见：大约 **7.7% 的玩家**需要加赛，加赛能分出大约三分之二，所以最后只有大约
+**2.7%** 的人看到“抽签定了”（加赛之前是 7.7%）。
 
 deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的一条没认，照样是 CRAMBOT。
 两条重度都认了就够 deep。所以 lite 类型最多只有这一部分的一条重度、最多 6 分。
@@ -620,7 +665,8 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 - 只认了一条重度或一条中度的，是对应部分的 lite，匹配度最多 60；
 - 只认了脑子两条重度的，是 404（deep），只有 6 分、档位“mid”，因为两条重度都认了；
 - 每部分认得一样多的，或三块以上并列第一的，是雨露均沾；
-- 学业和感情完全镜像的，由抽签决定，500 局里学业赢了 48%–52%；
+- 学业和感情完全镜像的，加赛也一直打平（人设在 30 条里认过某部分某档次的题，加赛里同部分同档次的就认），只能抽签，500 局里学业赢了 48%–52%；
+- 学业 1/2/1、感情 2/0/2 的，分数、条数、最重的档次都一样，30 条分不开；加赛第一轮是中度，这个人认学业的、不认感情的，所以学业领头（school_deep，副倾向 heart_deep）；
 - 每部分 2 轻 1 中 1 重（20 条）的，五块全在 high 档，是人形外设；
 - 学业、正经事、感情全认，再加两条脑子轻度（20 条，羁绊一条没认）的，也是人形外设；
   轻度中度全认、只差一条（19 条）的，五块很匀，是雨露均沾。门槛两边都钉住了。
@@ -667,21 +713,26 @@ lite 约 7.6%、deep 约 6.7%；放宽到 3 分后，五块相差 3 分以内的
 | (d) 组内每条在 10 个位置上概率一样；没有哪个部分总是第一个 | 各部分排第一 19.9%–20.2% vs 20% | 33 项检验，最小 p 0.0096 | 校正后 0.32 |
 | (e) 只差一个字符的种子抽出的题互不相关 | 平均共有 8.577 条 vs 不相关时 8.571；生成器各位翻转 50.00% | 卡方 29.3，自由度 30 | 校正后 0.63 |
 | (f) 判定不偏向任何部分 | 各 lite 6.52%–6.65%；各 deep 6.58%–6.72%；抽签各赢 19.5%–20.5% | 卡方 3.34、4.46、4.96，自由度 4 | 0.50、0.35、0.29 |
+| (g) 加赛不偏向任何部分，也不改动抽题 | 每条被加赛抽中的比例 13.90%–14.67% vs 14.29%；第一个部分的题先出 50.01%；每一对里第一个部分赢 48.8%–50.9%；各部分赢 19.7%–20.7%；30 条的抽题一字不差（20,000 局的摘要） | 卡方 96.4（90）；0.02（1）；1.82（10）；2.99（4） | 0.30、0.88、0.998、0.56 |
 
-用 crypto 种子的那一遍也六项全过：(a) 28.39%–28.83%，卡方 67.0，自由度 90，p 0.97；
+用 crypto 种子的那一遍七项也全过（(g)：抽中比例卡方 113.4，自由度 90，p 0.048，校正后 0.19；每一对卡方 3.89，自由度 10，p 0.95；抽题摘要一致）：(a) 28.39%–28.83%，卡方 67.0，自由度 90，p 0.97；
 (b) p 0.90；(c) p 0.32；(d) 校正后 0.057；(e) 校正后 0.37；(f) lite p 0.62、deep p 0.26、
 抽签 p 0.63。（(a) 到 (e) 只取决于抽题，人形外设门槛和“分得匀”的界线改了也不变；(f) 变了，
 因为走到部分类型的玩家少了。）
 
-大约 8% 的玩家是靠一次完全打平拿到部分类型的，答案里分不出高下，只能抽签（每部分 6 条，
-镜像答案很常见）。结果页会直说是抽签定的。这很公平（每部分赢 19.5%–20.5%），但大约每 13 个人里
-有 1 个会看到“这一局抽签定了”。
+大约 7.7% 的玩家是靠一次完全打平拿到部分类型的，30 条答案里分不出高下（每部分 6 条，镜像答案
+很常见）。现在先加赛：第 1 轮分出 34.8%，第 2 轮 14.7%，第 3 轮 15.1%，还有 35.4% 一直打平，
+所以靠抽签的从**全部玩家的 7.7% 降到 2.7%**。打平的人平均多答 4.3 条。在模拟里每个人每个部分
+都有一个真实的“深度”，加赛后，真正更偏向的那个部分赢下打平的比例是 **66.8%**，只靠抽签是 50.3%。
+各类型的占比几乎不变（每个部分类型最多差 0.1 个百分点），因为加赛只是在两个本来打平的部分里选一个。
+在 24 人小组上（第 10 节，每人 3,000 局），抽签从 4.4% 的局降到 1.0%，结果点名受访者自己说的
+偏向部分的比例从 72.1% 到 72.9%。
 
 (f) 用的是对五个部分一视同仁的模拟玩家，比较 lite/deep 时关掉了隐藏规则，因为那条规则
 本来就是针对羁绊和感情的；隐藏款自己的占比（0.3%）单独列出。另外还直接构造了每一对部分的
 镜像打平：每个部分赢一半，120 种抽签顺序出现得一样多。
 
-**这些检查真能抓到错误。** 脚本还会跑五个故意写坏的版本，要求每个都被抓到：对字节用
+**这些检查真能抓到错误。** 脚本还会跑六个故意写坏的版本（第六个：加赛不抽，永远出第一条没出过的题），要求每个都被抓到：对字节用
 `random % n`、每局硬塞一条题（就是旧的标记方案）、用随机比较函数排序来洗牌、每组按部分顺序
 不打乱（学业总是第一个）、旧的固定打平顺序。五个全部被抓到，p 都小于 1e-70。
 
@@ -731,6 +782,7 @@ IDK / 404 3% / 4% → 4.4% / 5.1%，SORRY / MY-BOT 1% / 7% → 2.7% / 5.3%。
 | 按文件里的位置定 1–10 级 | 每条有档次：轻度 / 中度 / 重度 | 每局抽的题不同，位置没有意义 |
 | 三条带标记的题决定隐藏款 | 出现的 6 条羁绊全认 + 一条感情重度 | 硬塞带标记的题会让它们出现得多得多 |
 | 打平按固定顺序（羁绊优先） | 用这一局的种子抽签 | 固定顺序在每次镜像打平时都偏向羁绊 |
+| 镜像打平直接抽签（7.7% 的玩家） | 先加赛最多三轮，三轮都平才抽签（2.7%）（v4.2，2026 年 11 月） | 每个结果都应该能从玩家自己的答案里找到理由；模拟里加赛有 67% 的时候选中玩家真正更偏的部分，抽签只有 50% |
 | 每部分 19 分，人形外设 42 条，原装 4 条，均沾从 10 条起 | 12 分，人形外设 25 条，原装 3 条，均沾从 6 条起、相差 2 分以内 | 按每部分 6 条重新调过，各类型占比都在 2%–20% |
 | 人形外设 25 条（v4） | 人形外设 20 条（v4.1，2026 年 11 月） | 24 人测试小组里最重的人（105 条认 73 条）只有 5% 的局能到 25 条，人形外设只占全部局数的 0.2%；门槛 20 时这个人 78% 的局拿到，整体 4% |
 | 感情、脑子、羁绊的题比学业难认得多（小组轻度认领率：学业 46%，感情 26%，脑子 24%，羁绊 24%） | 正经事、感情、脑子、羁绊和学业共改写 45 条，围绕更常见的事；`s59`、`s60` 对调档次 | 小组结果里学业占 35%，感情轻度只有 1.5%。靠改题来平衡，绝不在规则里给部分加权 |
@@ -746,7 +798,7 @@ IDK / 404 3% / 4% → 4.4% / 5.1%，SORRY / MY-BOT 1% / 7% → 2.7% / 5.3%。
 - **lite 类型**可能只靠一条拿到，甚至是一条重度。最多一条重度、最多 6 分。写“只认了一部分”。
 - **deep 类型**一定有重度题：要么 7 分以上，要么两条重度都认了（最少 2 条，档位只是 mid）。
   写“认到了多深”，别写“认得多”。
-- **领头部分可能是打平的**，甚至是抽签定的。写“X 是你最重的一块”，别写“X 压过了所有部分”。
+- **领头部分可能是打平的**，由加赛、偶尔由抽签定的。写“X 是你最重的一块”，别写“X 压过了所有部分”。
 - **原装人类**最多认过 3 条轻度。
 - **雨露均沾**要么 6 条以上匀匀分在五个部分，要么三块以上并列第一（可能只有 3 条，还有空着的部分）。写“匀”。
 - **隐藏款**认了见到的每条羁绊题和至少一条感情重度题，可能别的什么都没认（共 7 条）。

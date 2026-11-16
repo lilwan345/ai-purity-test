@@ -28,6 +28,11 @@ globalThis.APT_CONTENT = {
     // three statements of a play.
     closeEnough:     { en: "Close enough counts. Done something like it? Guilty.", zh: "差不多就算。干过类似的？那就是干过。" },
     closeEnoughHint: { en: "Close enough counts", zh: "差不多就算" },
+    // The play-off: up to three short rounds when two sections are dead level.
+    playoffIntro:    { en: "Two sections are dead level. Two more statements to settle it.", zh: "有两个部分完全打平。再来两条，分个高下。" },
+    playoffAgain:    { en: "Still level. Two more.", zh: "还是平的，再来两条。" },
+    playoffCount:    { en: "Play-off {n} / {total}", zh: "加赛 {n}/{total}" },
+    playoffProgress: { en: "Play-off statement {n} of {total}", zh: "加赛第 {n} 条，共 {total} 条" },
     // Landing, only when the seed came from someone's link.
     seedFromLink:    { en: "Same thirty statements as whoever sent this link, so the scores compare.", zh: "和发链接的人是同一套 30 条，分数可以直接比。" },
     start:           { en: "Start the test", zh: "开始测" },
@@ -95,6 +100,9 @@ globalThis.APT_CONTENT = {
     matchTieTop:         { en: "{dim} and {dim2} are dead level at {a} points each. {dim} goes first because its heaviest answer is heavier.", zh: "{dim}和{dim2}打平，都是 {a} 分。{dim}排前面，因为它最重的那条更重。" },
     matchTieCount:       { en: "{dim} and {dim2} are dead level at {a} points each. {dim} goes first because you admitted more of it.", zh: "{dim}和{dim2}打平，都是 {a} 分。{dim}排前面，因为这块你认的条数更多。" },
     matchTieLot:         { en: "{dim} and {dim2} are dead level at {a} points each, answer for answer. Nothing in your answers can split them, so this play's lot decided.", zh: "{dim}和{dim2}完全打平，都是 {a} 分，连每条的轻重都一样。答案里分不出高下，这一局抽签定了。" },
+    // A tie for the lead that went to a play-off (scoring.playoffRounds).
+    matchPlayoff:        { en: "{dim} and {dim2} were dead level at {a} points each, answer for answer, so you played it off: {dim} came out ahead in round {round}.", zh: "{dim}和{dim2}完全打平，都是 {a} 分，连每条的轻重都一样，于是加赛：第 {round} 轮{dim}胜出。" },
+    matchPlayoffLot:     { en: "{dim} and {dim2} were dead level at {a} points each and still level after three play-off rounds, so this play's lot decided.", zh: "{dim}和{dim2}完全打平，都是 {a} 分，三轮加赛后还是平，最后按这一局的签定了。" },
     matchCapOne:         { en: "It rests on a single answer, though, so the match stops at {cap}%.", zh: "不过只靠一条撑着，匹配度最多算 {cap}%。" },
     matchCapTwo:         { en: "It rests on just two answers, though, so the match stops at {cap}%.", zh: "不过只靠两条撑着，匹配度最多算 {cap}%。" },
     matchBalanced:       { en: "Among the sections you touched, the heaviest and the lightest are just {gap} apart.", zh: "你碰过的几块里，最重和最轻只差 {gap}。" },
@@ -107,6 +115,29 @@ globalThis.APT_CONTENT = {
     // least once; unsureMany is added from scoring.UNSURE_MANY (8) answers on.
     unsureNote:          { en: "You weren't sure about {n} of the {total}. Not sure counts as Never.", zh: "{total} 条里有 {n} 条你选了不确定，按没干过算。" },
     unsureMany:          { en: "With that many, your purity is probably flattering you.", zh: "不确定这么多，这个纯度多半是在给你面子。" },
+
+    // --- Result screen: two lines built from the player's own answers, at the
+    // end of "Why you got this" (extras.reasonLines picks the pair). {quote}
+    // is one of the player's statements, quoted by app.js. ---
+    reasonDimContrast:   { en: "You admitted {n} of the {shown} {dim} statements. Across the other four sections you averaged {avg}.", zh: "{dim}的 {shown} 条你认了 {n} 条，其他四个部分平均 {avg} 条。" },
+    reasonDimAll:        { en: "You admitted every {dim} statement you were shown.", zh: "这一局的{dim}题，你一条不落全认了。" },
+    reasonDimOne:        { en: "The one {dim} statement you passed on: {quote}", zh: "{dim}里你唯一没认的一条：{quote}" },
+    reasonDimSome:       { en: "The heaviest {dim} statement you passed on: {quote}", zh: "{dim}里你没认的最重的一条：{quote}" },
+    reasonAnalogCount:   { en: "Your full list of admissions is {n} long, out of {total}.", zh: "{total} 条里，你认下的一共就 {n} 条。" },
+    reasonAnalogNone:    { en: "Your list of admissions is empty, out of {total}.", zh: "{total} 条里，你一条都没认。" },
+    reasonAnalogPassed:  { en: "Even this one passed you by: {quote}", zh: "连这条你都没干过：{quote}" },
+    reasonBalancedCounts: { en: "Admitted per section: {list}.", zh: "每个部分认的条数：{list}。" },
+    reasonBalancedMax:   { en: "No section got more than {n} of its {shown}.", zh: "每个部分 {shown} 条，哪一块你都没认超过 {n} 条。" },
+    reasonMergedSpread:  { en: "{total} of {all} admitted: as many as {max} of {shown} in one section, and no fewer than {min} in any.", zh: "{all} 条认了 {total} 条：最多的部分 {shown} 条认了 {max} 条，最少的也有 {min} 条。" },
+    reasonMergedZero:    { en: "{total} of {all} admitted, as many as {max} of {shown} in one section; only {dim} stayed untouched.", zh: "{all} 条认了 {total} 条，最多的部分 {shown} 条认了 {max} 条，只有{dim}一条没碰。" },
+    reasonMergedEven:    { en: "{total} of {all} admitted, exactly {max} of the {shown} in every section.", zh: "{all} 条认了 {total} 条，每个部分 {shown} 条都正好认了 {max} 条。" },
+    reasonHeaviestPassed: { en: "The heaviest one you passed on: {quote}", zh: "你没认的里面，最重的一条：{quote}" },
+    reasonPassedNone:    { en: "You passed on nothing. All {all}.", zh: "一条都没放过，{all} 条全认。" },
+    reasonSoulmate:      { en: "Every one of the {n} Bond statements you were shown, plus {h} of the {hs} extreme Heart ones.", zh: "这一局的 {n} 条羁绊题你全认了，重度感情题 {hs} 条里也认了 {h} 条。" },
+    // Last line of the verdict, from 3 finished plays on this device.
+    historyLine:         { en: "Your last {n} plays: {list}. Most often: {most}.", zh: "你最近 {n} 局：{list}。出现最多的是 {most}。" },
+    historyAllDifferent: { en: "Your last {n} plays: {list}. No type twice yet.", zh: "你最近 {n} 局：{list}。还没有哪个类型出现过两次。" },
+    listAnd:             { en: "{a} and {b}", zh: "{a}和{b}" },
 
     // --- Result screen: the other sections ---
     signsTitle:      { en: "Telltale signs", zh: "典型症状" },
@@ -140,7 +171,7 @@ globalThis.APT_CONTENT = {
     howTitle:        { en: "How this is scored", zh: "结果是怎么算的" },
     howWeights:      { en: "Each play draws 30 from a bigger pile: six per section, two mild, two medium and two extreme. Mild counts 1 point, medium 2, extreme 3, so a section is worth 12.", zh: "每局从大题库里抽 30 条：每个部分 6 条，轻、中、重各 2 条。轻度算 1 分，中度 2 分，重度 3 分，每个部分满分 12。" },
     howUnsure:       { en: "“Not sure” counts as Never: no points, no purity lost.", zh: "选「不确定」的，按没干过算：不算分，也不扣纯度。" },
-    howLead:         { en: "Your type comes from the section with the most points. On a tie, the heavier answer wins, then more answers; if it's still level, a lot fixed to your play decides. You get the deep version at 7 of the section's 12 points, or with both of its extreme statements.", zh: "类型看哪个部分分数最高。打平时，先看谁最重的那条更重，再看谁认得多，还平就按这一局固定的签来定。这部分拿到 12 分里的 7 分，或者两条重度都认了，就是深度版。" },
+    howLead:         { en: "Your type comes from the section with the most points. On a tie, the heavier answer wins, then more answers; if two sections are still level, up to three short play-off rounds (two statements each) decide, and only a play-off that ends level goes to a lot fixed to your play. You get the deep version at 7 of the section's 12 points, or with both of its extreme statements.", zh: "类型看哪个部分分数最高。打平时，先看谁最重的那条更重，再看谁认得多；两个部分还平，就加赛最多三轮（每轮两条）来定，加赛也打平才按这一局固定的签。这部分拿到 12 分里的 7 分，或者两条重度都认了，就是深度版。" },
     howSpecial:      { en: "Four results are checked first: 20 or more admitted, or the deep end of all five sections; a hidden rule; 3 or fewer, all mild; no clear lead, meaning three or more sections tie for the top, or 6 or more answers spread evenly over all five.", zh: "有四种结果先判：认了 20 条以上，或者五块都认到了深处；一条隐藏规则；最多 3 条且全是轻度；没有领头的，也就是三块以上并列第一，或者 6 条以上、五块分得很匀。" },
     howSecondary:    { en: "A second section is named when it has at least three quarters of the lead section's points. Match compares the lead with that next section: 100% when nothing else is close, 50% for a dead heat, and at most 60% or 80% when the lead rests on one or two answers.", zh: "第二个部分的分数到了领头部分的四分之三，就列为副倾向。匹配度拿领头部分和第二名比：没人接近是 100%，打平是 50%；领头部分只靠一两条撑着时，最多 60% 或 80%。" },
     howHonest:       { en: "Same thirty statements, same answers, same result, every time. The rules are consistent; the science is zero.", zh: "同一套题、同样的答案，永远是同样的结果。规则前后一致，科学含量为零。" },
@@ -168,6 +199,7 @@ globalThis.APT_CONTENT = {
     // The collection: which types this device has ended a play on.
     typesCollected:     { en: "Collected {n} of {total}", zh: "已收集 {n}/{total}" },
     typesCollectedMark: { en: "Collected", zh: "已收集" },
+    typesPlays:         { en: "{n} of your recent plays", zh: "最近有 {n} 局是它" },
 
     // --- Compare with a friend (challenge links, see README "Sharing") ---
     // Under the share buttons on the player's own result. challengePrivacy is

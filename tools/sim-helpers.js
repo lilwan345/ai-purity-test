@@ -125,8 +125,8 @@ function makePlayerModel(content, options) {
     return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
-  // answer(next, drawnIds) -> the ids this simulated player admits.
-  function answer(next, drawnIds) {
+  // makePlayer(next) -> one simulated player: { reach: { dim: level } }.
+  function makePlayer(next) {
     var base = normal(next, model.baseReachMean, model.baseReachSd);
     var r = uniform(next);
     var favourites = r < model.favouriteOdds[0] ? 0 : (r < model.favouriteOdds[0] + model.favouriteOdds[1] ? 1 : 2);
@@ -141,13 +141,36 @@ function makePlayerModel(content, options) {
     for (var f = 0; f < favourites; f++) {
       reach[order[f]] += model.favouriteBoostMin + uniform(next) * (model.favouriteBoostMax - model.favouriteBoostMin);
     }
-    return drawnIds.filter(function (id) {
-      var p = 1 / (1 + Math.exp((levels[id] - reach[dimOf[id]]) / model.softness));
+    return { reach: reach };
+  }
+
+  // admits(next, player, ids) -> the ids (of any statements) the player admits.
+  function admits(next, player, ids) {
+    return ids.filter(function (id) {
+      var p = 1 / (1 + Math.exp((levels[id] - player.reach[dimOf[id]]) / model.softness));
       return uniform(next) < p;
     });
   }
 
-  return { answer: answer, model: model };
+  // answer(next, drawnIds) -> the ids this simulated player admits.
+  // (Same random numbers in the same order as before makePlayer existed.)
+  function answer(next, drawnIds) {
+    return admits(next, makePlayer(next), drawnIds);
+  }
+
+  // playoff(next, player, rounds) -> the player's play-off answers
+  // ({ id: 'yes' | 'no' }) for all three rounds; score() uses only as many
+  // rounds as it needs.
+  function playoff(next, player, rounds) {
+    var out = {};
+    (rounds || []).forEach(function (round) {
+      var yes = admits(next, player, round.ids);
+      round.ids.forEach(function (id) { out[id] = yes.indexOf(id) !== -1 ? 'yes' : 'no'; });
+    });
+    return out;
+  }
+
+  return { answer: answer, makePlayer: makePlayer, admits: admits, playoff: playoff, model: model };
 }
 
 module.exports = {

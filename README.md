@@ -42,11 +42,11 @@ Useful URL parameters:
 | `art-src/` | The drawings and the generator that drew them (owned by the art side; the app never reads it). |
 | `styles.css` | All styling. Colours and fonts are tokens at the top. Also holds the embedded display font (see below). |
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
-| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
+| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art), `playoff.test.js` (the play-off rounds, settling in round 1 or 3 or going to the lot with nothing else moving, play-off answers in challenge codes, the reason lines for every persona, the play history), `reveal.test.js` (the reveal's timeline and play-once rules), `stats.test.js` (what statistics may be sent), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
-| `tools/personas.js` | 30 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw. |
-| `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares and match spread over 200,000 simulated players (each on their own draw), and how often a tie decided the lead. `node tools/simulate.js` |
-| `tools/fairness.js` | Proves the draw and the judging have no favourite: six chi-square checks over 200,000 seeds on the real bank, run twice with two independent seed sources (a fixed, repeatable stream and the page's own `makeSeed()`), plus five deliberately broken versions that must be caught. Exits non-zero on failure. `node tools/fairness.js` (about 90 s) |
+| `tools/personas.js` | 31 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw, and how a persona answers a play-off (`playoffByCounts`). |
+| `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares (with and before the play-off) and match spread over 200,000 simulated players (each on their own draw), how often a tie decided the lead, how the play-off settles ties and how often it picks the section the player really leans to. `node tools/simulate.js` |
+| `tools/fairness.js` | Proves the draw and the judging have no favourite: seven chi-square checks (the seventh is the play-off) over 200,000 seeds on the real bank, run twice with two independent seed sources (a fixed, repeatable stream and the page's own `makeSeed()`), plus six deliberately broken versions that must be caught. Exits non-zero on failure. `node tools/fairness.js` (about 90 s) |
 | `tools/sim-helpers.js`, `tools/stats.js` | Shared pieces for the tools and tests: a synthetic bank of the same shape (for tests and controls), a seed stream, the simulated player model; chi-square and normal p-values. |
 | `UI_KEYS.md` | Every interface text key the app reads, with where it shows up. |
 | `content/draft.json` | An old content draft with a different shape. Nothing loads it. |
@@ -95,6 +95,14 @@ Useful URL parameters:
   link or a challenge link, keeps that link's 30, or the comparison with the
   sender would quietly stop matching, and a line under the buttons says so;
   any other play gets a fresh set, like "New questions".
+- **The play-off screens.** When a play-off is needed, statement 30 is
+  followed by its statements, counted "Play-off 1 / 2" in place of "30 / 30",
+  with one plain line on the card: "Two sections are dead level. Two more
+  statements to settle it." (later rounds: "Still level. Two more."). Same
+  three answers; Back works; a refresh comes back to the same place (the
+  play-off answers are saved with the play, under `playoff`); no remarks
+  during it. The statistics event `tiebreak` is sent once when it starts.
+  Going home in the middle offers "Continue (30 / 30)" into it.
 - **Back** (the arrow top left) returns to the previous statement and shows the
   answer you gave (including "Not sure"); tap any button to keep or change it. Back on statement 1
   returns to the landing page.
@@ -190,13 +198,29 @@ Useful URL parameters:
   top, or 6+ spread within 3 points over all five), otherwise the deepest
   section's `_deep` type when it is in the high band or both its extreme
   statements were admitted, else its `_lite` type. A two-way tie for the lead
-  goes to the heavier admitted statement, then more statements, then **the
-  play's lot** (a coin flip made from the play's seed: the same play always
-  gives the same result, but no section is favoured across players).
+  goes to the heavier admitted statement, then more statements, then **a
+  play-off** (below), and only when the play-off ends level, **the play's
+  lot** (a coin flip made from the play's seed: the same play always gives
+  the same result, but no section is favoured across players).
+- **The play-off** (`playoffRounds`, and `score(admitted, content, drawn,
+  rules, playoffAnswers)`). When two sections are still exactly level, the
+  player answers up to three short rounds after statement 30, medium, then
+  mild, then extreme: each round one statement from each tied section, of
+  that band, drawn uniformly from the statements of that section and band the
+  play did not show; which comes first is a coin flip; all of it from the
+  play's own generator (label `apt-playoff-v1`), so the same play always gets
+  the same play-off and the draw of the 30 is unchanged. After each round the
+  section with more admitted play-off points wins; level after three, the lot.
+  Its answers decide only which of the two leads: purity, points, depth,
+  lite or deep, the match, the evidence and the section rows stay on the 30.
+  `tieBreak` is then `'playoff'`, and `result.playoff` holds the rounds, how
+  many were played, the points and the round that decided. About 7.7% of
+  players need one; the lot now decides for 2.7% instead of 7.7%
+  (`SCORING.md`, section 4 and 8).
 - The result also carries a secondary type, up to 3 evidence statements and a
   match number (section types: lead / (lead + runner-up), 50 = dead heat,
   capped at 60 / 80 for one / two answers). `score()` also returns
-  `runnerUpDim`, `tiedDims`, `tieBreak` (`'top'`, `'count'` or `'lot'`),
+  `runnerUpDim`, `tiedDims`, `tieBreak` (`'top'`, `'count'`, `'playoff'` or `'lot'`), `playoff`,
   `matchCap`, `hiddenRule`, `shown`, `maxPoints` and `drawnCount`, so the
   screen can explain itself without redoing the rules. **`SCORING.md`** has
   the full rules in plain English and Chinese.
@@ -227,7 +251,11 @@ favourite. What is guaranteed, and tested by `node tools/fairness.js` over
 - seeds one character apart give unrelated draws;
 - with simulated players who treat the five sections identically, the five
   lite types and the five deep types come up equally often, and a tie decided
-  by lot goes to each section equally often.
+  by lot goes to each section equally often;
+- the play-off shows each unseen statement of a stratum equally often, the
+  order inside a round is a fair coin, each tied section wins about half its
+  play-offs (pair by pair), and the draw of the 30 is byte for byte what it
+  was before the play-off existed (check (g)).
 
 What it cannot guarantee without real players: that two statements in the
 same band are equally easy to admit, or that the five sections are equally
@@ -262,12 +290,25 @@ card stays pinned on the left):
    (`evidenceIds`), most extreme first, each with its section, band
    (mild / medium / extreme) and points ("School · extreme · 3 points"). The last line gives the match in the player's own numbers ("Heart
    beats your next section, School, 9 points to 8"), says so when it was a
-   tie and how the tie was broken (a mirror tie says plainly that it was
-   decided by lot), and when the one- or two-answer cap applied.
+   tie and how the tie was broken (a mirror tie names the two level sections
+   and the play-off round that settled it, or says plainly that the play-off
+   ended level and the lot decided), and when the one- or two-answer cap applied.
    With nothing admitted (the Analog), it says the evidence bag is empty.
    If the player answered "Not sure" at all, one quiet line under the match
    says how many and that they counted as Never; from 8 on it adds that the
    purity is probably flattering. The card never mentions it.
+   Then two lines built from the player's own 30 answers
+   (`extras.reasonLines`): a contrast in plain numbers ("You admitted 5 of
+   the 6 Heart statements. Across the other four sections you averaged 2.")
+   and a counter-proof, a statement they did not admit that marks the edge of
+   the result, quoted ("The one Heart statement you passed on: ..."), or that
+   they admitted everything shown there. ANALOG, SAMPLER, PLUG-IN and the
+   hidden type get their own pair (how short the list is and the mildest
+   thing they passed on; the count per section and the highest; the spread
+   and the heaviest thing passed on; all of Bond and the Heart extremes).
+   From three finished plays on this device, a last quiet line: "Your last 5
+   plays: CC-BOT 3, HAHA-OK 1, 404 1. Most often: CC-BOT." (see "All 14 types"
+   for the history).
 3. The roast. 4. Three telltale signs. 5. Superpower, weak spot, "Your AI says".
 6. **Section by section**: each section's six drawn statements as squares that grow
    with their weight (small = mild, big = extreme; filled = admitted), its
@@ -320,6 +361,15 @@ or for the four special types how they are reached), the type's character
   type on. Only a finished play counts: `?preview=`, peeks and comparison
   links never do. With storage blocked, the type of the result underneath
   is still marked.
+- **Play history.** The type of each finished play is also kept, the last
+  20 (`localStorage`, key `apt-history-v1`, the type ids joined by commas;
+  `playHistory` / `rememberPlay` / `historySummary` in `extras.js`, same
+  storage safety). Only finishing a play adds one (never a preview, a peek or
+  a reply link). On the grid a collected card's stamp shows how many of those
+  plays ended on it instead of the tick, and from three plays on the result
+  says which types the last five were and which came up most often, because
+  one play shows only 6 statements per section and a new draw can land
+  elsewhere.
 - **The hidden type** shows as a locked card (dashed outline, "???", one hint
   line, no code, name or character) until the player has actually got it on this device.
   The same lock covers MY-BOT's "Gets on with" card (which points at it, and
@@ -440,7 +490,11 @@ An empty list `[]` means the content is valid.
   is in the address, so anyone who decodes it by hand could see it.
 - `vs` is 8 characters of 0-9 and a-z: 6 hold the 30 answer bits (bit i =
   the i-th statement in asking order), 2 are a check made from the seed, the
-  drawn ids and the answers. A wrong length, other characters, a code pasted
+  drawn ids and the answers. After a play-off it is 10: two more characters
+  between them hold how many play-off rounds were played and which of their
+  statements were answered Guilty, so a friend's browser settles the tie the
+  same way (codes from before stay valid; a play-off part on a play that has
+  no tie for the lot is refused). The comparison lists still use only the 30. A wrong length, other characters, a code pasted
   onto another seed, or a link from before the statement bank changed fail
   the check, and the page carries on as for an ordinary link (the broken
   parameter is removed from the address). The check stops accidents, not
@@ -490,7 +544,7 @@ be sent is decided in one place.
   - `start`: the first answer of a play;
   - `finish` and `result:<type id>`: the result reached by finishing a play
     (never a preview, a peek, the grid or a reply link);
-  - `tiebreak`: that play's lead was decided by a tie-break;
+  - `tiebreak`: a play-off was shown (once per play);
   - `save-image`, `copy-link`, `challenge-made`: once per play;
   - `challenge-opened`: the landing opened from a challenge link (per page load);
   - `compare-shown`: the comparison on a challenged player's result (per play);

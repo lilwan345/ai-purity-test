@@ -23,9 +23,9 @@ function describe(res) {
 [['real content.js', () => globalThis.APT_CONTENT, 'unit-test'],
   ['synthetic bank (7 per stratum)', () => syntheticContent(7), 'unit-test-synthetic']]
   .forEach(([label, getContent, seedLabel]) => {
-    test('fairness (' + label + '): checks (a) to (f) over ' + N.toLocaleString('en-US') + ' seeds', () => {
+    test('fairness (' + label + '): checks (a) to (g) over ' + N.toLocaleString('en-US') + ' seeds', () => {
       const res = runFairness(getContent(), { n: N, label: seedLabel });
-      assert.deepStrictEqual(res.checks.map((c) => c.id), ['a', 'b', 'c', 'd', 'e', 'f']);
+      assert.deepStrictEqual(res.checks.map((c) => c.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g']);
       assert.ok(res.ok, describe(res));
       // (f) in plain numbers: each section's lite share, deep share and lot
       // wins stay within a generous band around their average.
@@ -36,11 +36,19 @@ function describe(res) {
       });
       f.lotWins.forEach((w) => assert.ok(Math.abs(w / (f.lotTotal / 5) - 1) < 0.2, 'lot wins ' + f.lotWins));
       assert.ok(f.hidden > 0.002 && f.hidden < 0.03, 'hidden type share ' + f.hidden);
+      // (g) the play-off: the draw of the 30 is unchanged, no play-off
+      // statement repeats one of the 30, every pair wins about half.
+      const g = res.checks.find((c) => c.id === 'g').playoff;
+      assert.strictEqual(g.digestOk, true, 'the draw of the 30 is byte for byte the same');
+      assert.strictEqual(g.shownAgain, 0);
+      assert.ok(Math.abs(g.firstShare - 0.5) < 0.02, 'order coin ' + g.firstShare);
+      g.pickShares.forEach((x) => assert.ok(Math.abs(x * 7 - 1) < 0.2, 'play-off pick share ' + x));
+      assert.ok(g.settled > 0.5 * g.playoffs, 'most play-offs settle the tie');
     });
   });
 
 test('fairness controls: every deliberately broken draw or judging is caught at this size', () => {
   const controls = runControls(syntheticContent(7), N);
-  assert.strictEqual(controls.length, 5);
+  assert.strictEqual(controls.length, 6);
   controls.forEach((c) => assert.ok(c.caught, 'not caught: ' + c.name));
 });

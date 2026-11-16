@@ -28,7 +28,8 @@ var path = require('path');
 var scoring = require(path.join(__dirname, '..', 'scoring.js'));
 var helpers = require('./sim-helpers.js');
 require(path.join(__dirname, '..', 'content.js'));
-var PERSONAS = require('./personas.js').PERSONAS;
+var PERSONA_TOOLS = require('./personas.js');
+var PERSONAS = PERSONA_TOOLS.PERSONAS;
 
 // ---------- command line ----------
 function arg(name, fallback) {
@@ -55,7 +56,15 @@ function matches(p, r) {
     var i = p.expect.lot.indexOf(r.typeId);
     return i !== -1 && r.secondaryTypeId === p.expect.lot[1 - i] && r.tieBreak === 'lot';
   }
+  if (p.expect.playoff && (r.tieBreak !== 'playoff' || r.playoff.decidedRound !== p.expect.playoff)) return false;
   return r.typeId === p.expect.typeId && r.secondaryTypeId === p.expect.secondaryTypeId;
+}
+// A persona's result, with its play-off answered the persona's way.
+function personaScore(content, drawn, counts) {
+  var admitted = scoring.admitByCounts(content, drawn, counts);
+  var first = scoring.score(admitted, content, drawn);
+  if (!first.playoff) return first;
+  return scoring.score(admitted, content, drawn, null, PERSONA_TOOLS.playoffByCounts(content, first.playoff.rounds, counts));
 }
 
 // ---------- a) personas ----------
@@ -67,13 +76,13 @@ function runPersonas(content, label) {
   var shownDraw = scoring.drawStatements(content, 'abc123');
   var mismatches = 0;
   PERSONAS.forEach(function (p) {
-    var r = scoring.score(scoring.admitByCounts(content, shownDraw, p.counts), content, shownDraw);
+    var r = personaScore(content, shownDraw, p.counts);
     // The same persona on 500 other draws.
     var seeds = helpers.seedStream('persona|' + p.name);
     var ok = 0, lotFirst = 0;
     for (var i = 0; i < 500; i++) {
       var d = scoring.drawStatements(content, seeds());
-      var rr = scoring.score(scoring.admitByCounts(content, d, p.counts), content, d);
+      var rr = personaScore(content, d, p.counts);
       if (matches(p, rr)) ok += 1;
       if (p.expect.lot && rr.typeId === p.expect.lot[0]) lotFirst += 1;
     }
@@ -92,12 +101,32 @@ function runSample(content, label) {
   var players = helpers.makePlayerModel(content, MODEL);
   var next = scoring.makeGenerator('apt-sim-players|' + SEED);
   var seeds = helpers.seedStream('apt-sim-seeds|' + SEED);
-  var counts = {}, matchesByType = {}, secondaryCount = 0, totalSum = 0;
-  var tieBreaks = { top: 0, count: 0, lot: 0 }, capped = 0;
-  scoring.TYPE_IDS.forEach(function (id) { counts[id] = 0; matchesByType[id] = []; });
+  var counts = {}, before = {}, matchesByType = {}, secondaryCount = 0, totalSum = 0;
+  var tieBreaks = { top: 0, count: 0, lot: 0, playoff: 0 }, capped = 0;
+  var lotBefore = 0, decidedIn = [0, 0, 0], extraStatements = 0, strongerBefore = 0, strongerAfter = 0, clearPairs = 0;
+  scoring.TYPE_IDS.forEach(function (id) { counts[id] = 0; before[id] = 0; matchesByType[id] = []; });
   for (var n = 0; n < N; n++) {
     var drawn = scoring.drawStatements(content, seeds());
-    var r = scoring.score(players.answer(next, drawn), content, drawn);
+    var player = players.makePlayer(next);
+    var admitted = players.admits(next, player, drawn);
+    var r0 = scoring.score(admitted, content, drawn);
+    var r = r0;
+    before[r0.typeId] += 1;
+    if (r0.tieBreak === 'lot') {
+      // The play-off: the same player answers the extra statements.
+      lotBefore += 1;
+      r = scoring.score(admitted, content, drawn, null, players.playoff(next, player, r0.playoff.rounds));
+      extraStatements += 2 * r.playoff.played;
+      if (r.playoff.decidedRound) decidedIn[r.playoff.decidedRound - 1] += 1;
+      // Which of the two the player really leans to more (the model's reach).
+      var a = r0.tiedDims[0], b = r0.tiedDims[1];
+      if (player.reach[a] !== player.reach[b]) {
+        clearPairs += 1;
+        var stronger = player.reach[a] > player.reach[b] ? a : b;
+        if (r0.dominantDim === stronger) strongerBefore += 1;
+        if (r.dominantDim === stronger) strongerAfter += 1;
+      }
+    }
     counts[r.typeId] += 1;
     matchesByType[r.typeId].push(r.match);
     if (r.secondaryTypeId) secondaryCount += 1;
@@ -117,6 +146,7 @@ function runSample(content, label) {
     (100 * (1 - totalSum / N / 30)).toFixed(0) + ')');
   console.log('Results with a secondary type: ' + pct(secondaryCount / N) + '\n');
   var problems = [];
+  console.log(pad('type', 13) + pad('share', 8) + pad('before play-off', 17) + 'match');
   scoring.TYPE_IDS.forEach(function (id) {
     var share = counts[id] / N;
     var flag = '';
@@ -124,13 +154,19 @@ function runSample(content, label) {
     else if (share < 0.02 && id !== 'soulmate') flag = '  <-- below 2%';
     if (flag) problems.push(id);
     var m = matchesByType[id];
-    console.log(pad(id, 13) + pad(pct(share), 8) +
-      pad('match ' + percentile(m, 0.1) + ' / ' + percentile(m, 0.5) + ' / ' + percentile(m, 0.9), 22) + flag);
+    console.log(pad(id, 13) + pad(pct(share), 8) + pad(pct(before[id] / N), 17) +
+      pad(percentile(m, 0.1) + ' / ' + percentile(m, 0.5) + ' / ' + percentile(m, 0.9), 14) + flag);
   });
   console.log('(match: 10th percentile / median / 90th percentile)');
   console.log('\n' + (problems.length ? 'Out of range: ' + problems.join(', ') : 'Every type is between 2% and 20% (the hidden type excepted).'));
   console.log('Section types whose lead was an exact two-way tie, settled by: heavier admitted statement ' + pct(tieBreaks.top / N) +
-    ', more statements ' + pct(tieBreaks.count / N) + ', lot ' + pct(tieBreaks.lot / N) + ' of all players.');
+    ', more statements ' + pct(tieBreaks.count / N) + ', play-off ' + pct(tieBreaks.playoff / N) + ', lot ' + pct(tieBreaks.lot / N) + ' of all players.');
+  console.log('Play-off: needed by ' + pct(lotBefore / N) + ' of players (those the lot used to decide); settled in round 1 / 2 / 3: ' +
+    decidedIn.map(function (x) { return pct(lotBefore ? x / lotBefore : 0); }).join(' / ') + '; still level, so the lot: ' +
+    pct(lotBefore ? tieBreaks.lot / lotBefore : 0) + ' of them (' + pct(tieBreaks.lot / N) + ' of all players).');
+  console.log('Extra statements for a tied player: ' + (lotBefore ? (extraStatements / lotBefore).toFixed(1) : '0') + ' on average.');
+  console.log('The section the player really leans to more (higher reach in the model) wins the tie: ' +
+    pct(clearPairs ? strongerBefore / clearPairs : 0) + ' by lot alone, ' + pct(clearPairs ? strongerAfter / clearPairs : 0) + ' with the play-off.');
   console.log('Section-type matches lowered by the one- or two-answer cap: ' + pct(capped / N) + ' of all players.');
   return problems.length;
 }

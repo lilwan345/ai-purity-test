@@ -14,6 +14,13 @@
  * is decided by lot: then `expect.lot` lists the types it can land on, and
  * the tests check that each of them really comes up.
  *
+ * The play-off (scoring.playoffRounds): a persona admits a play-off statement
+ * when it admitted at least one of the two statements of that section and
+ * band that the play showed (playoffByCounts). So a mirror-image tie stays
+ * level through all three rounds and still goes to the lot, while a tie of
+ * two different shapes is settled by the play-off (`expect.playoff` = the
+ * round that settles it).
+ *
  * tools/simulate.js prints what each one gets; tests/personas.test.js pins
  * the results over many seeds, on the real bank and on a full-size one.
  * `why` is the human judgement of why that is the right answer.
@@ -206,7 +213,14 @@ var PERSONAS = [
     who: 'Both mild and one medium in School, exactly the same in Heart, nothing else.',
     counts: { school: [2, 1, 0], heart: [2, 1, 0] },
     expect: { lot: ['school_lite', 'heart_lite'] },
-    why: 'Nothing in the answers can separate them, so this play\'s lot decides; the other shows as the tied second, and over many plays each wins half the time.'
+    why: 'Nothing in the answers can separate them, and this player answers the play-off the same way for both, so all three rounds end level and this play\'s lot decides; the other shows as the tied second, and over many plays each wins half the time.'
+  },
+  {
+    name: 'Level on points, different shape',
+    who: 'School: one mild, both medium, one extreme. Heart: both mild, no medium, both extreme. 8 points and 4 statements each, the heaviest extreme in both.',
+    counts: { school: [1, 2, 1], heart: [2, 0, 2] },
+    expect: { typeId: 'school_deep', secondaryTypeId: 'heart_deep', playoff: 1 },
+    why: 'Nothing in the 30 separates them, so they play off. Round one is medium, where this player admits School things and no Heart things: School leads, Heart is the tied second.'
   },
   {
     name: 'Deep everywhere',
@@ -238,4 +252,22 @@ var PERSONAS = [
   }
 ];
 
-module.exports = { PERSONAS: PERSONAS, everywhere: everywhere };
+// playoffByCounts(content, rounds, counts) -> { id: 'yes' | 'no' } for the
+// play-off statements: yes when the persona admits at least one statement of
+// that section and band in the 30.
+function playoffByCounts(content, rounds, counts) {
+  var byId = {};
+  content.statements.forEach(function (s) { byId[s.id] = s; });
+  var bands = ['mild', 'medium', 'extreme'];
+  var out = {};
+  (rounds || []).forEach(function (round) {
+    round.ids.forEach(function (id) {
+      var s = byId[id];
+      var c = counts[s.dim];
+      out[id] = c && c[bands.indexOf(s.band)] >= 1 ? 'yes' : 'no';
+    });
+  });
+  return out;
+}
+
+module.exports = { PERSONAS: PERSONAS, everywhere: everywhere, playoffByCounts: playoffByCounts };

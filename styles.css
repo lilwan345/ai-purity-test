@@ -1462,7 +1462,7 @@ html.is-revealing .topbar { pointer-events: none; }
 .result.is-revealing { pointer-events: none; }
 .result.is-revealing .card-wrap,
 .result.was-revealed .card-wrap { animation: none; }
-.result.is-revealing .card-wrap { position: relative; z-index: 10; will-change: transform; }
+.result.is-revealing .card-wrap { position: relative; z-index: 10; }
 .result.is-revealing .card { overflow: visible; }
 .result.is-revealing img.card-art { visibility: hidden; }
 .reveal-art { overflow: visible; }
@@ -1675,3 +1675,30 @@ html[lang^="zh"] .reply-title { font-family: var(--font-body); font-size: clamp(
   .sticker-sheet figcaption { margin-top: calc(var(--u) * 18); font-size: calc(var(--u) * 15); }
   .sticker-sheet figcaption .types-link { font-size: calc(var(--u) * 16); }
 }
+
+/* A collected card with recent plays: the number in the stamp instead of the tick */
+.tcard-stamp.has-count {
+  display: grid;
+  place-items: center;
+  color: var(--sheet);
+  font: 800 14px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- The play-off (questions after statement 30) ---------- */
+.q-playoff {
+  margin: -6px 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+html[lang^="zh"] .q-playoff { word-break: keep-all; overflow-wrap: anywhere; }
+.q-count.is-playoff { color: var(--ink); }
+
+/* ---------- The personal reason lines and the play history ---------- */
+.verdict-reasons { margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--rule); display: grid; gap: 6px; }
+.verdict-reason { margin: 0; font-size: 15px; line-height: 1.5; text-wrap: pretty; }
+html[lang^="zh"] .verdict-reason { word-break: keep-all; overflow-wrap: anywhere; }
+.verdict-history { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-soft); text-wrap: pretty; }

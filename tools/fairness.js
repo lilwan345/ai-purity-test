@@ -31,6 +31,14 @@
  *       and Heart on purpose; its own share is printed beside them), a tie
  *       decided by lot goes to each section equally often, and the lot order
  *       itself is uniform over all 120 orders
+ *   (g) the play-off (two sections dead level after every tie-break the 30
+ *       answers allow) has no favourite either: each statement it shows is
+ *       drawn uniformly from the unseen statements of its stratum (so over
+ *       many plays every statement of a stratum appears equally often), the
+ *       order inside a round is a fair coin, with simulated players who treat
+ *       the sections identically each tied section wins about half its
+ *       play-offs, pair by pair, and the draw of the 30 is byte for byte what
+ *       it was before the play-off existed (a digest of 20,000 draws)
  * The bank holds 105 statements, 7 in each of the 15 strata, so (a) expects
  * every statement to be shown in 2 of 7 plays. (The checks work for strata
  * of any size: each statement is held to 2 in the size of its own stratum.)
@@ -125,7 +133,7 @@ function runFairness(content, options) {
   var N = options.n || 200000;
   var draw = options.draw || scoring.drawStatements;
   var rules = options.rules || scoring.RULES;
-  var only = options.only || 'abcdef';
+  var only = options.only || 'abcdefg';
   var label = options.label || 'main';
   var checks = [];
 
@@ -452,7 +460,8 @@ function runFairness(content, options) {
       'deep types as shown on the card: ' + shares(deepShown, N) + '; hidden type ' + pct(types.soulmate / N) +
         ' (its rule is about Bond and Heart, so it takes its players mostly from bond_deep; by design, and why the',
       '  checks above switch it off: then nothing in the judging is about one section)',
-      'ties decided by lot: ' + pct(lotTotal / N) + ' of players; won by ' + shares(lotWins, lotTotal) +
+      'exact ties the 30 answers cannot separate (they go to the play-off, see (g); the lot settles the ones it leaves level): ' +
+        pct(lotTotal / N) + ' of players; the lot\'s pick: ' + shares(lotWins, lotTotal) +
         ' (chi2 ' + xLot.toFixed(2) + ' on 4 df, p ' + fmtP(pLot) + ')',
       'section named as the secondary leaning, hidden rule switched off (' + pct(nSec / N) + ' of players): ' + shares(secondaryDim, nSec) +
         ' (chi2 ' + xSec.toFixed(2) + ' on 4 df, p ' + fmtP(pSec) + ')',
@@ -468,7 +477,126 @@ function runFairness(content, options) {
     checks.push(rf);
   }
 
+  // =========================================================================
+  // (g) the play-off
+  // =========================================================================
+  if (only.indexOf('g') !== -1) {
+    var playoffDraw = options.playoffRounds || scoring.playoffRounds;
+    var pairs = [];
+    for (var pa = 0; pa < 5; pa++) for (var pb = pa + 1; pb < 5; pb++) pairs.push([scoring.DIM_KEYS[pa], scoring.DIM_KEYS[pb]]);
+    // 1. Which statements a play-off shows: for every seed, the rounds of one
+    //    pair (taking the ten pairs in turn). Every statement of a stratum is
+    //    shown 2 times in 7 in the 30, so it is unseen 5 times in 7 and then
+    //    picked 1 time in 5: overall 1 in 7, the same for all 7.
+    var pickCounts = strata.map(function (st) { return zeros(st.n); });
+    var pickTotal = zeros(S);
+    var firstIsFirstDim = 0, roundsSeen = 0, shownAgain = 0;
+    for (t = 0; t < N; t++) {
+      var dg = draw(content, seeds[t]);
+      var inDraw = {};
+      dg.forEach(function (id) { inDraw[id] = true; });
+      var pair = pairs[t % pairs.length];
+      var rounds = playoffDraw(content, dg, pair);
+      rounds.forEach(function (round) {
+        roundsSeen += 1;
+        if (where[round.ids[0]].dim === scoring.DIM_KEYS.indexOf(pair[0])) firstIsFirstDim += 1;
+        round.ids.forEach(function (id) {
+          if (inDraw[id]) shownAgain += 1;
+          var w = where[id];
+          pickCounts[w.k][w.i] += 1;
+          pickTotal[w.k] += 1;
+        });
+      });
+    }
+    var xPick = 0, dfPick = 0, pickShares = [];
+    strata.forEach(function (st, k) {
+      if (!pickTotal[k]) return;
+      xPick += stats.pearson(pickCounts[k], fill(st.n, pickTotal[k] / st.n));
+      dfPick += st.n - 1;
+      pickCounts[k].forEach(function (c) { pickShares.push(c / pickTotal[k]); });
+    });
+    var pPick = stats.chiSquareP(xPick, dfPick);
+    var xOrder = stats.pearson([firstIsFirstDim, roundsSeen - firstIsFirstDim], [roundsSeen / 2, roundsSeen / 2]);
+    var pOrder = stats.chiSquareP(xOrder, 1);
+    // 2. Who wins: simulated players who treat the sections identically; for
+    //    every play that would go to the lot, the same player answers the
+    //    play-off. Pair by pair, the first section should win half of the
+    //    play-offs that were decided.
+    var players2 = helpers.makePlayerModel(content);
+    var next2 = scoring.makeGenerator('apt-fair-playoff|' + label);
+    var pairWins = zeros(10), pairDecided = zeros(10), playoffs = 0, settled = 0, winsBySection = zeros(5);
+    for (t = 0; t < N; t++) {
+      var dp = draw(content, seeds[t]);
+      var player = players2.makePlayer(next2);
+      var adm = players2.admits(next2, player, dp);
+      var r0 = scoring.score(adm, content, dp, rules);
+      if (r0.tieBreak !== 'lot' || !r0.playoff || !r0.playoff.rounds.length) continue;
+      playoffs += 1;
+      var r1 = scoring.score(adm, content, dp, rules, players2.playoff(next2, player, r0.playoff.rounds));
+      if (r1.tieBreak !== 'playoff') continue;
+      settled += 1;
+      var sorted = scoring.DIM_KEYS.filter(function (key) { return r0.tiedDims.indexOf(key) !== -1; });
+      var pi = pairIndex(scoring.DIM_KEYS.indexOf(sorted[0]), scoring.DIM_KEYS.indexOf(sorted[1]), 5);
+      pairDecided[pi] += 1;
+      if (r1.dominantDim === sorted[0]) pairWins[pi] += 1;
+      winsBySection[scoring.DIM_KEYS.indexOf(r1.dominantDim)] += 1;
+    }
+    var xPair = 0, pairLines = [];
+    pairs.forEach(function (pr, i) {
+      if (pairDecided[i]) xPair += stats.pearson([pairWins[i], pairDecided[i] - pairWins[i]], [pairDecided[i] / 2, pairDecided[i] / 2]);
+      pairLines.push(pr[0] + '/' + pr[1] + ' ' + (pairDecided[i] ? pct(pairWins[i] / pairDecided[i], 1) : '-'));
+    });
+    var pPair = stats.chiSquareP(xPair, 10);
+    var xSection = stats.pearson(winsBySection, fill(5, settled / 5));
+    var pSection = stats.chiSquareP(xSection, 4);
+    // 3. The draw of the 30 is unchanged: a digest of 20,000 draws, recorded
+    //    from the code before the play-off was added.
+    var digestOk = null;
+    var digestNote = 'not checked (only for the real bank and the synthetic 7-per-stratum bank)';
+    var expected = DRAW_DIGESTS[bankKey(content)];
+    if (expected && !options.draw) {
+      var hash = require('crypto').createHash('sha256');
+      var dseeds = helpers.seedStream('draw-digest');
+      for (var q = 0; q < 20000; q++) hash.update(scoring.drawStatements(content, dseeds()).join(',') + '\n');
+      var got = hash.digest('hex');
+      digestOk = got === expected;
+      digestNote = (digestOk ? 'identical' : 'DIFFERENT') + ' (sha-256 of 20,000 draws ' + got.slice(0, 16) + '..., recorded ' + expected.slice(0, 16) + '...)';
+    }
+    var linesG = [
+      'how often each statement is the one a play-off shows from its stratum (expected 1 in 7 = 14.29% each): from ' +
+        pct(Math.min.apply(null, pickShares)) + ' to ' + pct(Math.max.apply(null, pickShares)) + ' over ' + pickShares.length + ' statements (chi2 ' + xPick.toFixed(1) + ' on ' + dfPick + ' df, p ' + fmtP(pPick) + '); ' +
+        shownAgain + ' play-off statements were already among the 30 (must be 0)',
+      'order inside a round: the first section\'s statement comes first in ' + pct(firstIsFirstDim / roundsSeen, 2) + ' of ' + roundsSeen.toLocaleString('en-US') +
+        ' rounds (expected 50%; chi2 ' + xOrder.toFixed(2) + ' on 1 df, p ' + fmtP(pOrder) + ')',
+      'play-offs held: ' + pct(playoffs / N) + ' of players; settled by the play-off: ' + pct(playoffs ? settled / playoffs : 0) + ' of them (the rest go to the lot, checked in (f))',
+      'play-offs won by the first section of each pair (expected 50%): ' + pairLines.join(', ') + ' (chi2 ' + xPair.toFixed(2) + ' on 10 df, p ' + fmtP(pPair) + ')',
+      'play-offs won, by section: ' + scoring.DIM_KEYS.map(function (key, i) { return key + ' ' + pct(settled ? winsBySection[i] / settled : 0, 1); }).join(', ') +
+        ' (chi2 ' + xSection.toFixed(2) + ' on 4 df, p ' + fmtP(pSection) + ')',
+      'the draw of the 30: ' + digestNote
+    ];
+    var pG = Math.min(pPick, pOrder, pPair, pSection);
+    var rg = result('g', 'the play-off has no favourite and leaves the draw alone', xPick + xPair, dfPick + 10,
+      digestOk === false || shownAgain > 0 ? 0 : pG, linesG, 4);
+    rg.playoff = { pickShares: pickShares, pairWins: pairWins.slice(), pairDecided: pairDecided.slice(), playoffs: playoffs, settled: settled,
+      digestOk: digestOk, shownAgain: shownAgain, firstShare: firstIsFirstDim / roundsSeen };
+    checks.push(rg);
+  }
+
   return { checks: checks, ok: checks.every(function (c) { return c.pass; }) };
+}
+
+// Digests of 20,000 draws (seed stream 'draw-digest'), recorded from the
+// code before the play-off existed: the draw must never change.
+var DRAW_DIGESTS = {
+  real105: '128b6818ed576aada8c9481cea4c473b35a3702cdc300a883ca05f1ad5efbd7f',
+  synthetic7: 'a6b85f12cf4fe4bbb553abf1e94d6ea62c616d76e77217fd5a0b5f48e0bbaed6'
+};
+function bankKey(content) {
+  var ids = (content.statements || []).map(function (s) { return s.id; });
+  if (ids.length !== 105) return null;
+  // The synthetic bank numbers its statements s01..s105 by dimension and band.
+  var synthetic = content.statements.every(function (s, i) { return /^Did s/.test(s.text && s.text.en) && s.id === 's' + String(i + 1).padStart(2, '0'); });
+  return synthetic ? 'synthetic7' : 'real105';
 }
 
 // "28.57%" when every value is the same, else "28.57% / 50.00%".
@@ -562,12 +690,25 @@ function drawWithoutGroupShuffle(content, seed) {
   return byDim(fair.slice(0, 10)).concat(byDim(fair.slice(10, 20)), byDim(fair.slice(20)));
 }
 
+// A play-off that does not draw: always the first unseen statement of the
+// stratum, the first section first. The same statements every time.
+function playoffWithFirstUnseen(content, drawnIds, tiedDims) {
+  var pair = scoring.DIM_KEYS.filter(function (key) { return tiedDims.indexOf(key) !== -1; });
+  var inDraw = {};
+  drawnIds.forEach(function (id) { inDraw[id] = true; });
+  var strata = scoring.strataOf(content);
+  return scoring.PLAYOFF_BANDS.map(function (band) {
+    return { band: band, ids: pair.map(function (dim) { return strata[dim][band].filter(function (s) { return !inDraw[s.id]; })[0].id; }) };
+  });
+}
+
 function runControls(content, n) {
   var controls = [
     { name: '"random % n" on a byte in the draw', options: { draw: drawWithModuloBias, only: 'ab' } },
     { name: 'one statement forced into every draw (the old flag idea)', options: { draw: drawWithForcedStatement, only: 'ab' } },
     { name: 'shuffle by sorting with a random comparator', options: { draw: drawWithSortShuffle, only: 'd' } },
     { name: 'band groups left in dimension order (School always first)', options: { draw: drawWithoutGroupShuffle, only: 'd' } },
+    { name: 'a play-off that always shows the first unseen statement of a stratum', options: { playoffRounds: playoffWithFirstUnseen, only: 'g' } },
     { name: 'the old fixed tie order (bond > heart > brain > work > school)',
       options: { rules: Object.assign({}, scoring.RULES, { fixedTieOrder: ['bond', 'heart', 'brain', 'work', 'school'] }), only: 'f' } }
   ];
