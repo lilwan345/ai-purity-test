@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  The link-preview picture (og.png, 1200 x 630), drawn in the page's own look.
+  Make it again after changing the title, the lead line or the characters:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+      --hide-scrollbars --window-size=1200,630 --screenshot=og.png tools/og.html
+
+  (run from the repo root; any Chrome or Chromium works). It reads the words,
+  colours and characters from content.js and art.js, so it never drifts.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>og.png</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { display: block; min-height: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); }
+  .og { position: relative; box-sizing: border-box; width: 1200px; height: 630px; padding: 56px 70px; display: grid; grid-template-columns: 1fr 480px; gap: 24px; align-items: center; }
+  .badge { display: inline-block; margin: 0 0 22px; padding: 5px 16px; border: 2px solid var(--ink); border-radius: 999px; font-size: 20px; font-weight: 700; }
+  h1 { margin: 0 0 22px; font-family: var(--font-display); font-weight: 800; font-size: 118px; line-height: .88; letter-spacing: -0.01em; }
+  .lead { margin: 0; max-width: 600px; font-size: 30px; font-weight: 700; line-height: 1.3; }
+  .url { margin: 26px 0 0; font-size: 20px; font-weight: 600; color: var(--ink-soft); }
+  .tiles { position: relative; height: 270px; }
+  .tile { position: absolute; width: 150px; border-radius: 18px; padding: 10px 10px 16px; background: var(--bg); color: var(--fg);
+    box-shadow: 0 0 0 7px var(--sheet), 0 22px 40px -18px rgba(28, 37, 65, .5); transform: rotate(var(--tilt)); }
+  .tile img { display: block; width: 130px; height: 130px; }
+  .tile b { display: block; padding: 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 33px; line-height: 1; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="og">
+  <div>
+    <p class="badge" id="badge"></p>
+    <h1 id="title"></h1>
+    <p class="lead" id="lead"></p>
+    <p class="url">lilwan345.github.io/ai-purity-test</p>
+  </div>
+  <div class="tiles" id="tiles"></div>
+</div>
+<script src="../content.js"></script>
+<script src="../art.js"></script>
+<script>
+  var C = globalThis.APT_CONTENT;
+  document.getElementById('badge').textContent = C.landing.badge.en;
+  document.getElementById('title').textContent = C.ui.appName.en;
+  // One sentence per line.
+  C.landing.lead.en.split(/(?<=\.) /).forEach(function (part, i) {
+    if (i) document.getElementById('lead').appendChild(document.createElement('br'));
+    document.getElementById('lead').appendChild(document.createTextNode(part));
+  });
+  // Dark or white text, whichever reads better (the same rule as app.js).
+  function lum(hex) {
+    return [1, 3, 5].map(function (i) { var c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); })
+      .reduce(function (s, c, i) { return s + c * [0.2126, 0.7152, 0.0722][i]; }, 0);
+  }
+  function fg(bg) { var l = lum(bg); return (Math.max(l, lum('#1C2541')) + 0.05) / (Math.min(l, lum('#1C2541')) + 0.05) >= (1.05) / (l + 0.05) ? '#1C2541' : '#FFFFFF'; }
+  var spots = [['bond_deep', 6, 52, -6], ['brain_lite', 166, 14, 3], ['heart_deep', 326, 64, -3]];
+  spots.forEach(function (s) {
+    var t = C.types.filter(function (x) { return x.id === s[0]; })[0];
+    var div = document.createElement('div');
+    div.className = 'tile';
+    div.style.cssText = 'left:' + s[1] + 'px;top:' + s[2] + 'px;--tilt:' + s[3] + 'deg;--bg:' + t.color + ';--fg:' + fg(t.color);
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(globalThis.APT_ART[s[0]]);
+    var code = document.createElement('b');
+    code.textContent = t.code;
+    div.appendChild(img);
+    div.appendChild(code);
+    document.getElementById('tiles').appendChild(div);
+  });
+</script>
+</body>
+</html>

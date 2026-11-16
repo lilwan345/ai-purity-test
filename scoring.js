@@ -67,7 +67,7 @@
     // leaving a play and coming back (the title in the top bar, the landing's buttons)
     'continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel',
     // the play-off, the personal reason lines and the play history
-    'playoffIntro', 'playoffAgain', 'playoffCount', 'playoffProgress', 'matchPlayoff', 'matchPlayoffLot',
+    'playoffIntro', 'playoffAgain', 'playoffCount', 'playoffProgress', 'remarkTag', 'matchPlayoff', 'matchPlayoffLot',
     'reasonDimContrast', 'reasonDimOne', 'reasonDimSome', 'reasonDimNext', 'reasonDimElsewhere', 'reasonAnalogCount', 'reasonAnalogNone',
     'reasonAnalogPassed', 'reasonBalancedCounts', 'reasonBalancedLead', 'reasonBalancedLevel', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven',
     'reasonHeaviestPassed', 'reasonPassedNone', 'reasonSoulmate', 'historyLine', 'historyAllDifferent', 'listAnd', 'typesPlays'

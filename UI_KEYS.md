@@ -46,7 +46,7 @@ every one of them is decorative (empty alt text).
 | `playoffProgress` | Read out by screen readers before each play-off statement |
 | `closeEnoughHint` | Question screen, statements 1-3 of a play only: short form of `closeEnough` at the right end of the section label. It shares that line, so keep it ≤ 22 characters / 8 Chinese characters (a test checks) |
 | `liveLabel` | Question screen, small label before the running purity; also the small label above the score on the card (capitalised in English) |
-| `back` | Back button on the question screen (icon only; this is its accessible name) |
+| `back` | Back button on the question screen, shown after a "←": "Back" / 「上一题」 |
 | `answerYes` | Answer button: I have done this. Keep it short, it shares a phone-width row with `answerNo` |
 | `answerNo` | Answer button: never |
 | `answerUnsure` | The small, quiet answer between the two: the player doesn't get the statement or can't remember. Scored like `answerNo`. Keep it to a word or two (≤ 10 chars / 4 characters), it sits between two big buttons on a 360 px phone |
@@ -168,11 +168,23 @@ every one of them is decorative (empty alt text).
 | `replyIntro` | Reply link, quiet line above the heading |
 | `replyStart` | Reply link, button at the bottom: a fresh play of one's own |
 
+**The landing page's sections** (`content.landing`) and **"How this result was reached"** (`content.judging`) are not
+`ui` keys either: they are structured objects in content.js whose every leaf is `{ en, zh }` (`validateLanding` and
+`validateJudging` in extras.js check them, on page load and in the tests). `content.landing`: `badge`, `lead`, `count`
+({n}), `scrollCue`, then one object per section in page order (`ranking` with {n} in `total`, `about`, `why`, `who`,
+`how` with its `stats` tiles, `types`, `names`, `compare`, `faq`). `content.judging`: `title`, `header` ({seed} {n}),
+`further`, one object per check (`merged`, `hidden`, `untouched`, `balanced`, `lead`, `depth`) with its question `q`
+and its answers, `result` ({code} {name} {m}) and `drawNote`. Never spell out the hidden rule in `judging.hidden`, and
+keep the numbers in `drawNote` and the stat tiles true (tests tie them to scoring.js and tools/fairness.js).
+`remarkTag` (ui) is the small "AI" tag on the remark bubble.
+
 **The AI's remarks** are not `ui` keys: they live in `content.remarks`, lists of `{ en, zh }` lines under
 `general`, `mild` / `medium` / `extreme` (statement bands) and `school` / `work` / `heart` / `brain` / `bond`
 (sections). Each list needs at least one line; English at most 40 characters, Chinese at most 14, no emoji, no
 exclamation marks (`validateRemarks` in extras.js, also run on page load and by the tests). Voice: a deadpan
 witness who was there; never an accusation, nothing about the player's intelligence, looks or relationships.
-They show in a small bubble above the Guilty button, hidden from screen readers.
+They show in a small bubble above the Guilty button, hidden from screen readers. Since November 2026 the main source
+is `content.remarks.statements`: one line per statement id, written for that statement (at most 56 characters in
+English, 20 in Chinese); the groups above are only the fallback for a statement without a line.
 
 Length notes for the card: the type name gets up to 2 lines and the tagline up to 2 lines (beside the character: name up to 3 lines and tagline up to 4, because both wrap in the column beside the picture, about 40% of the card's width); both shrink to fit if longer. In Chinese, put a "，" where a two-line tagline should break: the card breaks there first. `cardNote` is one line and shrinks to fit. Dimension names appear as bar labels on the card, so short names (one word / two characters) look best.

@@ -51,6 +51,22 @@ Useful URL parameters:
 | `UI_KEYS.md` | Every interface text key the app reads, with where it shows up. |
 | `content/draft.json` | An old content draft with a different shape. Nothing loads it. |
 
+## The landing page
+
+The first screen: a badge ("5 sections · 105 statements · 14 types"), the
+title, a lead line ("Other tests ask who you are. This one asks what you
+did."), the intro, the start button, the real count of finished tests when
+there is one (see "Statistics") and a quiet cue to scroll. With a play under
+way or someone's link open, the first screen stays as it was (no badge, lead,
+count or cue). Below it, nine white cards in this order: most common results
+(only with real numbers), what this is (the five sections), why take it, who
+it is for, how the result is worked out (four steps, then three numbers the
+tests tie to the repo: 2/7, 200,000 seeds and 7 checks plus 6 broken
+versions in tools/fairness.js), the 14 types as chips, why the codes have
+these names, a comparison with a serious personality test (stacked rows on a
+phone), and questions. All words are `content.landing`. The type colours and
+the characters are the only decoration.
+
 ## How the quiz flows
 
 - One statement per screen, with two big buttons at the bottom: **Never** (left)
@@ -127,22 +143,37 @@ Useful URL parameters:
   statement, and the picked one is marked pressed (and shows a tick).
 - With "reduce motion" switched on, nothing slides; the tick shows briefly and
   the next statement appears.
-- **The AI interrupts.** Now and then a tap on **Guilty** gets a one-line dry
-  remark in the AI's voice ("Noted." / 「记下了。」), in a small ink bubble
-  just above the Guilty button, for about 1.5 s. It sits on its own fixed
-  layer, so the next statement arrives on time and nothing moves. Rules
+- **The AI interrupts.** Now and then a tap on **Guilty** gets a one-line
+  remark in the AI's voice, written for that exact statement
+  (`content.remarks.statements`, one line per statement id in both
+  languages, such as s01 「我写了八百字，你看了标题。」 / "I wrote 800 words. You
+  read the title."). It is a reply to the statement just admitted, so that
+  statement stays on the card while it shows: the Guilty button stays
+  pressed, the answers are locked, and the ink bubble with an "AI" tag sits
+  under the card's lower right (beside the card on wide windows). The play
+  then moves on by itself after 1.6 s plus 55 ms per character (a Chinese
+  character counts 2), at most 2.8 s (`remarkDuration`), or at once on any
+  tap, click or key; that tap or key only skips, it never answers the next
+  statement (it is caught before any button sees it). The answer is saved
+  when it is given, so a refresh during the hold lands on the next statement;
+  Back during the hold stays on the answered statement so it can be changed.
+  With no remark due, the next statement comes at once as always. Rules
   (`remarkFor` in `extras.js`): only on Guilty, never on Never or Not sure;
   never on the first 3 statements or the last one (the reveal starts right
-  after it); never on two statements in a row; at most 4 per play; going back
-  and answering again does not repeat one. Which statements may get one (9
-  per play, none next to each other) and which line each gets is
-  `remarkSchedule`, made from the seed with its own generator
-  (`apt-remarks-v1|seed`), so a shared link gives the same remarks for the
-  same answers and the draw's generator is never touched. The line comes from
-  the general lines plus those for the statement's band and section
-  (`content.remarks`: English at most 40 characters, Chinese at most 14, no
-  emoji or exclamation marks), never twice in one play. The bubble is
-  `aria-hidden`, so screen readers keep reading the statement.
+  after it), never in a play-off; never on two statements in a row; at most 6
+  per play; going back and answering again does not repeat one. Which
+  statements may get one is `remarkSchedule`: 12 places per play, none next to
+  each other, every such set equally likely, made from the seed with its own
+  generator (`apt-remarks-v1|seed`), so a shared link gives the same remarks
+  for the same answers and the draw's generator is never touched. A statement
+  without its own line falls back to the general, band and section lines
+  (`content.remarks.general` and the rest), never twice in one play. Limits:
+  per-statement lines 56 characters (English) / 20 (Chinese), the fallback
+  lines 40 / 14; no emoji or exclamation marks. The bubble is `aria-hidden`,
+  so screen readers keep reading the statement.
+- **The back button** on the question screen is labelled ("← Back" /
+  "← 上一题"). It is not there on the first statement (it keeps its place, so
+  the progress bar never moves); Backspace works as before.
 - **The reveal.** After the last answer the result is staged, about 4.5 s
   in all (`REVEAL` in `app.js` holds every number; `tests/reveal.test.js`
   checks the order and the limits):
@@ -298,6 +329,22 @@ card stays pinned on the left):
    If the player answered "Not sure" at all, one quiet line under the match
    says how many and that they counted as Never; from 8 on it adds that the
    purity is probably flattering. The card never mentions it.
+   **How this result was reached** (right after it, not for a preview or a
+   peek, never in a comparison or reply view): score()'s own run on this
+   play, one row per check in the order score() makes them: 20 or more or
+   deep in all five; the hidden combination (never spelled out); 3 or fewer,
+   all mild; an even spread with no lead (with the real reason it fails:
+   too few, a section untouched, the spread, or the lead); which section is
+   heaviest (and how a tie was settled: heavier statement, more statements,
+   the play-off round, or the lot); how deep. The deciding row is in the
+   type's colour, the rows after it are greyed with "No need to go further".
+   A header gives the play number (the seed, already in share links), and the
+   small print quotes the draw's chance, 2 in 7, and the observed range in
+   tools/fairness.js. The rows come from `extras.judgingTrace(result)`, which
+   reads the result and `scoring.RULES` and never decides a type itself;
+   `tests/judging.test.js` checks it against score() for every persona on
+   200 draws and 20,000 simulated players, and reruns check (a) of
+   tools/fairness.js to keep the quoted range true.
    Then two lines built from the player's own 30 answers
    (`extras.reasonLines`): a contrast in plain numbers ("You admitted 5 of
    the 6 Heart statements. Across the other four sections you averaged 2.")
@@ -561,8 +608,37 @@ be sent is decided in one place.
   to every hit (and the full referrer by default), which would send the seed
   and answer codes. So the page builds GoatCounter's documented `/count`
   request itself and loads no third-party script at all.
+- **Reading the totals back.** The landing page also reads GoatCounter's
+  public totals, from `https://leowan34.goatcounter.com/counter/<path>.json`
+  (`{"count": "1,234"}`; GoatCounter caches them for up to four hours): the
+  `finish` count for the line "1,234 tests finished" in the first screen (only
+  from 100 on), and the fourteen `result:<type id>` counts for "Most common
+  results" (only once they add up to 200; shares are each type's count over
+  that sum, one decimal; a type with no count is 0; ties keep the fixed type
+  order; the hidden type shows its code only to someone who has unlocked it,
+  otherwise "???"). Below the thresholds, or on any failure (a 403 while the
+  counter is switched off, a 404, a timeout of 4 s, an odd value) nothing is
+  shown at all, never a placeholder or an invented number. The count line is
+  read after the first paint, the ranking when its place comes near the
+  screen; all requests go in parallel, with no cookies and no Referer, only
+  from the real site; the parsed numbers are kept on the device for an hour
+  (`apt-public-counts-v1`). The fetching and the thresholds are pure
+  functions in `extras.js` (part 6), tested in `tests/counts.test.js`.
 - `tests/stats.test.js` checks the list, the fields, the host guard and that
   every call in `app.js` uses a listed name.
+
+## Link preview
+
+`index.html` carries Open Graph and Twitter card tags (English: static HTML
+has one language) and a canonical link, all with absolute URLs to
+https://lilwan345.github.io/ai-purity-test/. The picture, `og.png`
+(1200 x 630), is drawn by `tools/og.html` from content.js and art.js; make it
+again after changing the title, the lead line or the characters:
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+  --hide-scrollbars --window-size=1200,630 --screenshot=og.png tools/og.html
+```
 
 ## Publishing
 

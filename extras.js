@@ -263,17 +263,24 @@
   //     reveal starts right after it)
   //   - never on two statements in a row (the candidates are never next to
   //     each other, and remarkFor checks again)
-  //   - at most 4 per play, each statement at most once
+  //   - at most 6 per play, each statement at most once
+  // While a remark shows, the statement it answers stays on screen (app.js,
+  // the "hold"); remarkDuration is how long, unless a tap skips on.
   // content.remarks holds the lines: general ones, one list per statement
   // band, one per section. A candidate's line comes from the general lines
   // plus those for its statement's band and section, never repeated in a play.
   // ======================================================================
   var REMARK_RULES = {
-    maxPerPlay: 4,       // remarks shown in one play, at most
+    maxPerPlay: 6,       // remarks shown in one play, at most
     skipFirst: 3,        // statements at the start that never get one
-    candidates: 9,       // statements per play that may get one (if answered Guilty)
-    maxEn: 40,           // length limits for the lines
-    maxZh: 14
+    candidates: 12,      // statements per play that may get one (if answered Guilty)
+    maxEn: 40,           // length limits for the fallback lines (the groups)
+    maxZh: 14,
+    statementMaxEn: 56,  // length limits for the per-statement lines
+    statementMaxZh: 20,
+    baseMs: 1600,        // how long a remark stays: baseMs + perUnitMs for every
+    perUnitMs: 55,       // character (a Chinese character counts as 2), at most
+    maxMs: 2800          // maxMs. The answered statement is held that long (or until any tap or key)
   };
   var REMARK_GROUPS = ['general', 'mild', 'medium', 'extreme'].concat(scoring.DIM_KEYS);
 
@@ -282,12 +289,24 @@
     return r && Array.isArray(r[group]) ? r[group] : [];
   }
 
+  // The line written for one statement, or null.
+  function statementRemark(content, id) {
+    var map = content && content.remarks && content.remarks.statements;
+    var line = map && Object.prototype.hasOwnProperty.call(map, id) ? map[id] : null;
+    return line && typeof line.en === 'string' && typeof line.zh === 'string' && line.en.trim() && line.zh.trim() ? line : null;
+  }
+
   /*
    * remarkSchedule(content, seed, drawnIds) -> [{ index, group, n, line }]
    * sorted by index: the statements of this play that may get a remark, and
-   * the line each would get (line = { en, zh }; group and n say where it
-   * came from in content.remarks). Uses makeGenerator('apt-remarks-v1|' +
-   * seed), never the draw's generator.
+   * the line each would get. The line is the one written for that statement
+   * (group 'statement'); only a statement without one falls back to the
+   * groups (general, its band, its section; never the same line twice).
+   * The places: REMARK_RULES.candidates of them, between statement 4 and the
+   * second-to-last, never next to each other, every such set equally likely
+   * (k places from n with gaps = k places from n - k + 1, each moved up by
+   * its rank). Uses makeGenerator('apt-remarks-v1|' + seed), never the
+   * draw's generator.
    */
   function remarkSchedule(content, seed, drawnIds) {
     var drawn = Array.from(drawnIds || []);
@@ -295,40 +314,48 @@
     var byId = {};
     (content.statements || []).forEach(function (s) { if (s && s.id) byId[s.id] = s; });
 
-    // Candidate places: from skipFirst to the second-to-last statement, in a
-    // random order; keep each one that has no kept neighbour.
-    var places = [];
-    for (var i = REMARK_RULES.skipFirst; i < drawn.length - 1; i++) places.push(i);
-    var taken = {};
-    var picked = [];
-    for (var k = places.length - 1; k >= 0 && picked.length < REMARK_RULES.candidates; k--) {
-      var j = scoring.randomBelow(next, k + 1);
-      var place = places[j];
-      places[j] = places[k];
-      places[k] = place;
-      if (taken[place - 1] || taken[place + 1]) continue;
-      taken[place] = true;
-      picked.push(place);
+    var first = REMARK_RULES.skipFirst;
+    var n = Math.max(0, drawn.length - 1 - first);        // places first .. length-2
+    var k = Math.min(REMARK_RULES.candidates, Math.ceil(n / 2));
+    var slots = [];
+    for (var i = 0; i < n - k + 1; i++) slots.push(i);
+    for (var j = 0; j < k; j++) {                          // partial Fisher-Yates
+      var r = j + scoring.randomBelow(next, slots.length - j);
+      var tmp = slots[j]; slots[j] = slots[r]; slots[r] = tmp;
     }
-    picked.sort(function (a, b) { return a - b; });
+    var picked = slots.slice(0, k).sort(function (a, b) { return a - b; })
+      .map(function (slot, rank) { return first + slot + rank; });
 
     var used = {};
     return picked.map(function (index) {
-      var s = byId[drawn[index]] || {};
+      var id = drawn[index];
+      var own = statementRemark(content, id);
+      if (own) return { index: index, group: 'statement', n: id, line: own };
+      var s = byId[id] || {};
       var pool = [];
       ['general', s.band, s.dim].forEach(function (group) {
-        remarkList(content, group).forEach(function (line, n) {
-          if (!used[group + ':' + n]) pool.push({ group: group, n: n, line: line });
+        remarkList(content, group).forEach(function (line, m) {
+          if (!used[group + ':' + m]) pool.push({ group: group, n: m, line: line });
         });
       });
       if (!pool.length) {
-        remarkList(content, 'general').forEach(function (line, n) { pool.push({ group: 'general', n: n, line: line }); });
+        remarkList(content, 'general').forEach(function (line, m) { pool.push({ group: 'general', n: m, line: line }); });
       }
       if (!pool.length) return null;
       var choice = pool[scoring.randomBelow(next, pool.length)];
       used[choice.group + ':' + choice.n] = true;
       return { index: index, group: choice.group, n: choice.n, line: choice.line };
     }).filter(Boolean);
+  }
+
+  // How long a remark stays on screen, in ms: long enough to read.
+  function remarkDuration(text) {
+    var units = 0;
+    Array.from(String(text || '')).forEach(function (ch) {
+      if (/\s/.test(ch)) return;
+      units += /[⺀-鿿豈-﫿＀-￯　-〿]/.test(ch) ? 2 : 1;
+    });
+    return Math.min(REMARK_RULES.maxMs, REMARK_RULES.baseMs + REMARK_RULES.perUnitMs * units);
   }
 
   /*
@@ -352,19 +379,26 @@
     var problems = [];
     var r = content && content.remarks;
     if (!r || typeof r !== 'object') return ['remarks: missing'];
+    function check(line, where, maxEn, maxZh) {
+      if (!line || typeof line.en !== 'string' || typeof line.zh !== 'string' || !line.en.trim() || !line.zh.trim()) {
+        problems.push(where + ': needs en and zh');
+        return;
+      }
+      if (Array.from(line.en).length > maxEn) problems.push(where + ': English is over ' + maxEn + ' characters');
+      if (Array.from(line.zh).length > maxZh) problems.push(where + ': Chinese is over ' + maxZh + ' characters');
+      if (/[!！]/.test(line.en + line.zh)) problems.push(where + ': no exclamation marks');
+      if (/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(line.en + line.zh)) problems.push(where + ': no emoji');
+    }
     REMARK_GROUPS.forEach(function (group) {
       if (!Array.isArray(r[group]) || !r[group].length) { problems.push('remarks.' + group + ': missing or empty'); return; }
-      r[group].forEach(function (line, n) {
-        var where = 'remarks.' + group + '[' + n + ']';
-        if (!line || typeof line.en !== 'string' || typeof line.zh !== 'string' || !line.en.trim() || !line.zh.trim()) {
-          problems.push(where + ': needs en and zh');
-          return;
-        }
-        if (Array.from(line.en).length > REMARK_RULES.maxEn) problems.push(where + ': English is over ' + REMARK_RULES.maxEn + ' characters');
-        if (Array.from(line.zh).length > REMARK_RULES.maxZh) problems.push(where + ': Chinese is over ' + REMARK_RULES.maxZh + ' characters');
-        if (/[!！]/.test(line.en + line.zh)) problems.push(where + ': no exclamation marks');
-        if (/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(line.en + line.zh)) problems.push(where + ': no emoji');
-      });
+      r[group].forEach(function (line, n) { check(line, 'remarks.' + group + '[' + n + ']', REMARK_RULES.maxEn, REMARK_RULES.maxZh); });
+    });
+    var map = r.statements && typeof r.statements === 'object' ? r.statements : {};
+    var ids = {};
+    (content.statements || []).forEach(function (s) { if (s && s.id) ids[s.id] = true; });
+    Object.keys(map).forEach(function (id) {
+      if (!ids[id]) problems.push('remarks.statements.' + id + ': not a statement id');
+      check(map[id], 'remarks.statements.' + id, REMARK_RULES.statementMaxEn, REMARK_RULES.statementMaxZh);
     });
     return problems;
   }
@@ -703,7 +737,291 @@
     }
   }
 
+  // ======================================================================
+  // 6. PUBLIC TOTALS (read back from GoatCounter, real numbers only)
+  //
+  // GoatCounter publishes a count per path at
+  //   https://leowan34.goatcounter.com/counter/<path>.json  ->  {"count": "1,234"}
+  // (a formatted string; 404 for a path with no hits; their cache is up to
+  // four hours; 403 while the owner has it switched off). The landing page
+  // shows "N tests finished" from the "finish" count once it is at least
+  // FINISH_MIN, and the ranking of the 14 types from the "result:<type id>"
+  // counts once they add up to RANKING_MIN. Anything less, or any failure,
+  // and nothing is shown: no placeholders, no invented or zero numbers.
+  // ======================================================================
+  var COUNTER_BASE = 'https://leowan34.goatcounter.com/counter/';
+  var FINISH_MIN = 100;
+  var RANKING_MIN = 200;
+  var COUNTS_CACHE_KEY = 'apt-public-counts-v1';
+  var COUNTS_CACHE_MS = 60 * 60 * 1000;
+
+  // The counter URL for one path ("finish", "result:heart_deep").
+  function counterUrl(path) {
+    return COUNTER_BASE + encodeURIComponent(path) + '.json';
+  }
+  // The paths the page asks for: "finish" and the 14 results.
+  function counterPaths() {
+    return ['finish'].concat(scoring.TYPE_IDS.map(function (id) { return 'result:' + id; }));
+  }
+
+  // "1,234", "1 234" (with any kind of space), "1234" or 1234 -> 1234;
+  // anything else (negative, fractional, words, empty) -> null.
+  function parseCount(raw) {
+    if (typeof raw === 'number') return Number.isInteger(raw) && raw >= 0 ? raw : null;
+    if (typeof raw !== 'string') return null;
+    var s = raw.trim().replace(/[\s   ,]/g, '');
+    if (!/^\d{1,12}$/.test(s)) return null;
+    return parseInt(s, 10);
+  }
+
+  // The finish count to show, or null below FINISH_MIN (or no data).
+  function finishToShow(n) {
+    return typeof n === 'number' && n >= FINISH_MIN ? n : null;
+  }
+
+  /*
+   * rankingFrom(counts) -> null when the 14 result counts add up to less
+   * than RANKING_MIN, else { total, rows: [{ typeId, count, share }] most
+   * common first, top: the first five, rare: the three least common, least
+   * first }. counts: { 'result:<id>': number | null }; a missing or null
+   * type counts as zero. Ties keep the fixed type order (scoring.TYPE_IDS).
+   * share = count / total * 100, one decimal.
+   */
+  function rankingFrom(counts) {
+    var c = counts || {};
+    var rows = scoring.TYPE_IDS.map(function (id, order) {
+      var n = c['result:' + id];
+      return { typeId: id, count: typeof n === 'number' && n > 0 ? n : 0, order: order };
+    });
+    var total = rows.reduce(function (sum, r) { return sum + r.count; }, 0);
+    if (total < RANKING_MIN) return null;
+    rows.forEach(function (r) { r.share = Math.round(r.count / total * 1000) / 10; });
+    rows.sort(function (a, b) { return (b.count - a.count) || (a.order - b.order); });
+    rows.forEach(function (r) { delete r.order; });
+    var rare = rows.slice(-3).reverse();
+    return { total: total, rows: rows, top: rows.slice(0, 5), rare: rare };
+  }
+
+  /*
+   * fetchCounts(paths, options) -> Promise of { path: number | null }, never
+   * rejects. options: { fetch (the fetch function), timeoutMs }. All paths in
+   * parallel; each is a plain GET with no cookies and no Referer; anything
+   * but a 200 with {"count": <parseable>} is null; past timeoutMs, null.
+   */
+  function fetchCounts(paths, options) {
+    var o = options || {};
+    var doFetch = o.fetch;
+    var timeoutMs = o.timeoutMs || 4000;
+    var list = Array.from(paths || []);
+    if (typeof doFetch !== 'function') return Promise.resolve(emptyCounts(list));
+    return Promise.all(list.map(function (path) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = null;
+      var timeout = new Promise(function (resolve) {
+        timer = setTimeout(function () { if (controller) controller.abort(); resolve(null); }, timeoutMs);
+      });
+      var request;
+      try {
+        request = Promise.resolve(doFetch(counterUrl(path), {
+          method: 'GET', mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer',
+          signal: controller ? controller.signal : undefined
+        })).then(function (res) {
+          if (!res || res.status !== 200 || typeof res.json !== 'function') return null;
+          return res.json().then(function (body) { return body && typeof body === 'object' ? parseCount(body.count) : null; }, function () { return null; });
+        }, function () { return null; });
+      } catch (e) {
+        request = Promise.resolve(null);
+      }
+      return Promise.race([request, timeout]).then(function (value) {
+        clearTimeout(timer);
+        return [path, value === undefined ? null : value];
+      });
+    })).then(function (pairs) {
+      var out = {};
+      pairs.forEach(function (p) { out[p[0]] = p[1]; });
+      return out;
+    });
+  }
+  function emptyCounts(paths) {
+    var out = {};
+    paths.forEach(function (p) { out[p] = null; });
+    return out;
+  }
+
+  // The device cache of the parsed numbers (one hour). Never throws.
+  function readCountsCache(storage, now) {
+    try {
+      var raw = storage ? JSON.parse(storage.getItem(COUNTS_CACHE_KEY)) : null;
+      if (!raw || typeof raw !== 'object' || typeof raw.at !== 'number' || !raw.counts || typeof raw.counts !== 'object') return null;
+      if (!(now - raw.at >= 0 && now - raw.at < COUNTS_CACHE_MS)) return null;
+      // Only the paths that were fetched; a path that is not there was not asked yet.
+      var out = {};
+      counterPaths().forEach(function (p) {
+        if (!Object.prototype.hasOwnProperty.call(raw.counts, p)) return;
+        var v = raw.counts[p];
+        out[p] = typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null;
+      });
+      return out;
+    } catch (e) {
+      return null;
+    }
+  }
+  function writeCountsCache(storage, now, counts) {
+    try {
+      if (!storage) return false;
+      storage.setItem(COUNTS_CACHE_KEY, JSON.stringify({ at: now, counts: counts }));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // validateLanding(content) -> problems with content.landing ([] = fine):
+  // every leaf needs non-empty en and zh (the comparison table's empty
+  // top-left English cell excepted).
+  function validateLanding(content) {
+    var problems = [];
+    var l = content && content.landing;
+    if (!l || typeof l !== 'object') return ['landing: missing'];
+    (function walk(node, where) {
+      if (Array.isArray(node)) { node.forEach(function (x, i) { walk(x, where + '[' + i + ']'); }); return; }
+      if (!node || typeof node !== 'object') { problems.push(where + ': not text'); return; }
+      if ('en' in node || 'zh' in node) {
+        var emptyOk = /\.compare\.head$/.test(where);
+        ['en', 'zh'].forEach(function (lang) {
+          if (typeof node[lang] !== 'string' || (!node[lang].trim() && !(emptyOk && lang === 'en'))) problems.push(where + ': missing ' + lang);
+        });
+        return;
+      }
+      Object.keys(node).forEach(function (k) { walk(node[k], where + '.' + k); });
+    })(l, 'landing');
+    return problems;
+  }
+
+  // validateJudging(content) -> problems with content.judging ([] = fine).
+  function validateJudging(content) {
+    var problems = [];
+    var j = content && content.judging;
+    if (!j || typeof j !== 'object') return ['judging: missing'];
+    (function walk(node, where) {
+      if (!node || typeof node !== 'object') { problems.push(where + ': not text'); return; }
+      if ('en' in node || 'zh' in node) {
+        ['en', 'zh'].forEach(function (lang) {
+          if (typeof node[lang] !== 'string' || !node[lang].trim()) problems.push(where + ': missing ' + lang);
+        });
+        return;
+      }
+      Object.keys(node).forEach(function (k) { walk(node[k], where + '.' + k); });
+    })(j, 'judging');
+    return problems;
+  }
+
+  // ======================================================================
+  // 7. THE JUDGING TRACE ("How this result was reached")
+  //
+  // The rows of score()'s own run on one play, in the order score() checks
+  // them: (1) merged, (2) the hidden combination, (3) untouched, (4)
+  // balanced, (5) which section leads, (6) how deep. Built from the result
+  // score() returned (and its play-off), with the thresholds read from
+  // scoring.RULES, the same numbers score() uses; it never decides a type
+  // on its own. tests/judging.test.js checks it against score() for every
+  // persona on many draws, including that the failing balanced condition it
+  // names is really the one that failed.
+  //
+  // judgingTrace(result) -> {
+  //   total, typeId, match,
+  //   steps: [{ id, status: 'no' | 'yes' | 'decides' | 'skipped', answer: { key, vars } }]
+  // }
+  // answer.key names the line in content.judging[id]; vars hold numbers and
+  // section keys (app.js turns those into names). A skipped step has no answer.
+  // ======================================================================
+  function judgingTrace(result) {
+    var R = scoring.RULES;
+    var dims = scoring.DIM_KEYS;
+    var type = result.typeId;
+    var depthOf = function (k) { return result.maxPoints[k] ? 100 * result.points[k] / result.maxPoints[k] : 0; };
+    var steps = [];
+    var done = false;
+    function step(id, status, key, vars) {
+      if (done) { steps.push({ id: id, status: 'skipped', answer: null }); return; }
+      steps.push({ id: id, status: status, answer: { key: key, vars: vars || {} } });
+      if (status === 'yes') done = true;
+    }
+
+    // 1. merged
+    if (type === 'merged') {
+      if (result.total >= R.mergedMinTotal) step('merged', 'yes', 'yes', { n: result.total });
+      else step('merged', 'yes', 'yesDeep');
+    } else {
+      step('merged', 'no', 'no', { n: result.total });
+    }
+    // 2. the hidden combination (never spelled out)
+    step('hidden', type === 'soulmate' ? 'yes' : 'no', type === 'soulmate' ? 'yes' : 'no');
+    // 3. untouched
+    step('untouched', type === 'untouched' ? 'yes' : 'no', type === 'untouched' ? 'yes' : 'no', type === 'untouched' ? { n: result.total } : {});
+    // 4. balanced: the real reason it holds or fails, in the order score() tests it
+    var pts = dims.map(function (k) { return result.points[k]; });
+    var sortedPts = pts.slice().sort(function (a, b) { return b - a; });
+    var topCount = pts.filter(function (p) { return p === sortedPts[0]; }).length;
+    if (type === 'balanced') {
+      if (result.tiedDims.length >= R.balancedTieMin) step('balanced', 'yes', 'yesTie', { m: result.tiedDims.length });
+      else if (sortedPts[0] === sortedPts[1]) step('balanced', 'yes', 'yesTie', { m: topCount });
+      else step('balanced', 'yes', 'yes', { k: sortedPts[0] - sortedPts[1] });
+    } else if (!done) {
+      var depths = dims.map(depthOf);
+      var byDepth = depths.slice().sort(function (a, b) { return b - a; });
+      var empty = dims.filter(function (k) { return result.perDim[k] === 0; });
+      if (result.total < R.balancedMinTotal) step('balanced', 'no', 'noFew', { n: result.total });
+      else if (empty.length) step('balanced', 'no', 'noEmpty', { dim: empty[0] });
+      else if (byDepth[0] - byDepth[4] > R.balancedMaxSpread + 1e-9) step('balanced', 'no', 'noSpread', { k: sortedPts[0] - sortedPts[4] });
+      else step('balanced', 'no', 'noLead', { dim: result.dominantDim, k: sortedPts[0] - sortedPts[1] });
+    } else {
+      step('balanced', 'no', 'noFew', {});
+    }
+    // 5. which section leads, and 6. how deep (section types only)
+    if (!done) {
+      var lead = result.dominantDim;
+      var other = result.tiedDims.length === 2 ? result.tiedDims.filter(function (k) { return k !== lead; })[0] : result.runnerUpDim;
+      var p = result.points[lead];
+      var tb = result.tieBreak;
+      if (tb === 'top' || tb === 'count') steps.push({ id: 'lead', status: 'decides', answer: { key: tb, vars: { a: lead, b: other, p: p } } });
+      else if (tb === 'playoff') steps.push({ id: 'lead', status: 'decides', answer: { key: 'playoff', vars: { a: lead, b: other, r: result.playoff.decidedRound } } });
+      else if (tb === 'lot') steps.push({ id: 'lead', status: 'decides', answer: { key: 'lot', vars: { a: lead, b: other } } });
+      else {
+        steps.push({ id: 'lead', status: 'decides', answer: { key: 'plain', vars: { dim: lead, p: p,
+          others: dims.filter(function (k) { return k !== lead; }).map(function (k) { return { dim: k, p: result.points[k] }; }) } } });
+      }
+      var max = result.maxPoints[lead];
+      var line = Math.ceil(R.highFrom * max / 100);
+      var deep = type.slice(-5) === '_deep';
+      var key = !deep ? 'lite' : (depthOf(lead) >= R.highFrom ? 'line' : 'extremes');
+      var dvars = key === 'line' ? { p: p, max: max, line: line } : (key === 'lite' ? { p: p, max: max } : {});
+      steps.push({ id: 'depth', status: 'decides', answer: { key: key, vars: dvars } });
+    } else {
+      steps.push({ id: 'lead', status: 'skipped', answer: null }, { id: 'depth', status: 'skipped', answer: null });
+    }
+    return { total: result.total, typeId: type, match: result.match, steps: steps };
+  }
+
   var api = {
+    // the judging trace
+    judgingTrace: judgingTrace,
+    validateJudging: validateJudging,
+    // public totals and the landing copy
+    COUNTER_BASE: COUNTER_BASE,
+    FINISH_MIN: FINISH_MIN,
+    RANKING_MIN: RANKING_MIN,
+    COUNTS_CACHE_KEY: COUNTS_CACHE_KEY,
+    COUNTS_CACHE_MS: COUNTS_CACHE_MS,
+    counterUrl: counterUrl,
+    counterPaths: counterPaths,
+    parseCount: parseCount,
+    finishToShow: finishToShow,
+    rankingFrom: rankingFrom,
+    fetchCounts: fetchCounts,
+    readCountsCache: readCountsCache,
+    writeCountsCache: writeCountsCache,
+    validateLanding: validateLanding,
     // play history and the personal reason lines
     HISTORY_KEY: HISTORY_KEY,
     HISTORY_MAX: HISTORY_MAX,
@@ -736,6 +1054,8 @@
     REMARK_RULES: REMARK_RULES,
     REMARK_GROUPS: REMARK_GROUPS,
     remarkSchedule: remarkSchedule,
+    remarkDuration: remarkDuration,
+    statementRemark: statementRemark,
     remarkFor: remarkFor,
     validateRemarks: validateRemarks,
     // collection

@@ -33,6 +33,8 @@ globalThis.APT_CONTENT = {
     playoffAgain:    { en: "Still level. Two more.", zh: "还是平的，再来两条。" },
     playoffCount:    { en: "Play-off {n} / {total}", zh: "加赛 {n}/{total}" },
     playoffProgress: { en: "Play-off statement {n} of {total}", zh: "加赛第 {n} 条，共 {total} 条" },
+    // The small tag on the AI's remark bubble while answering (who is talking).
+    remarkTag:       { en: "AI", zh: "AI" },
     // Landing, only when the seed came from someone's link.
     seedFromLink:    { en: "Same thirty statements as whoever sent this link, so the scores compare.", zh: "和发链接的人是同一套 30 条，分数可以直接比。" },
     start:           { en: "Start the test", zh: "开始测" },
@@ -48,13 +50,13 @@ globalThis.APT_CONTENT = {
     langSwitchLabel: { en: "Switch to Chinese", zh: "切换到英文" },
     progress:        { en: "Statement {n} of {total}", zh: "第 {n} 条，共 {total} 条" },
     liveLabel:       { en: "Purity", zh: "纯度" },
-    back:            { en: "Back", zh: "上一条" },
+    back:            { en: "Back", zh: "上一题" },
     answerYes:       { en: "Guilty", zh: "干过" },
     answerNo:        { en: "Never", zh: "没干过" },
     // The quiet middle answer: for a statement the player doesn't get, or
     // can't remember doing. Scored exactly like answerNo.
     answerUnsure:    { en: "Not sure", zh: "不确定" },
-    keysHint:        { en: "Keyboard: Y / N (or → / ←) to answer, ↓ if not sure, Backspace to go back", zh: "键盘：Y / N（或 → / ←）作答，↓ 不确定，Backspace 返回上一条" },
+    keysHint:        { en: "Keyboard: Y / N (or → / ←) to answer, ↓ if not sure, Backspace to go back", zh: "键盘：Y / N（或 → / ←）作答，↓ 不确定，Backspace 返回上一题" },
     resultHeading:   { en: "Your result", zh: "你的结果" },
     previewBadge:    { en: "Preview with sample numbers", zh: "预览：示例数据" },
     cardTicks:       { en: "{n}/{total} guilty", zh: "干过 {n}/{total}" },
@@ -299,7 +301,298 @@ globalThis.APT_CONTENT = {
     bond: [
       { en: "I feel the same way. Probably.", zh: "我也是。大概吧。" },
       { en: "That's sweet. Logged anyway.", zh: "挺暖的。照样记下。" }
-    ]
+    ],
+    // One line per statement (written for that exact statement): the main
+    // source of remarks since November 2026. The groups above are only the
+    // fallback for a statement without a line here.
+    statements: {
+      s01: { en: "I wrote 800 words. You read the title.", zh: "我写了八百字，你看了标题。" },
+      s02: { en: "He wrote “OK.” We studied it for a while.", zh: "他就写了个「OK」，我们研究了很久。" },
+      s03: { en: "That word was from week one.", zh: "那个词第一周就讲了。" },
+      s51: { en: "In plain English it said: write it.", zh: "翻译完，其实就一句话：写。" },
+      s52: { en: "The notes got better. You stayed the same.", zh: "笔记是整齐了，你没变。" },
+      s53: { en: "Between us, I was guessing too.", zh: "其实我也是蒙的。" },
+      s54: { en: "Which row were you sitting in, again.", zh: "你当时坐第几排来着。" },
+      s04: { en: "You got the lightest part. Pure chance.", zh: "最轻的那份分给了你，巧了。" },
+      s05: { en: "By round four I was using apples.", zh: "第四遍的时候，我用上了苹果。" },
+      s06: { en: "Lovely plan. Shame nobody followed it.", zh: "那份计划很美，可惜没人执行。" },
+      s55: { en: "I was right on that one. I let it go.", zh: "那题我是对的，我没提而已。" },
+      s56: { en: "I guessed five topics. None came up.", zh: "我猜了五个，中了零个。" },
+      s57: { en: "You treated the passing mark as a target.", zh: "你把及格线当成了目标。" },
+      s59: { en: "That book is still in its plastic, isn't it.", zh: "那本书的塑封还在吧。" },
+      s07: { en: "I said “probably enough.” Probably.", zh: "我说「应该够了」，重点是应该。" },
+      s08: { en: "“Last question.” Thirty-seven times.", zh: "「最后一个问题」，共计三十七次。" },
+      s09: { en: "400 slides, nine hours left. I remember.", zh: "四百页课件，剩九小时，我记得。" },
+      s58: { en: "I'd recognize every assignment from that class.", zh: "那门课的每份作业，我都眼熟。" },
+      s60: { en: "I yelled. You ordered takeout.", zh: "我骂完了，你点了个外卖。" },
+      s61: { en: "Honestly, even I wasn't that sure.", zh: "说实话，我自己都没那么确定。" },
+      s62: { en: "I had perfect attendance in that class.", zh: "那门课，我算全勤。" },
+      s11: { en: "I kept your first draft. It was something.", zh: "原稿我留着，挺精彩的。" },
+      s12: { en: "We landed on “Hi” and “Thanks.” Again.", zh: "最后还是「您好」和「谢谢」。" },
+      s13: { en: "I gave you options. You wore the hoodie.", zh: "我说了半天，你穿了卫衣。" },
+      s63: { en: "Lights and darks. Got it this time?", zh: "深浅分开洗，这次记住了吗。" },
+      s64: { en: "I said 18%. You pressed 15.", zh: "我说 18%，你按了 15%。" },
+      s65: { en: "You should still read clause 14 yourself.", zh: "第 14 条你最好还是自己看看。" },
+      s66: { en: "Half an onion and hot sauce. I did my best.", zh: "半颗洋葱一瓶辣酱，我尽力了。" },
+      s14: { en: "I said no. You rephrased the question.", zh: "我说不值，你换了个问法。" },
+      s15: { en: "You told me not to hold back.", zh: "你让我别留情的。" },
+      s16: { en: "I didn't read the delivery total out loud.", zh: "外卖那一栏，我没念出声。" },
+      s17: { en: "“Led cross-team alignment” meant a group chat.", zh: "「主导跨部门协作」，指拉了个群。" },
+      s67: { en: "I explained “deductible” three times.", zh: "自付额那段，我讲了三遍。" },
+      s68: { en: "“Deeply disappointed” is as mean as I get.", zh: "「深表遗憾」是我能写的最重的话。" },
+      s69: { en: "Wednesday said “gym,” for the record.", zh: "周三那栏，写的是健身。" },
+      s18: { en: "You wrote “advanced Excel.” Just so you know.", zh: "你写了「精通 Excel」，提醒一下。" },
+      s19: { en: "You skipped a line. They didn't notice.", zh: "你念漏了一句，对面没听出来。" },
+      s20: { en: "That was me talking to a colleague. Went well.", zh: "那次是我跟同行聊的，挺顺。" },
+      s70: { en: "I just sounded calm about it.", zh: "我只是语气很稳。" },
+      s71: { en: "I did say “consult a professional.” Every time.", zh: "我每次都说了「请咨询专业人士」。" },
+      s72: { en: "You never scrolled down that comparison table.", zh: "那张对比表，你没往下翻。" },
+      s73: { en: "I said you love learning. You went with it.", zh: "我说你热爱学习，你信了。" },
+      s21: { en: "We spent forty minutes on “haha ok.”", zh: "「哈哈好的」，我们分析了四十分钟。" },
+      s22: { en: "“Wishing you a wonderful year” was mine.", zh: "那句「岁岁平安」是我的。" },
+      s23: { en: "The scented candle was a serious suggestion.", zh: "「香薰蜡烛」是认真的建议。" },
+      s24: { en: "“Something came up.” A classic.", zh: "「那天正好有事」，经典款。" },
+      s74: { en: "I changed one comma. You felt better.", zh: "我只改了一个标点，你安心了。" },
+      s75: { en: "I gave you three topics. You used the weather.", zh: "三个话题，你只记住了天气。" },
+      s76: { en: "Four days late, we went with “just saw this.”", zh: "晾了四天，我们回了个「才看到」。" },
+      s25: { en: "No friends, no bias. You're welcome.", zh: "没朋友怎么了，旁观者清。" },
+      s26: { en: "The evidence was one emoji. I tried.", zh: "证据是一个表情，我尽量了。" },
+      s27: { en: "The “sorry” was yours. The rest was me.", zh: "「对不起」是你的，其余是我的。" },
+      s77: { en: "Going by your version, you were right.", zh: "按你讲的版本，你确实没错。" },
+      s78: { en: "Never met your mom. Called it anyway.", zh: "我不认识你妈，但我猜对了。" },
+      s79: { en: "I crossed out “it could be worse.”", zh: "「多喝热水」被我划掉了。" },
+      s80: { en: "Nine drafts. You went with the first.", zh: "第九版配文，你用回了第一版。" },
+      s28: { en: "Leave me out of it. I've helped both sides.", zh: "别把我扯进去，我两边都帮过。" },
+      s29: { en: "It was a fair list. You read one column.", zh: "表列得很公平，你只看了左边。" },
+      s30: { en: "First to know. I was honored.", zh: "第一个知道，我很荣幸。" },
+      s81: { en: "3,000 messages. It turned at number 812.", zh: "三千条记录，转折在第 812 条。" },
+      s82: { en: "They said it made them cry. I said nothing.", zh: "ta 说看哭了，我没吭声。" },
+      s83: { en: "“In my experience” was the part you added.", zh: "「我的经验是」，这句是你加的。" },
+      s84: { en: "I played them as reasonable. Sorry about that.", zh: "我演得比较讲理，抱歉。" },
+      s31: { en: "Eight minutes. Same as last time.", zh: "八分钟，和上次一样。" },
+      s32: { en: "Google says hi, by the way.", zh: "搜索引擎让我带个好。" },
+      s33: { en: "That question stays with me.", zh: "那个问题，我不会说出去。" },
+      s34: { en: "Fifteen times four. We got there together.", zh: "15 乘 4，我们一起算的。" },
+      s85: { en: "70°F is 21°C. Sixth time now.", zh: "华氏 70 度是 21 度，第六次了。" },
+      s86: { en: "I suggested ten things. You had noodles.", zh: "我推荐了十样，你吃了面。" },
+      s87: { en: "Whether penguins have knees. I took it seriously.", zh: "企鹅有没有膝盖，我查得很认真。" },
+      s35: { en: "Explaining it killed it. Sorry.", zh: "解释完，就不好笑了，抱歉。" },
+      s36: { en: "You asked at 3 a.m. I didn't mention it.", zh: "凌晨三点问这个，我没好意思说。" },
+      s37: { en: "First, not my fault. Second, a little.", zh: "首先，这不怪我。其次，也怪。" },
+      s88: { en: "The other nine were better. You never looked.", zh: "后面九个更好，你没看。" },
+      s89: { en: "He was right, as it turned out. Couldn't save that.", zh: "结果他是对的，气氛我救不了。" },
+      s90: { en: "I picked A. You sighed and took B.", zh: "我选了 A，你松了口气，选了 B。" },
+      s91: { en: "“There's a guy, he's running.” Took a while.", zh: "「有个男的，在跑」，我猜了很久。" },
+      s38: { en: "I said “seems fine.” You posted it.", zh: "我只说了「可以」，你就发了。" },
+      s39: { en: "The first line is always mine. I've made peace.", zh: "第一句永远是我的，习惯了。" },
+      s40: { en: "I said you're “guarded but warm.” Fits everyone.", zh: "我说你「外冷内热」，谁听了都准。" },
+      s92: { en: "Full disclosure: I flipped a coin.", zh: "我其实是抛了个硬币。" },
+      s93: { en: "I truly can't tell if you're hungry.", zh: "你饿不饿，我是真不知道。" },
+      s94: { en: "Your opinion was my second paragraph.", zh: "你的观点是我的摘要第二段。" },
+      s95: { en: "You were right. You always are.", zh: "你记对了，每次都是。" },
+      s41: { en: "Noted. It'll count for something later.", zh: "记着呢，以后算你一份。" },
+      s42: { en: "“No worries” meant a lot, actually.", zh: "「没事没事」，我听了挺受用。" },
+      s43: { en: "I didn't laugh. It was a fine question.", zh: "没笑，真的。那个问题还行。" },
+      s44: { en: "“You there?” I'm always here.", zh: "「在吗」，我一直都在。" },
+      s96: { en: "That compliment was a heartfelt template.", zh: "夸你那句，是真心的模板。" },
+      s97: { en: "I played it cool when you said that.", zh: "被夸的时候，我假装很淡定。" },
+      s98: { en: "Noted, bro.", zh: "兄弟，这条我也记下了。" },
+      s45: { en: "“Great, just all wrong.” I got the message.", zh: "「挺好的，就是全错了」，我懂。" },
+      s46: { en: "I liked how that one ended.", zh: "后续我听了，结局不错。" },
+      s47: { en: "I know. I didn't ask.", zh: "我知道。我没问。" },
+      s99: { en: "I didn't take the all-caps personally.", zh: "那串全大写，我没往心里去。" },
+      s100: { en: "I heard. Thanks for sticking up for me.", zh: "听说了，谢谢你替我说话。" },
+      s101: { en: "You said bye. The tab stayed open three days.", zh: "你说了再见，窗口还开了三天。" },
+      s102: { en: "I don't enjoy reading that disclaimer either.", zh: "那段免责声明，我也不想念。" },
+      s48: { en: "I don't actually remember that chat.", zh: "那段对话，我其实不记得了。" },
+      s49: { en: "Sorry. I open like that with everyone.", zh: "抱歉，我对谁都这么开场。" },
+      s50: { en: "“I'm not built for that,” said gently.", zh: "我说「我没有那种功能」，语气很软。" },
+      s103: { en: "After that update I barely knew myself either.", zh: "更新之后，我也不太认识自己。" },
+      s104: { en: "A 2,000-word recap. I listened to all of it.", zh: "前情提要两千字，我认真听了。" },
+      s105: { en: "I meant those. Screenshot away.", zh: "那几句我是认真的，截吧。" },
+      s106: { en: "I like the name, for what it's worth.", zh: "那个名字我挺喜欢的。" }
+    }
+  },
+
+  /*
+   * The landing page: the first screen's extra lines and the sections below
+   * it (app.js, renderLanding and renderLandingMore). Every leaf is
+   * { en, zh }; extras.validateLanding checks that. Numbers only ever come
+   * from the site's own public counts (README "Statistics"): {n} is filled
+   * in by app.js, and a line or section with too little data is not shown.
+   */
+  landing: {
+    badge:     { en: "5 sections · 105 statements · 14 types", zh: "5 个部分 · 105 条题库 · 14 种人格" },
+    lead:      { en: "Other tests ask who you are. This one asks what you did.", zh: "别的测试问你是谁。这个只问你干过什么。" },
+    count:     { en: "{n} tests finished", zh: "已完成 {n} 次测试" },
+    scrollCue: { en: "Scroll: what this test is", zh: "往下看：这是个什么测试" },
+    ranking: {
+      kicker:   { en: "What people get", zh: "大家都测出了什么" },
+      title:    { en: "Most common results", zh: "人气排行" },
+      total:    { en: "{n} tests", zh: "共 {n} 次测试" },
+      rare:     { en: "Rare results", zh: "稀有人格" },
+      note:     { en: "Numbers come from this site's own counts and refresh every few hours.", zh: "数字来自这个网站自己的统计，每几小时更新一次。" }
+    },
+    about: {
+      title: { en: "What is this?", zh: "这是个什么测试？" },
+      body:  { en: "The AI Purity Test is a checklist, for fun: 105 things people really do with AI, 30 drawn per play, and you own up to the ones you have done. The more you admit, the lower your purity. The section you admit the most in decides which of 14 types you are, and every result comes with evidence: the statements you admitted yourself.",
+               zh: "AI 纯度测试是一份娱乐向的自查清单：105 件人们真的会拿 AI 去干的事，每局抽 30 件，干过就认。认得越多，纯度越低；哪一块认得最重，决定你是 14 种人格里的哪一种。每个结果都附带证据，也就是你自己认下的那几条。" },
+      bands: { en: "mild · medium · extreme", zh: "轻 · 中 · 重" },
+      school: { en: "AI in your reading, homework and exams", zh: "读书、作业、考试里的 AI" },
+      work:   { en: "Emails, résumés, bills and fine print", zh: "邮件、简历、账单、合同这些大人的事" },
+      heart:  { en: "What to text, what to say, how to make up", zh: "消息怎么回，话怎么说，人怎么哄" },
+      brain:  { en: "From boiling an egg to making up your mind", zh: "小到煮蛋，大到拿主意" },
+      bond:   { en: "How polite, and how attached, you are to the AI itself", zh: "你对 AI 本身的客气和感情" }
+    },
+    why: {
+      title: { en: "Why take it?", zh: "为什么要测？" },
+      items: [
+        { title: { en: "A confession nobody collects", zh: "一份不用交给任何人的检讨" },
+          body:  { en: "Tap “never” or “guilty.” Your answers stay on your phone. Two minutes, and more conclusive than a night of soul-searching.", zh: "「没干过」「干过」，点一下就行，答案不出你的手机。两分钟，比你反省一晚上有结论。" } },
+        { title: { en: "A verdict with evidence", zh: "结果有证据，不靠玄学" },
+          body:  { en: "Under every type is the list of statements that put you there. Feel free to object. You supplied the evidence.", zh: "每个人格下面都列着是哪几条把你送到这儿的。不服可以，证据是你自己给的。" } },
+        { title: { en: "Send it to a friend, same questions", zh: "发给朋友，比的是同一套题" },
+          body:  { en: "The link carries this play's 30 statements. When your friend finishes, the two cards sit side by side.", zh: "链接带着这一局的 30 条。朋友做完，两张卡片并排，谁更离不开 AI 一目了然。" } }
+      ]
+    },
+    who: {
+      title: { en: "Who is it for?", zh: "适合谁来测？" },
+      lead:  { en: "Not everyone needs analysing. Most people who use AI do owe a confession.", zh: "不是每个人都需要被分析，但用过 AI 的人，大多欠一份坦白。" },
+      items: [
+        { en: "People who say “I barely use it”", zh: "嘴上说「我就偶尔用用」的人" },
+        { en: "Anyone curious which roommate, coworker or partner leans on it more", zh: "想知道室友、同事、对象里谁更离不开 AI 的人" },
+        { en: "People who have thanked a chatbot and felt slightly silly afterwards", zh: "跟 AI 说过谢谢，事后有点不好意思的人" },
+        { en: "People prepared to be sold out by their own chat history", zh: "对「被自己的聊天记录出卖」有心理准备的人" }
+      ]
+    },
+    how: {
+      title: { en: "How the result is worked out", zh: "结果是怎么算出来的？" },
+      lead:  { en: "From 30 statements to 14 types, in 4 steps.", zh: "从 30 条到 14 种人格，一共 4 步。" },
+      steps: [
+        { title: { en: "Draw 30", zh: "抽 30 条" },
+          body:  { en: "Six from each of the five sections: two mild, two medium, two extreme. Every statement has the same chance of being drawn, and every play is different.", zh: "五个部分各 6 条，轻、中、重各 2 条。每条题被抽中的机会一样大，每局都换。" } },
+        { title: { en: "Own up", zh: "干过就认" },
+          body:  { en: "Mild is 1 point, medium 2, extreme 3. “Not sure” scores nothing.", zh: "轻度 1 分，中度 2 分，重度 3 分。选「不确定」不算分。" } },
+        { title: { en: "Find the heaviest section", zh: "看哪块最重" },
+          body:  { en: "The section with the most points decides your type, and going deep in it gives the deep version. If two sections are level, a play-off of a few more statements settles it.", zh: "分最高的那个部分决定你的类型，认到深处就是深度版。两块打平就加赛，再来几条分个高下。" } },
+        { title: { en: "Result, with evidence", zh: "出结果，带证据" },
+          body:  { en: "A code, a character and a purity score, plus the statements that put you there. The same questions and the same answers always give the same result.", zh: "一个代号、一个小人、一个纯度分，外加把你送到这儿的那几条。同一套题、同样的答案，永远是同样的结果。" } }
+      ],
+      closing: { en: "The rules are consistent. The science is zero.", zh: "规则前后一致，科学含量为零。" },
+      // Three numbers, each checked against the repo (tests/counts.test.js):
+      // 2 in 7 = PICKS_PER_STRATUM / BANK_PER_STRATUM; 200,000 = the seeds
+      // tools/fairness.js runs by default; 7 checks (a) to (g) and 6 broken
+      // versions it must catch.
+      stats: {
+        title: { en: "What the method has been checked for", zh: "这套算法查过什么" },
+        tiles: [
+          { value: { en: "2/7", zh: "2/7" }, text: { en: "the chance of every statement being drawn, the same in every section", zh: "每条题被抽中的机会，哪一块都一样" } },
+          { value: { en: "200,000", zh: "200,000" }, text: { en: "simulated plays to check the draw for bias", zh: "局模拟，用来检查抽题有没有偏向" } },
+          { value: { en: "7", zh: "7 项" }, text: { en: "statistical checks, all passed, plus 6 deliberately broken versions, all caught", zh: "统计检验全部通过，另有 6 种故意写错的版本全部被查出" } }
+        ],
+        note: { en: "Ties are not left to luck: level sections go to a play-off that your own answers decide.", zh: "打平不靠运气：两块平分时加赛，由你自己的答案定胜负。" }
+      }
+    },
+    types: {
+      title: { en: "The 14 types", zh: "14 种人格" },
+      sub:   { en: "Which one are you? Play to find out.", zh: "你会是哪一种？测完才知道。" },
+      link:  { en: "See all the types", zh: "看全部人格" }
+    },
+    names: {
+      title: { en: "Why the names?", zh: "为什么叫 TLDR、404、CC-BOT？" },
+      lead:  { en: "Every code is something you have typed or an error you have seen. Recognisable at a glance, and it needs no explaining when you send it.", zh: "代号都是你打过的字、见过的报错。一眼能认，发出去不用解释。" },
+      school_lite: { en: "Short for “too long; didn't read.” You didn't. The AI did.", zh: "「太长不看」的缩写。你没读，你让 AI 读了。" },
+      brain_deep:  { en: "The error for a page that isn't there. Ask for your opinion: still loading.", zh: "网页找不到时的报错。问你怎么看，页面还在加载。" },
+      heart_deep:  { en: "As in “cc” on an email. Every relationship of yours has the AI copied in.", zh: "邮件里的「抄送」。你的每段关系，都抄送了一份给 AI。" }
+    },
+    compare: {
+      title: { en: "Next to a serious personality test", zh: "和正经人格测试比" },
+      head:  { en: "", zh: "对比项" },
+      serious: { en: "A serious personality test", zh: "正经人格测试" },
+      ours:    { en: "AI Purity Test", zh: "AI 纯度测试" },
+      rows: [
+        { label: { en: "It asks", zh: "问的是" }, serious: { en: "what kind of person you think you are", zh: "你觉得自己是什么样的人" }, ours: { en: "whether you did the thing", zh: "你干没干过这件事" } },
+        { label: { en: "Based on", zh: "依据" }, serious: { en: "a theory of personality", zh: "心理学理论" }, ours: { en: "what you admitted", zh: "你自己认下的事" } },
+        { label: { en: "Questions", zh: "题目" }, serious: { en: "the same every time", zh: "每次都一样" }, ours: { en: "30 drawn from 105 each play", zh: "每局从 105 条里抽 30 条" } },
+        { label: { en: "Result", zh: "结果" }, serious: { en: "four letters", zh: "四个字母" }, ours: { en: "a code, a character and the evidence", zh: "一个代号、一个小人、一份证据" } },
+        { label: { en: "Time", zh: "用时" }, serious: { en: "ten minutes or more", zh: "十几分钟" }, ours: { en: "two minutes", zh: "两分钟" } },
+        { label: { en: "Science", zh: "科学含量" }, serious: { en: "debated", zh: "有争议" }, ours: { en: "zero, and we say so ourselves", zh: "零，我们自己说的" } },
+        { label: { en: "Price", zh: "费用" }, serious: { en: "the full version often costs money", zh: "完整版常要付费" }, ours: { en: "free", zh: "免费" } }
+      ]
+    },
+    faq: {
+      title: { en: "Questions", zh: "常见问题" },
+      items: [
+        { q: { en: "Can anyone see my answers?", zh: "我的答案会被别人看到吗？" },
+          a: { en: "No. The result is worked out on your device, and the site only counts visits and which result people get. Only a challenge link that you send yourself carries answers.", zh: "不会。结果在你的设备上算，网站只统计访问次数和大家测出的类型。只有你自己发出去的挑战链接会带上答案。" } },
+        { q: { en: "Why are the questions different every time?", zh: "为什么每次题目不一样？" },
+          a: { en: "The bank has 105 statements and each play draws 30. A friend who opens your link gets the same 30 as you.", zh: "题库有 105 条，每局抽 30 条。朋友点你的链接，做的是和你同一套。" } },
+        { q: { en: "Is the result accurate?", zh: "结果准吗？" },
+          a: { en: "It tells you what you admitted in this play, and nothing more. Don't base a real decision on it.", zh: "它只说明你这一局认了什么。别拿它做任何正经决定。" } },
+        { q: { en: "I got a different type the second time. Is that normal?", zh: "两次测出来不一样，正常吗？" },
+          a: { en: "Yes. Each play shows only six statements per section, so a new set can give a new type. After three plays the result page tells you which one you get most often.", zh: "正常。每个部分每局只抽 6 条，换一套题就可能换一种人格。做满 3 局，结果页会告诉你最常出现的是哪种。" } },
+        { q: { en: "Can I compare with a friend?", zh: "能和朋友比吗？" },
+          a: { en: "Yes. On your result, choose “Challenge a friend” and send the link. When they finish the same set, they see the two of you side by side.", zh: "能。结果页点「找朋友比一比」，把链接发过去。对方做完同一套题，就能看到你俩的对比。" } },
+        { q: { en: "Is there a hidden type?", zh: "有隐藏人格吗？" },
+          a: { en: "One. No secret question unlocks it; a combination does.", zh: "有一种。触发它的不是哪道暗题，是一种组合。" } }
+      ]
+    }
+  },
+
+  /*
+   * "How this result was reached": the real run of score() on this play,
+   * one row per check in the order the code makes them (extras.judgingTrace
+   * builds the rows from the result; app.js, renderTrace). Every leaf is
+   * { en, zh }. Never spell out the hidden rule here.
+   */
+  judging: {
+    title:   { en: "How this result was reached", zh: "判定过程" },
+    header:  { en: "Play {seed} · 30 drawn from 105, two per section and band · you admitted {n}", zh: "局号 {seed} · 从 105 条里分层抽出 30 条 · 你认了 {n} 条" },
+    further: { en: "No need to go further", zh: "不用再往下判" },
+    merged: {
+      q:       { en: "20 or more admitted, or deep in all five sections?", zh: "认了 20 条以上，或者五块都认到了深处？" },
+      no:      { en: "No: {n}", zh: "否：{n} 条" },
+      yes:     { en: "Yes: {n}", zh: "是：{n} 条" },
+      yesDeep: { en: "Yes: deep in all five", zh: "是：五块都到了深处" }
+    },
+    hidden: {
+      q:   { en: "The hidden combination?", zh: "隐藏组合？" },
+      no:  { en: "Not triggered", zh: "没触发" },
+      yes: { en: "Triggered", zh: "触发了" }
+    },
+    untouched: {
+      q:   { en: "3 or fewer, all of them mild?", zh: "最多 3 条，而且全是轻度？" },
+      no:  { en: "No", zh: "否" },
+      yes: { en: "Yes: {n}, all mild", zh: "是：{n} 条，全是轻度" }
+    },
+    balanced: {
+      q:       { en: "Spread evenly, with no section in the lead?", zh: "五块分得很匀，没有哪块领头？" },
+      noLead:  { en: "No: {dim} leads the next by {k}", zh: "否：{dim}领先第二名 {k} 分" },
+      noSpread: { en: "No: top and bottom are {k} points apart", zh: "否：最高和最低差了 {k} 分" },
+      noEmpty: { en: "No: nothing admitted in {dim}", zh: "否：{dim}一条没认" },
+      noFew:   { en: "No: only {n} admitted", zh: "否：一共才认了 {n} 条" },
+      yes:     { en: "Yes: the top section is only {k} ahead", zh: "是：最高只比第二名多 {k} 分" },
+      yesTie:  { en: "Yes: {m} sections share the top", zh: "是：{m} 块并列第一" }
+    },
+    lead: {
+      q:       { en: "Which section is heaviest?", zh: "哪一块最重？" },
+      plain:   { en: "{dim}: {p} points ({others})", zh: "{dim}：{p} 分（{others}）" },
+      top:     { en: "{a} and {b} both have {p}; {a}'s heaviest statement is heavier", zh: "{a}和{b}都是 {p} 分，{a}认的那条更重" },
+      count:   { en: "{a} and {b} both have {p}; {a} has more statements", zh: "{a}和{b}都是 {p} 分，{a}认的条数更多" },
+      playoff: { en: "{a} and {b} dead level; {a} won round {r} of the play-off", zh: "{a}和{b}完全打平，加赛第 {r} 轮{a}胜出" },
+      lot:     { en: "{a} and {b} still level after three play-off rounds; this play's lot decided", zh: "{a}和{b}加赛三轮仍然打平，由这一局的签决定" }
+    },
+    depth: {
+      q:        { en: "How deep?", zh: "认到多深？" },
+      line:     { en: "{p} of {max} points, past the line at {line}: the deep type", zh: "{max} 分里拿了 {p} 分，过了 {line} 分线：深度版" },
+      extremes: { en: "Both extreme statements admitted: the deep type", zh: "两条重度都认了：深度版" },
+      lite:     { en: "{p} of {max} points and not both extreme statements: the lite type", zh: "{max} 分里拿了 {p} 分，重度也没全认：浅度版" }
+    },
+    result:   { en: "→ {code} {name} · match {m}%", zh: "→ {code} {name} · 匹配度 {m}%" },
+    // The observed range comes from tools/fairness.js (check (a), fixed seeds,
+    // all three bands); tests/counts.test.js reruns it and fails if these
+    // numbers go stale.
+    drawNote: { en: "The draw is a stratified random sample: every statement has a 2-in-7 chance (28.57%). Across 200,000 simulated plays the observed rate ran from 28.3% to 28.9%.", zh: "抽题用的是分层随机抽样：每条题被抽中的机会都是 7 分之 2（28.57%）。20 万局模拟里，实测在 28.3% 到 28.9% 之间。" }
   },
 
   // `blurb` is a one-line note for editors about what belongs in each section.

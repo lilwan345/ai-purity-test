@@ -37,7 +37,8 @@
     return;
   }
   try {
-    const problems = scoring.validateContent(content).concat(extras.validateRemarks(content));
+    const problems = scoring.validateContent(content).concat(extras.validateRemarks(content), extras.validateLanding(content),
+      extras.validateJudging(content));
     if (problems.length) {
       // Not fatal: the editor sees this in the browser console while working.
       console.warn('[AI Purity Test] content.js has ' + problems.length + ' problem(s):\n- ' + problems.join('\n- '));
@@ -504,6 +505,9 @@
       el('span', { class: 'visually-hidden', text: ' – ' + t('langSwitchLabel') })
     );
 
+    // Anything that redraws the screen ends a remark's hold first (the play
+    // has already moved on to the next statement, so that is what shows).
+    if (hold) releaseHold();
     // A peek or the grid sits on top of whatever screen is underneath.
     const layer = currentLayer();
     let screen;
@@ -587,17 +591,28 @@
     const sameSet = state.seedFromLink && el('span', { class: 'seed-note',
       text: state.challenge ? t('challengeLanding') : t('seedFromLink') });
 
+    // The plain landing page (nobody's link, no play under way) also gets a
+    // badge, a lead line, the real count (when there is one) and a cue to
+    // the sections below. With a play under way or a friend's link, the
+    // first screen stays exactly as it was.
+    const plain = !friend && !sameSet && answeredCount() === 0;
+    const LC = content.landing || {};
     const copy = el('div', { class: 'landing-copy' }, [
       friend && el('div', { class: 'from-friend' }, [
         sticker(friend, 'sticker-small', -4),
         el('p', { class: 'from-friend-copy' }, [fromFriendText(friend), sameSet])
       ]),
       !friend && sameSet && el('p', { class: 'seed-note-alone' }, [sameSet]),
+      plain && LC.badge && el('p', { class: 'landing-badge', text: L(LC.badge) }),
       el('h1', { class: 'landing-title', tabindex: '-1', 'data-focus': true, text: t('appName') }),
+      plain && LC.lead && el('p', { class: 'landing-lead' }, statementPieces(L(LC.lead))),
       el('p', { class: 'lede', text: t('intro') }),
       el('p', { class: 'meta', text: t('meta') }),
       el('p', { class: 'close-enough', text: t('closeEnough') }),
-      landingActions()
+      landingActions(),
+      // The real number of finished tests, filled in after the first paint
+      // when the site's public count is at least 100 (renderFinishCount).
+      plain && extras.statsAllowed(location) && el('p', { class: 'landing-count', 'aria-live': 'polite' })
     ]);
 
     const stickers = TEASER_TYPES.filter((id) => typesById[id]).map((id, i) =>
@@ -621,7 +636,272 @@
       ])
     ]);
 
-    return el('section', { class: 'screen landing' }, [copy, sheet]);
+    const cue = plain && LC.scrollCue && el('a', {
+      class: 'lp-cue', href: '#lp-about',
+      onclick: (event) => {
+        event.preventDefault();
+        const target = document.getElementById('lp-about');
+        if (target) target.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      }
+    }, [L(LC.scrollCue), el('span', { class: 'lp-cue-arrow', 'aria-hidden': 'true', text: '↓' })]);
+
+    const first = el('section', { class: 'screen landing' }, [copy, sheet, cue]);
+    if (plain) scheduleFinishCount();
+    return el('div', { class: 'landing-page' }, [first, renderLandingMore()]);
+  }
+
+  // ---------- The landing page below the first screen ----------
+  /*
+   * Nine calm white cards, in this order: what people get (only with real
+   * numbers), what this is, why take it, who it is for, how the result is
+   * worked out, the 14 types, why the names, next to a serious test, and
+   * questions. All words are content.landing; the type colours and the
+   * characters are the only decoration.
+   */
+  function renderLandingMore() {
+    const LC = content.landing;
+    if (!LC) return null;
+    const card = (cls, children, id) => el('section', { class: 'lp-card ' + cls, id: id || null }, children);
+    const title = (pair) => el('h2', { class: 'lp-title' }, statementPieces(L(pair)));
+
+    // 1. What people get (empty and hidden until real numbers arrive).
+    const ranking = el('section', { class: 'lp-card lp-ranking', id: 'lp-ranking', hidden: true });
+    rankingHost = ranking;
+    if (countsMemo && extras.rankingFrom(countsMemo)) fillRanking(ranking, extras.rankingFrom(countsMemo), countsMemo.finish);
+    else watchRanking(ranking);
+
+    // 2. What is this?
+    const about = card('lp-about', [
+      title(LC.about.title),
+      el('p', { class: 'lp-body' }, statementPieces(L(LC.about.body))),
+      el('ul', { class: 'lp-sections' }, content.dimensions.map((d) => {
+        const deep = typesById[d.key + '_deep'];
+        return el('li', { class: 'lp-section', style: '--sec-bg:' + (deep ? deep.color : '#CBD3DE') }, [
+          el('span', { class: 'lp-section-name', text: L(d.name) }),
+          el('span', { class: 'lp-section-bands', text: L(LC.about.bands) }),
+          el('span', { class: 'lp-section-line' }, statementPieces(L(LC.about[d.key])))
+        ]);
+      }))
+    ], 'lp-about');
+
+    // 3. Why take it?
+    const why = card('lp-why', [
+      title(LC.why.title),
+      el('ol', { class: 'lp-cols' }, LC.why.items.map((it) => el('li', {}, [
+        el('h3', { class: 'lp-subtitle' }, statementPieces(L(it.title))),
+        el('p', { class: 'lp-small' }, statementPieces(L(it.body)))
+      ])))
+    ]);
+
+    // 4. Who is it for?
+    const who = card('lp-who', [
+      title(LC.who.title),
+      el('p', { class: 'lp-body' }, statementPieces(L(LC.who.lead))),
+      el('ul', { class: 'lp-ticks' }, LC.who.items.map((it) => el('li', {}, statementPieces(L(it)))))
+    ]);
+
+    // 5. How the result is worked out.
+    const how = card('lp-how', [
+      title(LC.how.title),
+      el('p', { class: 'lp-body' }, statementPieces(L(LC.how.lead))),
+      el('ol', { class: 'lp-steps' }, LC.how.steps.map((st, i) => el('li', {}, [
+        el('span', { class: 'lp-step-n', 'aria-hidden': 'true', text: String(i + 1) }),
+        el('h3', { class: 'lp-subtitle' }, statementPieces(L(st.title))),
+        el('p', { class: 'lp-small' }, statementPieces(L(st.body)))
+      ]))),
+      LC.how.stats && el('div', { class: 'lp-stats' }, [
+        el('h3', { class: 'lp-subtitle', text: L(LC.how.stats.title) }),
+        el('ul', { class: 'lp-stat-tiles' }, LC.how.stats.tiles.map((tile) => el('li', {}, [
+          el('span', { class: 'lp-stat-value', text: L(tile.value) }),
+          el('span', { class: 'lp-stat-text' }, statementPieces(L(tile.text)))
+        ]))),
+        el('p', { class: 'lp-small' }, statementPieces(L(LC.how.stats.note)))
+      ]),
+      el('p', { class: 'lp-closing' }, statementPieces(L(LC.how.closing)))
+    ]);
+
+    // 6. The 14 types: 13 chips and the locked one (open once earned).
+    const hiddenOpen = hiddenOpenNow();
+    const order = scoring.galleryOrder();
+    const chips = order.sections.concat(order.special).filter((id) => typesById[id]).map((id) => {
+      const ty = typesById[id];
+      if (id === 'soulmate' && !hiddenOpen) {
+        return el('li', { class: 'lp-chip is-locked' }, [
+          el('span', { class: 'lp-chip-code', text: '???' }),
+          el('span', { class: 'lp-chip-name', text: t('typesHidden') })
+        ]);
+      }
+      return el('li', { class: 'lp-chip', style: '--type-bg:' + ty.color + ';--type-fg:' + textColorOn(ty.color) }, [
+        artImg(id, 'lp-chip-art'),
+        el('span', { class: 'lp-chip-code', text: ty.code }),
+        el('span', { class: 'lp-chip-name' }, statementPieces(L(ty.name)))
+      ]);
+    });
+    const typesCard = card('lp-types', [
+      title(LC.types.title),
+      el('p', { class: 'lp-body' }, statementPieces(L(LC.types.sub))),
+      el('ul', { class: 'lp-chips' }, chips),
+      el('a', {
+        class: 'types-link', href: urlWith({ types: '1', lang: state.lang }), 'data-nav': 'types-lp',
+        onclick: (event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+          event.preventDefault();
+          openGallery();
+        }
+      }, [L(LC.types.link), el('span', { class: 'types-link-arrow', 'aria-hidden': 'true', text: '→' })])
+    ]);
+
+    // 7. Why the names?
+    const names = card('lp-names', [
+      title(LC.names.title),
+      el('p', { class: 'lp-body' }, statementPieces(L(LC.names.lead))),
+      el('ul', { class: 'lp-name-cards' }, ['school_lite', 'brain_deep', 'heart_deep'].filter((id) => typesById[id] && LC.names[id]).map((id) => {
+        const ty = typesById[id];
+        return el('li', { class: 'lp-name-card', style: '--type-bg:' + ty.color + ';--type-fg:' + textColorOn(ty.color) }, [
+          artImg(id, 'lp-name-art'),
+          el('span', { class: 'lp-name-code', text: ty.code }),
+          el('span', { class: 'lp-name-type' }, statementPieces(L(ty.name))),
+          el('p', { class: 'lp-name-why' }, statementPieces(L(LC.names[id])))
+        ]);
+      }))
+    ]);
+
+    // 8. Next to a serious personality test: a table, stacked rows on a phone.
+    const cmp = LC.compare;
+    const compare = card('lp-compare', [
+      title(cmp.title),
+      el('table', { class: 'lp-table' }, [
+        el('thead', {}, [el('tr', {}, [
+          el('th', { scope: 'col', text: L(cmp.head) }),
+          el('th', { scope: 'col', text: L(cmp.serious) }),
+          el('th', { scope: 'col', class: 'is-ours', text: L(cmp.ours) })
+        ])]),
+        el('tbody', {}, cmp.rows.map((row) => el('tr', {}, [
+          el('th', { scope: 'row', text: L(row.label) }),
+          el('td', { 'data-col': L(cmp.serious) }, statementPieces(L(row.serious))),
+          el('td', { class: 'is-ours', 'data-col': L(cmp.ours) }, statementPieces(L(row.ours)))
+        ])))
+      ])
+    ]);
+
+    // 9. Questions, plain text, not collapsed.
+    const faq = card('lp-faq', [
+      title(LC.faq.title),
+      el('dl', { class: 'lp-faq-list' }, LC.faq.items.reduce((list, it) => list.concat([
+        el('dt', {}, statementPieces(L(it.q))),
+        el('dd', {}, statementPieces(L(it.a)))
+      ]), []))
+    ]);
+
+    return el('div', { class: 'lp-more' }, [ranking, about, why, who, how, typesCard, names, compare, faq]);
+  }
+
+  // ---------- Real numbers: the site's public counts (extras.js, part 6) ----------
+  let countsMemo = null;      // the counts read so far, { path: number | null }
+  let rankingHost = null;     // the ranking card on the page now
+  let rankingObserver = null;
+
+  // Reads the public counts for some paths: from the device cache (an hour)
+  // or, for what is not there, from GoatCounter. Resolves with all counts
+  // known so far, or null off the real site. Never rejects.
+  let countsPending = Promise.resolve();   // one read at a time, so nothing is asked twice
+  function publicCounts(paths) {
+    if (!extras.statsAllowed(location)) return Promise.resolve(null);
+    const next = countsPending.then(() => readPublicCounts(paths));
+    countsPending = next.catch(() => {});
+    return next;
+  }
+  function readPublicCounts(paths) {
+    const storage = deviceStorage();
+    const cached = extras.readCountsCache(storage, Date.now()) || {};
+    const known = Object.assign({}, cached, countsMemo || {});
+    const missing = paths.filter((p) => !Object.prototype.hasOwnProperty.call(known, p));
+    if (!missing.length) { countsMemo = known; return Promise.resolve(known); }
+    if (typeof fetch !== 'function') return Promise.resolve(known);
+    return extras.fetchCounts(missing, { fetch: (url, opts) => fetch(url, opts), timeoutMs: 4000 }).then((got) => {
+      countsMemo = Object.assign(known, got);
+      extras.writeCountsCache(storage, Date.now(), countsMemo);
+      return countsMemo;
+    });
+  }
+
+  // The first screen's count line: after the first paint, "finish" only.
+  function scheduleFinishCount() {
+    if (!extras.statsAllowed(location)) return;
+    const run = () => publicCounts(['finish']).then((counts) => {
+      const n = counts && extras.finishToShow(counts.finish);
+      const node = app.querySelector('.landing-count');
+      if (node && n !== null && n !== undefined) node.textContent = L(content.landing.count).replace('{n}', n.toLocaleString(state.lang === 'zh' ? 'zh-CN' : 'en-US'));
+    });
+    requestAnimationFrame(() => setTimeout(run, 0));
+  }
+
+  // The ranking: fetched only when its card comes near the viewport.
+  function watchRanking(node) {
+    if (!extras.statsAllowed(location)) return;
+    if (rankingObserver) { rankingObserver.disconnect(); rankingObserver = null; }
+    const load = () => publicCounts(extras.counterPaths()).then((counts) => {
+      const ranking = counts && extras.rankingFrom(counts);
+      if (ranking && rankingHost === node && node.isConnected) fillRanking(node, ranking, counts.finish);
+    });
+    if (typeof IntersectionObserver !== 'function') { setTimeout(load, 1000); return; }
+    rankingObserver = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      rankingObserver.disconnect();
+      rankingObserver = null;
+      load();
+    }, { rootMargin: '200px 0px' });
+    // A hidden element has no box to watch, so watch the card after it.
+    requestAnimationFrame(() => {
+      const target = node.nextElementSibling || node;
+      if (rankingObserver) rankingObserver.observe(target);
+    });
+  }
+
+  // finish: the "finish" count for the total on the right (the sum of the
+  // fourteen results when there is none; shares are always over that sum).
+  function fillRanking(node, ranking, finish) {
+    const R = content.landing.ranking;
+    const hiddenOpen = hiddenOpenNow();
+    const fmt = (n) => n.toLocaleString(state.lang === 'zh' ? 'zh-CN' : 'en-US');
+    const share = (x) => x.toFixed(1) + '%';
+    const max = ranking.top.length ? ranking.top[0].share || 1 : 1;
+    const locked = (id) => id === 'soulmate' && !hiddenOpen;
+    const rows = ranking.top.map((r, i) => {
+      const ty = typesById[r.typeId];
+      return el('li', { class: 'lp-rank-row' + (locked(r.typeId) ? ' is-locked' : ''), style: '--type-bg:' + ty.color + ';--type-fg:' + textColorOn(ty.color) }, [
+        el('span', { class: 'lp-rank-n', 'aria-hidden': 'true', text: String(i + 1) }),
+        locked(r.typeId) ? el('span', { class: 'lp-rank-art is-empty' }) : el('span', { class: 'lp-rank-art' }, [artImg(r.typeId, 'lp-rank-img')]),
+        el('span', { class: 'lp-rank-words' }, [
+          el('span', { class: 'lp-rank-code', text: locked(r.typeId) ? '???' : ty.code }),
+          !locked(r.typeId) && el('span', { class: 'lp-rank-name' }, statementPieces(L(ty.name))),
+          !locked(r.typeId) && el('span', { class: 'lp-rank-tag' }, statementPieces(state.lang === 'zh' ? '「' + L(ty.tagline) + '」' : '“' + L(ty.tagline) + '”'))
+        ]),
+        el('span', { class: 'lp-rank-share', text: share(r.share) }),
+        el('span', { class: 'lp-rank-bar', 'aria-hidden': 'true' }, [el('i', { style: 'width:' + (100 * r.share / max).toFixed(1) + '%' })])
+      ]);
+    });
+    const rare = ranking.rare.map((r) => {
+      const ty = typesById[r.typeId];
+      return el('li', { class: 'lp-rare' + (locked(r.typeId) ? ' is-locked' : ''), style: '--type-bg:' + ty.color + ';--type-fg:' + textColorOn(ty.color) }, [
+        el('span', { class: 'lp-rare-code', text: locked(r.typeId) ? '???' : ty.code }),
+        el('span', { class: 'lp-rare-share', text: share(r.share) })
+      ]);
+    });
+    node.replaceChildren(
+      el('div', { class: 'lp-rank-head' }, [
+        el('div', {}, [
+          el('p', { class: 'kicker', text: L(R.kicker) }),
+          el('h2', { class: 'lp-title', text: L(R.title) })
+        ]),
+        el('p', { class: 'lp-rank-total', text: L(R.total).replace('{n}', fmt(typeof finish === 'number' && finish >= ranking.total ? finish : ranking.total)) })
+      ]),
+      el('ol', { class: 'lp-rank-list' }, rows),
+      el('h3', { class: 'lp-subtitle', text: L(R.rare) }),
+      el('ul', { class: 'lp-rare-list' }, rare),
+      el('p', { class: 'lp-note', text: L(R.note) })
+    );
+    node.hidden = false;
   }
 
   // The landing's buttons. Nothing answered: one start button. A play under
@@ -720,8 +1000,6 @@
 
   // ---------- Question screens (one statement at a time) ----------
   const TICK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
-  const BACK_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
-    '<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   // Timing of one answer: the picked button shows its tick for CONFIRM_MS,
   // then the card slides out for LEAVE_MS and the next one springs in (CSS).
@@ -757,14 +1035,17 @@
     const playoffLine = inPlayoff ? (playoffRound === 0 ? t('playoffIntro') : t('playoffAgain')) : '';
     const given = (inPlayoff ? state.playoffAnswers : state.answers)[statement.id]; // 'yes' | 'no' | 'unsure' | undefined
 
+    // A labelled back button ("← Back" / "← 上一题"). On the first statement
+    // it is not there (it keeps its place, so the progress bar never moves);
+    // Backspace still works as before.
     const backBtn = el('button', {
-      class: 'btn btn-ghost btn-icon q-back',
+      class: 'btn btn-ghost q-back',
       type: 'button',
-      'aria-label': t('back'),
-      title: t('back'),
+      hidden: state.index === 0 ? true : null,
+      'aria-hidden': state.index === 0 ? 'true' : null,
+      tabindex: state.index === 0 ? '-1' : null,
       onclick: goBack
-    });
-    backBtn.innerHTML = BACK_SVG; // static markup, not content
+    }, [el('span', { class: 'q-back-arrow', 'aria-hidden': 'true', text: '←' }), t('back')]);
 
     // The bar shows how many statements lie behind you. When arriving from
     // a neighbour, it animates from that neighbour's width (--from).
@@ -920,9 +1201,10 @@
   }
 
   function answer(value) {
-    if (busy || state.screen !== 'question') return;
+    if (busy || hold || state.screen !== 'question') return;
     const statementId = statementAt(state.index);
     if (!statementId) return;
+    hideRemark();
     const inPlayoff = state.index >= state.drawn.length;
     const firstAnswer = answeredCount() === 0;
     if (inPlayoff) state.playoffAnswers[statementId] = value;
@@ -940,9 +1222,10 @@
     });
     updateLive(value === 'yes' && !inPlayoff);
     // Now and then the AI says something about a "Guilty" (never about the
-    // other two answers, never in a play-off). It floats above the buttons on
-    // its own layer, so the next statement comes in on time and nothing moves.
-    if (!inPlayoff) maybeRemark(state.index, value);
+    // other two answers, never in a play-off, never on the last statement).
+    // Then the answered statement stays on screen with the AI's reply under
+    // it, and the play moves on after the reading time or at the next tap.
+    if (!inPlayoff && maybeRemark(state.index, value)) return;
 
     // 2. The card slides out, 3. the next statement (or the result) comes in.
     const reduce = reducedMotion();
@@ -981,7 +1264,8 @@
   // Back one statement (its answer stays and is shown); from the first one,
   // back to the landing page.
   function goBack() {
-    if (busy || state.screen !== 'question') return;
+    if (busy || hold || state.screen !== 'question') return;
+    hideRemark();
     if (state.index === 0) {
       go('landing');
       return;
@@ -1103,14 +1387,30 @@
    * may get a remark and which line each gets (its own generator: the draw
    * is never touched). extras.remarkFor applies the limits: only on Guilty,
    * not in the first 3 or on the last statement, never two in a row, at
-   * most 4. The remark sits on its own layer above the Guilty button for
-   * REMARK_MS, hidden from screen readers so it never interrupts the
-   * statement being read.
+   * most 6. Each line is the one written for that statement (the groups are
+   * only a fallback). The play-off never asks for one.
+   *
+   * A remark is a reply to the statement just admitted, so that statement
+   * stays on the card while it shows (the "hold"):
+   *  - the answer is already recorded and saved, and the saved position is
+   *    already the next statement (a refresh lands there);
+   *  - the picked answer stays pressed; the answers are locked (busy);
+   *  - the bubble, with its "AI" tag, sits under the card, where a reply
+   *    would (beside the card's lower right on wide windows);
+   *  - after extras.remarkDuration (1.6 s plus 55 ms a character, at most
+   *    2.8 s) the card leaves and the next statement comes in as usual;
+   *  - any tap, click or key before that skips straight to the next
+   *    statement. That event is swallowed (capture phase, before any button
+   *    sees it), so a skipping tap never also answers the next statement;
+   *  - Back (the button or Backspace) ends the hold and stays on the
+   *    answered statement, with its answer shown, so it can be changed: it is
+   *    the statement "before" the next one the play has moved to.
+   * Keys with Ctrl, Alt or Cmd pass through (a refresh shortcut still works).
+   * The bubble is aria-hidden, so screen readers keep to the statement.
    */
-  const REMARK_MS = 1500;
   let remarkCache = null;   // { seed, schedule }
-  let remarkTimer = null;
   let remarkNode = null;
+  let hold = null;          // { held, timer } while a remark holds its statement
 
   function remarkSchedule() {
     if (!remarkCache || remarkCache.seed !== state.seed) {
@@ -1119,43 +1419,121 @@
     return remarkCache.schedule;
   }
 
+  // Shows the remark for this answer, if one is due, and holds the
+  // statement. Returns true when it did (answer() then waits for the hold).
   function maybeRemark(index, value) {
     const entry = extras.remarkFor(remarkSchedule(), index, value, state.remarked);
-    if (!entry) return;
+    if (!entry) return false;
+    const next = nextPosition(index);
+    // remarkFor never picks the last statement; this is only a safety net.
+    if (next === null || next >= state.drawn.length) return false;
     state.remarked.push(index);
+    // The answer counts and the play has moved on: a refresh now lands on
+    // the next statement. The screen keeps the answered one until the hold ends.
+    state.index = next;
     saveState();
-    showRemark(L(entry.line));
+    const text = L(entry.line);
+    showRemark(text);
+    app.querySelectorAll('.btn-answer').forEach((btn) => btn.setAttribute('aria-disabled', 'true'));
+    const quiz = app.querySelector('.quiz');
+    if (quiz) quiz.classList.add('is-holding');
+    hold = { held: index, timer: setTimeout(endHoldOnTime, extras.remarkDuration(text)) };
+    window.addEventListener('click', onHoldEvent, true);
+    window.addEventListener('keydown', onHoldEvent, true);
+    return true;
   }
 
-  function showRemark(text) {
-    const yes = app.querySelector('.btn-answer[data-answer="yes"]');
-    if (!yes) return;
+  // Ends the hold without drawing anything (render() and the three ways out
+  // below call it).
+  function releaseHold() {
+    if (!hold) return;
+    clearTimeout(hold.timer);
+    hold = null;
+    busy = false;
+    window.removeEventListener('click', onHoldEvent, true);
+    window.removeEventListener('keydown', onHoldEvent, true);
+    hideRemark();
+  }
+
+  // The reading time is up: the card leaves as after any answer.
+  function endHoldOnTime() {
+    if (!hold) return;
+    const card = app.querySelector('.q-card');
+    const reduce = reducedMotion();
+    if (card && !reduce) {
+      card.classList.remove('enter-next', 'enter-prev');
+      card.classList.add('is-leaving');
+    }
+    hideRemark();
+    clearTimeout(hold.timer);
+    hold.timer = setTimeout(() => {
+      releaseHold();
+      if (state.screen === 'question') render({ moveFocus: true, enter: 'next' });
+    }, reduce ? 0 : LEAVE_MS);
+  }
+
+  // A tap, click or key during the hold: skip on (or go back), and nothing
+  // else sees the event.
+  function onHoldEvent(event) {
+    if (!hold) return;
+    if (event.type === 'keydown' && (event.altKey || event.ctrlKey || event.metaKey || event.isComposing)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.type === 'keydown' && event.repeat) return;
+    const back = event.type === 'keydown'
+      ? event.key === 'Backspace'
+      : !!(event.target && event.target.closest && event.target.closest('.q-back'));
+    const held = hold.held;
+    releaseHold();
+    if (state.screen !== 'question') return;
+    if (back) state.index = held;
+    else if (state.index === held) return; // cannot happen: the play has moved on
+    saveState();
+    render({ moveFocus: true, enter: back ? null : 'next' });
+  }
+
+  // The remark node: a small "AI" tag and the line.
+  function remarkElement() {
     if (!remarkNode) {
-      remarkNode = el('div', { class: 'ai-remark', 'aria-hidden': 'true' });
+      remarkNode = el('div', { class: 'ai-remark', 'aria-hidden': 'true' }, [
+        el('span', { class: 'ai-remark-tag' }),
+        el('span', { class: 'ai-remark-text' })
+      ]);
       document.body.appendChild(remarkNode);
     }
-    const box = yes.getBoundingClientRect();
+    return remarkNode;
+  }
+
+  // Placed as a reply to the card: under its lower right corner (phones),
+  // or beside its lower right on a wide window. It never covers the answers.
+  function showRemark(text) {
+    const card = app.querySelector('.q-card');
+    const answers = app.querySelector('.q-answers');
+    if (!card || !answers) return;
+    remarkElement();
+    remarkNode.firstChild.textContent = t('remarkTag');
+    remarkNode.lastChild.textContent = text;
+    const box = card.getBoundingClientRect();
     const root = document.documentElement;
-    remarkNode.textContent = text;
-    // Beside the Guilty button where the window leaves room (laptops), so it
-    // never touches the statement card; otherwise just above the button.
-    const room = root.clientWidth - box.right - 14 - 16;
-    const side = room >= 200;
+    const room = root.clientWidth - box.right - 16 - 16;
+    const side = room >= 220;
     remarkNode.classList.toggle('is-side', side);
-    if (side) {
-      remarkNode.style.cssText = 'left:' + (box.right + 14) + 'px;top:' + (box.top + box.height / 2) + 'px;max-width:' + Math.min(room, 340) + 'px';
-    } else {
-      remarkNode.style.cssText = 'right:' + Math.max(8, root.clientWidth - box.right) + 'px;bottom:' + (window.innerHeight - box.top + 12) + 'px';
-    }
     remarkNode.classList.remove('is-on');
+    if (side) {
+      remarkNode.style.cssText = 'left:' + (box.right + 16) + 'px;max-width:' + Math.min(room, 320) + 'px;top:0px';
+      const h = remarkNode.offsetHeight;
+      remarkNode.style.top = Math.round(box.bottom - h - 18) + 'px';
+    } else {
+      remarkNode.style.cssText = 'right:' + Math.max(16, root.clientWidth - box.right + 12) + 'px;top:0px';
+      const h = remarkNode.offsetHeight;
+      const limit = answers.getBoundingClientRect().top - 10 - h;
+      remarkNode.style.top = Math.round(Math.min(box.bottom + 10, limit)) + 'px';
+    }
     void remarkNode.offsetWidth; // restart the entrance
     remarkNode.classList.add('is-on');
-    clearTimeout(remarkTimer);
-    remarkTimer = setTimeout(hideRemark, REMARK_MS);
   }
 
   function hideRemark() {
-    clearTimeout(remarkTimer);
     if (remarkNode) remarkNode.classList.remove('is-on');
   }
 
@@ -1957,6 +2335,8 @@
         friendCode: state.challengeCode, sendBack: true
       }),
       renderVerdict(type, result, isSample),
+      // The real run of the rules on this play (not for a sample player).
+      !isSample && renderTrace(type, result),
       el('p', { class: 'roast' }, keepQuotes(L(type.roast))),
       renderSigns(type),
       el('dl', { class: 'traits' }, [
@@ -2101,6 +2481,58 @@
     const most = summary.most.map(code);
     const mostText = most.length === 1 ? most[0] : t('listAnd', { a: most.slice(0, -1).join(sep), b: most[most.length - 1] });
     return el('p', { class: 'verdict-history' }, keepWhole(t('historyLine', { n: summary.n, list: list, most: mostText }), most));
+  }
+
+  // "How this result was reached": score()'s own run on this play, one row
+  // per check in the order score() makes them (extras.judgingTrace). The
+  // deciding row stands out; the rows after it are greyed. Words are
+  // content.judging.
+  function renderTrace(type, result) {
+    const J = content.judging;
+    if (!J) return null;
+    const trace = extras.judgingTrace(result);
+    const sep = state.lang === 'zh' ? '、' : ', ';
+    const name = (k) => L(dimsByKey[k].name);
+    const fill = (pair, vars) => {
+      let text = L(pair);
+      Object.keys(vars || {}).forEach((k) => {
+        let v = vars[k];
+        if (k === 'dim' || k === 'a' || k === 'b') v = v ? name(v) : '';
+        if (k === 'others') v = v.map((o) => name(o.dim) + '\u00a0' + o.p).join(sep);
+        text = text.split('{' + k + '}').join(String(v));
+      });
+      return text;
+    };
+    let firstSkipped = true;
+    const rows = trace.steps.map((st, i) => {
+      const block = J[st.id];
+      let answer;
+      if (st.status === 'skipped') {
+        answer = firstSkipped ? L(J.further) : '';
+        firstSkipped = false;
+      } else {
+        answer = fill(block[st.answer.key], st.answer.vars);
+      }
+      return el('li', { class: 'trace-step is-' + st.status }, [
+        el('span', { class: 'trace-n', 'aria-hidden': 'true', text: String(i + 1) }),
+        el('span', { class: 'trace-body' }, [
+          el('span', { class: 'trace-q' }, statementPieces(L(block.q))),
+          answer && el('span', { class: 'trace-a' }, statementPieces(answer))
+        ]),
+        el('span', { class: 'trace-mark', 'aria-hidden': 'true' })
+      ]);
+    });
+    const header = L(J.header).split('{seed}');
+    return el('section', { class: 'trace' }, [
+      kicker(L(J.title)),
+      el('p', { class: 'trace-header' }, [
+        header[0], el('span', { class: 'trace-seed', text: String(state.seed).toUpperCase() }),
+        (header[1] || '').replace('{n}', String(trace.total))
+      ]),
+      el('ol', { class: 'trace-steps' }, rows),
+      el('p', { class: 'trace-result' }, keepWhole(L(J.result).replace(/ \{m\}/, '\u00a0{m}').replace('{code}', type.code).replace('{name}', L(type.name)).replace('{m}', String(trace.match)), [type.code])),
+      el('p', { class: 'trace-note' }, statementPieces(L(J.drawNote)))
+    ]);
   }
 
   // One quiet line under the match, only when the player answered "Not

@@ -103,8 +103,13 @@ test('app.js: every count goes through track(), with a name from the list, and n
   const ans = src.match(/function answer\(value\) \{([\s\S]*?)\n {2}\}/)[1];
   assert.match(ans, /track\('finish', 'play'\)/);
   assert.match(ans, /track\('result:' \+ finished\.typeId, 'play'\)/);
-  // The only network code sends through sendStat; no GoatCounter script tag.
-  assert.strictEqual((src.match(/\bfetch\(/g) || []).length, 1);
+  // The only network code: sending through sendStat, and reading the public
+  // totals back through extras.fetchCounts (a plain GET, no cookies, no
+  // Referer). No GoatCounter script tag.
+  assert.strictEqual((src.match(/\bfetch\(/g) || []).length, 2);
+  assert.match(src, /extras\.fetchCounts\(missing, \{ fetch: \(url, opts\) => fetch\(url, opts\), timeoutMs: 4000 \}\)/);
+  const ex = fs.readFileSync(path.join(__dirname, '..', 'extras.js'), 'utf8');
+  assert.match(ex, /method: 'GET', mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer'/);
   assert.match(src, /extras\.sendStat\(name, \{/);
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.doesNotMatch(html, /goatcounter|gc\.zgo\.at/);

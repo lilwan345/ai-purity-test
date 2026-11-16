@@ -12,6 +12,7 @@ require('../content.js');
 const content = globalThis.APT_CONTENT;
 const ROOT = path.join(__dirname, '..');
 const { drawStatements, admitByCounts, score, makeGenerator, randomBelow, TYPE_IDS } = scoring;
+assert.strictEqual(extras.REMARK_RULES.maxPerPlay, 6);
 const {
   encodeAnswers, decodeAnswers, readCompareLink, comparePlays, remarkSchedule, remarkFor,
   validateRemarks, collectedTypes, rememberCollected, COLLECTION_KEY, REMARK_RULES
@@ -184,7 +185,7 @@ test('comparePlays: nothing admitted on either side', () => {
 test('remarks: every line is short, plain and in both languages', () => {
   assert.deepStrictEqual(validateRemarks(content), []);
   let count = 0;
-  Object.keys(content.remarks).forEach((group) => content.remarks[group].forEach((line) => {
+  extras.REMARK_GROUPS.forEach((group) => content.remarks[group].forEach((line) => {
     count++;
     assert.ok(Array.from(line.en).length <= 40, line.en);
     assert.ok(Array.from(line.zh).length <= 14, line.zh);
@@ -199,6 +200,39 @@ test('remarks: every line is short, plain and in both languages', () => {
   assert.strictEqual(validateRemarks(broken).length, 2);
 });
 
+test('remarks: every statement has its own line in both languages, plain, and within its limits', () => {
+  const lines = content.remarks.statements;
+  content.statements.forEach((s) => {
+    const line = lines[s.id];
+    assert.ok(line && line.en.trim() && line.zh.trim(), s.id + ' has a line in both languages');
+    assert.ok(Array.from(line.en).length <= REMARK_RULES.statementMaxEn, s.id + ' en ' + line.en.length);
+    assert.ok(Array.from(line.zh).length <= REMARK_RULES.statementMaxZh, s.id + ' zh ' + line.zh);
+    assert.doesNotMatch(line.en + line.zh, /[!！]/);
+  });
+  assert.deepStrictEqual(Object.keys(lines).filter((id) => !byId[id]), [], 'no line for a statement that does not exist');
+  // A statement without its own line falls back to the groups.
+  const bare = JSON.parse(JSON.stringify(content));
+  delete bare.remarks.statements;
+  const drawn = drawStatements(bare, SEED);
+  const schedule = remarkSchedule(bare, SEED, drawn);
+  schedule.forEach((e) => {
+    const s = byId[drawn[e.index]];
+    assert.ok(['general', s.band, s.dim].includes(e.group));
+    assert.strictEqual(e.line, bare.remarks[e.group][e.n]);
+  });
+  assert.strictEqual(extras.statementRemark(bare, drawn[3]), null);
+  // How long a remark stays: 1.6 s plus 55 ms a character (Chinese counts 2), at most 3.2 s.
+  assert.strictEqual(extras.remarkDuration(''), 1600);
+  assert.strictEqual(extras.remarkDuration('Go on.'), 1600 + 55 * 5);
+  assert.strictEqual(extras.remarkDuration('记下了。'), 1600 + 55 * 8);
+  assert.strictEqual(extras.remarkDuration('x'.repeat(200)), 2800);
+  assert.deepStrictEqual([extras.REMARK_RULES.baseMs, extras.REMARK_RULES.perUnitMs, extras.REMARK_RULES.maxMs], [1600, 55, 2800]);
+  content.statements.forEach((s) => ['en', 'zh'].forEach((lang) => {
+    const ms = extras.remarkDuration(lines[s.id][lang]);
+    assert.ok(ms >= 1600 && ms <= 2800);
+  }));
+});
+
 test('remark schedule: same seed, same schedule; never in the first 3, on the last, or side by side', () => {
   for (let n = 0; n < 2000; n++) {
     const seed = 'm' + String(n).padStart(5, '0');
@@ -210,10 +244,10 @@ test('remark schedule: same seed, same schedule; never in the first 3, on the la
     schedule.forEach((entry, i) => {
       assert.ok(entry.index >= 3 && entry.index <= drawn.length - 2, 'place ' + entry.index);
       if (i > 0) assert.ok(entry.index - schedule[i - 1].index >= 2, 'never side by side');
-      // The line fits the statement: general, its band or its section.
-      const s = byId[drawn[entry.index]];
-      assert.ok(['general', s.band, s.dim].includes(entry.group));
-      assert.strictEqual(entry.line, content.remarks[entry.group][entry.n]);
+      // The line is the one written for that statement.
+      assert.strictEqual(entry.group, 'statement');
+      assert.strictEqual(entry.n, drawn[entry.index]);
+      assert.strictEqual(entry.line, content.remarks.statements[drawn[entry.index]]);
       keys.add(entry.group + ':' + entry.n);
     });
     assert.strictEqual(keys.size, schedule.length, 'no line twice in a play');
@@ -243,7 +277,7 @@ test('remark schedule: its own generator, so the draw is untouched and the place
   [0, 1, 2, 29].forEach((i) => assert.strictEqual(used[i], 0));
 });
 
-test('remarkFor: only on Guilty, at most 4 per play, never twice in a row, never the same statement twice', () => {
+test('remarkFor: only on Guilty, at most 6 per play, never twice in a row, never the same statement twice', () => {
   const next = makeGenerator('extras-test-remarkfor');
   for (let n = 0; n < 1000; n++) {
     const seed = 'f' + String(n).padStart(5, '0');
@@ -260,15 +294,15 @@ test('remarkFor: only on Guilty, at most 4 per play, never twice in a row, never
       // Going back and answering Guilty again shows nothing new.
       assert.strictEqual(remarkFor(schedule, index, 'yes', shown), null);
     });
-    assert.ok(shown.length <= 4);
+    assert.ok(shown.length <= REMARK_RULES.maxPerPlay);
     for (let i = 1; i < shown.length; i++) assert.ok(shown[i] - shown[i - 1] >= 2);
     assert.ok(shown.every((i) => i >= 3));
   }
-  // All Guilty: exactly 4 remarks.
+  // All Guilty: exactly 6 remarks.
   const schedule = remarkSchedule(content, SEED, DRAWN);
   const shown = [];
   DRAWN.forEach((id, i) => { if (remarkFor(schedule, i, 'yes', shown)) shown.push(i); });
-  assert.strictEqual(shown.length, 4);
+  assert.strictEqual(shown.length, 6);
   // Never on Never or Not sure, and a hand-made neighbour is refused too.
   schedule.forEach((e) => {
     assert.strictEqual(remarkFor(schedule, e.index, 'no', []), null);

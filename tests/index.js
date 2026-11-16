@@ -13,3 +13,5 @@ require('./extras.test.js');
 require('./reveal.test.js');
 require('./stats.test.js');
 require('./playoff.test.js');
+require('./counts.test.js');
+require('./judging.test.js');

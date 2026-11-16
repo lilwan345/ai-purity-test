@@ -359,8 +359,21 @@ body.on-question { overflow-x: hidden; }
 /* Back is a quiet chevron: still a 48px target, but no outline competing
    with the language button. The negative margin lines the chevron up with
    the page edge. */
-.q-back { flex: none; margin-left: -12px; border-color: transparent; }
+.q-back {
+  flex: none;
+  gap: 6px;
+  min-height: 44px;
+  margin-left: -10px;
+  padding: 0 10px;
+  border-color: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .q-back:hover { background: var(--sheet); }
+/* Not there on the first statement, but it keeps its place */
+.q-back[hidden] { display: inline-flex; visibility: hidden; }
+.q-back-arrow { font-size: 17px; line-height: 1; }
 .q-progress {
   flex: 1;
   min-width: 0;
@@ -1480,15 +1493,16 @@ html.is-revealing .topbar { pointer-events: none; }
 .reveal-speck.is-small { left: -0.6cqw; top: -0.6cqw; width: 1.2cqw; height: 1.2cqw; }
 
 /* ---------- The AI's remark while answering (app.js, showRemark) ---------- */
-/* A small chat bubble above the Guilty button, on its own fixed layer so the
-   next statement comes in under it and nothing moves. app.js sets right and
-   bottom from the button's position. */
+/* A small chat bubble: the AI's reply to the statement just admitted. It sits
+   on its own fixed layer under the card's lower right (beside it on wide
+   windows); app.js sets its place from the card. The tail points up at the
+   card. */
 .ai-remark {
   position: fixed;
   z-index: 25;
   max-width: min(78vw, 340px);
   padding: 7px 13px 8px;
-  border-radius: 14px 14px 4px 14px;
+  border-radius: 14px 4px 14px 14px;
   background: var(--ink);
   color: var(--paper);
   font-size: 14px;
@@ -1496,14 +1510,33 @@ html.is-revealing .topbar { pointer-events: none; }
   line-height: 1.35;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(-6px);
   transition: opacity 180ms ease-out, transform 260ms var(--spring);
 }
 .ai-remark.is-on { opacity: 1; transform: none; }
-/* Beside the button (wide windows): centred on it, the tail on the left */
-.ai-remark.is-side { border-radius: 14px 14px 14px 4px; transform: translate(-6px, -50%); }
-.ai-remark.is-side.is-on { transform: translate(0, -50%); }
+/* Beside the card (wide windows): the tail on the left, towards the card */
+.ai-remark.is-side { border-radius: 14px 14px 14px 4px; transform: translateX(-6px); }
+.ai-remark.is-side.is-on { transform: none; }
+/* During the hold the answers are locked: the picked one stays pressed, the
+   others step back a little. */
+.quiz.is-holding .btn-answer { pointer-events: none; }
+.quiz.is-holding .btn-answer[aria-pressed="false"] { opacity: .55; }
 html[lang^="zh"] .ai-remark { font-size: 15px; letter-spacing: .02em; }
+/* The small "AI" tag: who is talking. A pale pill inside the ink bubble. */
+.ai-remark-tag {
+  display: inline-block;
+  margin: 0 7px 0 -3px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  line-height: 17px;
+  vertical-align: 1px;
+}
+html[lang^="zh"] .ai-remark-text { word-break: keep-all; overflow-wrap: anywhere; }
 
 /* ---------- Challenge a friend (under the share buttons) ---------- */
 .challenge { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--rule); }
@@ -1702,3 +1735,302 @@ html[lang^="zh"] .q-playoff { word-break: keep-all; overflow-wrap: anywhere; }
 .verdict-reason { margin: 0; font-size: 15px; line-height: 1.5; text-wrap: pretty; }
 html[lang^="zh"] .verdict-reason { word-break: keep-all; overflow-wrap: anywhere; }
 .verdict-history { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-soft); text-wrap: pretty; }
+
+/* ---------- The landing page: first-screen additions ---------- */
+.landing-badge {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 3px 12px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.landing-lead {
+  margin: -6px 0 12px;
+  max-width: 26em;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+html[lang^="zh"] .landing-lead { word-break: keep-all; overflow-wrap: anywhere; }
+.landing-count { min-height: 1.5em; margin: 12px 0 0; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.lp-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 28px 0 0;
+  padding: 10px 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.lp-cue:hover { color: var(--ink); }
+.lp-cue-arrow { display: inline-block; animation: cue-bob 2.4s ease-in-out infinite; }
+@keyframes cue-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+
+/* ---------- The landing page: the sections below ---------- */
+/* Sizes are in --u (1px on phones; see "The landing page on large windows")
+   so the sections grow with the first screen and read as one page. */
+.lp-more { display: grid; gap: calc(var(--u, 1px) * 20); margin: calc(var(--u, 1px) * 36) 0 calc(var(--u, 1px) * 8); }
+.lp-card {
+  padding: calc(var(--u, 1px) * 24) calc(var(--u, 1px) * 20) calc(var(--u, 1px) * 26);
+  background: var(--sheet);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 36px -28px rgba(28, 37, 65, .45);
+}
+.lp-card[hidden] { display: none; }
+.lp-title {
+  margin: 0 0 calc(var(--u, 1px) * 10);
+  font-size: calc(var(--u, 1px) * 26);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.lp-subtitle { margin: 0 0 calc(var(--u, 1px) * 6); font-size: calc(var(--u, 1px) * 17); font-weight: 700; line-height: 1.35; }
+.lp-body { margin: 0 0 calc(var(--u, 1px) * 16); max-width: 46em; font-size: calc(var(--u, 1px) * 17); line-height: 1.55; text-wrap: pretty; }
+.lp-small { margin: 0; font-size: calc(var(--u, 1px) * 15); line-height: 1.55; color: var(--ink-soft); text-wrap: pretty; }
+.lp-note { margin: calc(var(--u, 1px) * 14) 0 0; font-size: calc(var(--u, 1px) * 13); color: var(--ink-soft); }
+html[lang^="zh"] .lp-card :is(.lp-title, .lp-subtitle, .lp-body, .lp-small, .lp-section-line, .lp-ticks li, .lp-closing, .lp-name-why, .lp-name-type, .lp-chip-name, .lp-rank-name, .lp-rank-tag, td, dt, dd) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.lp-card ul, .lp-card ol { list-style: none; margin: 0; padding: 0; }
+
+/* 2. What is this: the five sections, each with its deep type's colour */
+.lp-sections { display: grid; gap: calc(var(--u, 1px) * 10); grid-template-columns: repeat(auto-fit, minmax(calc(var(--u, 1px) * 170), 1fr)); }
+.lp-section {
+  display: grid;
+  gap: 2px;
+  padding: calc(var(--u, 1px) * 12) calc(var(--u, 1px) * 14) calc(var(--u, 1px) * 14);
+  border-radius: 12px;
+  border-left: calc(var(--u, 1px) * 6) solid var(--sec-bg);
+  background: var(--paper);
+}
+.lp-section-name { font-weight: 800; font-size: calc(var(--u, 1px) * 17); }
+.lp-section-bands { font-size: calc(var(--u, 1px) * 12); font-weight: 700; letter-spacing: .06em; color: var(--ink-soft); text-transform: uppercase; }
+.lp-section-line { font-size: calc(var(--u, 1px) * 15); line-height: 1.45; }
+
+/* 3. Why take it: three columns from 760px */
+.lp-cols { display: grid; gap: calc(var(--u, 1px) * 18); margin-top: calc(var(--u, 1px) * 6) !important; }
+.lp-cols li { padding-top: calc(var(--u, 1px) * 12); border-top: 2px solid var(--ink); }
+@media (min-width: 760px) { .lp-cols { grid-template-columns: repeat(3, 1fr); gap: calc(var(--u, 1px) * 24); } }
+
+/* 4. Who is it for */
+.lp-ticks { display: grid; gap: calc(var(--u, 1px) * 10); }
+.lp-ticks li { position: relative; padding-left: calc(var(--u, 1px) * 28); font-size: calc(var(--u, 1px) * 17); font-weight: 600; line-height: 1.45; }
+.lp-ticks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .3em;
+  width: calc(var(--u, 1px) * 14);
+  height: calc(var(--u, 1px) * 14);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+}
+
+/* 5. How: four numbered steps */
+.lp-steps { display: grid; gap: calc(var(--u, 1px) * 14); }
+@media (min-width: 640px) { .lp-steps { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .lp-steps { grid-template-columns: repeat(4, 1fr); } }
+.lp-steps li { padding: calc(var(--u, 1px) * 14); border-radius: 12px; background: var(--paper); }
+.lp-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--u, 1px) * 30);
+  height: calc(var(--u, 1px) * 30);
+  margin-bottom: calc(var(--u, 1px) * 8);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--u, 1px) * 16);
+}
+.lp-closing { margin: calc(var(--u, 1px) * 16) 0 0; font-weight: 700; font-size: calc(var(--u, 1px) * 16); }
+
+/* 6. The 14 types: chips in each type's colour */
+.lp-chips { display: flex; flex-wrap: wrap; gap: calc(var(--u, 1px) * 10); margin-bottom: calc(var(--u, 1px) * 8) !important; }
+.lp-chip {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: calc(var(--u, 1px) * 8);
+  padding: calc(var(--u, 1px) * 6) calc(var(--u, 1px) * 12) calc(var(--u, 1px) * 6) calc(var(--u, 1px) * 6);
+  border-radius: 12px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+  box-shadow: 0 0 0 3px var(--sheet);
+}
+.lp-chip-art { grid-row: 1 / span 2; width: calc(var(--u, 1px) * 40); height: calc(var(--u, 1px) * 40); pointer-events: none; }
+.lp-chip-code { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 17); line-height: 1.1; }
+.lp-chip-name { font-size: calc(var(--u, 1px) * 12); font-weight: 600; line-height: 1.3; }
+.lp-chip.is-locked { padding-left: calc(var(--u, 1px) * 12); border: 2px dashed var(--ink-soft); background: transparent; color: var(--ink-soft); box-shadow: none; grid-template-columns: auto; }
+
+/* 7. Why the names: three cards in the type's colour */
+.lp-name-cards { display: grid; gap: calc(var(--u, 1px) * 14); }
+@media (min-width: 760px) { .lp-name-cards { grid-template-columns: repeat(3, 1fr); } }
+.lp-name-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  padding: calc(var(--u, 1px) * 16) calc(var(--u, 1px) * 16) calc(var(--u, 1px) * 18);
+  border-radius: 14px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+}
+.lp-name-art { position: absolute; top: calc(var(--u, 1px) * 6); right: calc(var(--u, 1px) * 6); width: calc(var(--u, 1px) * 72); height: calc(var(--u, 1px) * 72); pointer-events: none; }
+.lp-name-code { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 40); line-height: 1; padding-right: calc(var(--u, 1px) * 70); }
+.lp-name-type { margin-top: calc(var(--u, 1px) * 6); font-weight: 700; font-size: calc(var(--u, 1px) * 15); padding-right: calc(var(--u, 1px) * 60); }
+.lp-name-why { margin: calc(var(--u, 1px) * 12) 0 0; font-size: calc(var(--u, 1px) * 15); line-height: 1.5; }
+
+/* 8. The comparison: a table, stacked rows on a phone */
+.lp-table { width: 100%; border-collapse: collapse; font-size: calc(var(--u, 1px) * 15); line-height: 1.45; }
+.lp-table th, .lp-table td { padding: calc(var(--u, 1px) * 10) calc(var(--u, 1px) * 12); text-align: left; vertical-align: top; border-bottom: 1px dashed var(--rule); }
+.lp-table thead th { font-size: calc(var(--u, 1px) * 13); letter-spacing: .04em; color: var(--ink-soft); border-bottom: 2px solid var(--ink); }
+.lp-table tbody th { width: 18%; font-weight: 700; }
+.lp-table .is-ours { font-weight: 700; color: var(--ink); }
+.lp-table thead .is-ours { color: var(--ink); }
+@media (max-width: 599px) {
+  .lp-table thead { display: none; }
+  .lp-table, .lp-table tbody, .lp-table tr, .lp-table th, .lp-table td { display: block; width: 100%; }
+  .lp-table tr { padding: 12px 0; border-bottom: 1px dashed var(--rule); }
+  .lp-table th, .lp-table td { padding: 2px 0; border: 0; }
+  .lp-table tbody th { width: 100%; margin-bottom: 4px; font-size: 13px; letter-spacing: .04em; color: var(--ink-soft); }
+  .lp-table td::before { content: attr(data-col) "："; display: inline; font-weight: 600; color: var(--ink-soft); }
+  html:not([lang^="zh"]) .lp-table td::before { content: attr(data-col) ": "; }
+}
+
+/* 9. Questions: plain blocks */
+.lp-faq-list { margin: 0; display: grid; gap: calc(var(--u, 1px) * 4); }
+.lp-faq-list dt { margin-top: calc(var(--u, 1px) * 14); font-weight: 700; font-size: calc(var(--u, 1px) * 17); }
+.lp-faq-list dt:first-child { margin-top: 0; }
+.lp-faq-list dd { margin: 0; font-size: calc(var(--u, 1px) * 15); line-height: 1.55; color: var(--ink-soft); }
+
+/* 1. Most common results: real numbers only */
+.lp-rank-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: calc(var(--u, 1px) * 14); }
+.lp-rank-head .kicker { margin-bottom: 4px; }
+.lp-rank-head .lp-title { margin: 0; }
+.lp-rank-total { margin: 0; font-size: calc(var(--u, 1px) * 14); font-weight: 700; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lp-rank-list { display: grid; gap: calc(var(--u, 1px) * 10); margin-bottom: calc(var(--u, 1px) * 18) !important; }
+.lp-rank-row {
+  display: grid;
+  grid-template-columns: calc(var(--u, 1px) * 20) calc(var(--u, 1px) * 52) minmax(0, 1fr) auto;
+  grid-template-areas: "n art words share" "n art bar bar";
+  align-items: center;
+  column-gap: calc(var(--u, 1px) * 12);
+  row-gap: calc(var(--u, 1px) * 4);
+}
+.lp-rank-n { grid-area: n; font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 18); color: var(--ink-soft); }
+.lp-rank-art { grid-area: art; display: block; width: calc(var(--u, 1px) * 52); height: calc(var(--u, 1px) * 52); border-radius: 10px; background: var(--type-bg); }
+.lp-rank-art.is-empty { background: transparent; border: 2px dashed var(--ink-soft); }
+.lp-rank-img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.lp-rank-words { grid-area: words; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
+.lp-rank-code { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 19); }
+.lp-rank-name { font-weight: 700; font-size: calc(var(--u, 1px) * 15); }
+.lp-rank-tag { flex-basis: 100%; font-size: calc(var(--u, 1px) * 13); color: var(--ink-soft); line-height: 1.4; }
+.lp-rank-share { grid-area: share; font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 20); font-variant-numeric: tabular-nums; }
+.lp-rank-bar { grid-area: bar; height: calc(var(--u, 1px) * 8); border-radius: 999px; background: var(--paper); overflow: hidden; }
+.lp-rank-bar i { display: block; height: 100%; border-radius: inherit; background: var(--type-bg); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.lp-rare-list { display: flex; flex-wrap: wrap; gap: calc(var(--u, 1px) * 10); }
+.lp-rare {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: calc(var(--u, 1px) * 5) calc(var(--u, 1px) * 12);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--type-bg);
+  color: var(--type-fg);
+}
+.lp-rare-code { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 16); }
+.lp-rare-share { font-weight: 700; font-size: calc(var(--u, 1px) * 13); font-variant-numeric: tabular-nums; }
+.lp-rare.is-locked, .lp-rank-row.is-locked .lp-rank-bar i { background: transparent; color: var(--ink-soft); }
+.lp-rare.is-locked { border-style: dashed; border-color: var(--ink-soft); }
+
+/* Large windows: the first screen fills the window (the sections start
+   below it), and the scroll cue sits at its bottom. */
+@media (min-width: 900px) {
+  .landing { min-height: calc(100vh - 76px); }
+  .landing > .lp-cue { grid-row: 3; grid-column: 1 / -1; align-self: end; justify-self: start; margin: 0 0 calc(var(--u) * 4); font-size: calc(var(--u) * 15); }
+  .landing .landing-badge { margin-bottom: calc(var(--u) * 14); padding: calc(var(--u) * 3) calc(var(--u) * 12); font-size: calc(var(--u) * 13); }
+  .landing .landing-lead { margin: calc(var(--u) * -6) 0 calc(var(--u) * 12); font-size: calc(var(--u) * 22); }
+  .landing .landing-count { margin-top: calc(var(--u) * 12); font-size: calc(var(--u) * 14); }
+}
+
+/* ---------- "How this result was reached" (app.js, renderTrace) ---------- */
+.trace {
+  margin: 0 0 32px;
+  padding: 20px 18px 16px;
+  background: var(--sheet);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 36px -28px rgba(28, 37, 65, .45);
+}
+.trace-header { margin: -4px 0 12px; font-size: 14px; line-height: 1.5; color: var(--ink-soft); text-wrap: pretty; }
+.trace-seed {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.trace-steps { list-style: none; margin: 0; padding: 0; }
+.trace-step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 14px;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--rule);
+}
+.trace-n {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  font: 800 13px/1 var(--font-display);
+}
+.trace-body { display: grid; gap: 2px; }
+.trace-q { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.trace-a { font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+.trace-mark { width: 12px; height: 12px; margin-top: 6px; border: 1.5px solid var(--ink-soft); border-radius: 50%; }
+/* The deciding rows: in the type's colour, the answer in ink */
+.trace-step.is-yes, .trace-step.is-decides {
+  margin: 0 -10px;
+  padding: 10px;
+  border-radius: 12px;
+  border-bottom-color: transparent;
+  background: var(--type-bg);
+  color: var(--type-fg);
+}
+.trace-step.is-yes .trace-a, .trace-step.is-decides .trace-a { color: inherit; font-weight: 700; }
+.trace-step.is-yes .trace-n, .trace-step.is-decides .trace-n { border-color: currentColor; }
+.trace-step.is-yes .trace-mark, .trace-step.is-decides .trace-mark { background: currentColor; border-color: currentColor; }
+.trace-step.is-decides + .trace-step.is-decides { margin-top: 6px; }
+/* The rows after the deciding one: not needed, greyed */
+.trace-step.is-skipped { opacity: .42; }
+.trace-step.is-skipped .trace-mark { border-style: dashed; }
+.trace-result { margin: 12px 0 0; font-size: 17px; font-weight: 800; }
+.trace-note { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); text-wrap: pretty; }
+html[lang^="zh"] .trace :is(.trace-q, .trace-a, .trace-note, .trace-header) { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* The method's numbers, inside "How the result is worked out" */
+.lp-stats { margin-top: calc(var(--u, 1px) * 20); padding-top: calc(var(--u, 1px) * 16); border-top: 1px dashed var(--rule); }
+.lp-stat-tiles { display: grid; gap: calc(var(--u, 1px) * 10); margin: calc(var(--u, 1px) * 4) 0 calc(var(--u, 1px) * 12) !important; }
+@media (min-width: 640px) { .lp-stat-tiles { grid-template-columns: repeat(3, 1fr); } }
+.lp-stat-tiles li { display: grid; gap: 4px; padding: calc(var(--u, 1px) * 14); border: 1.5px solid var(--ink); border-radius: 12px; }
+.lp-stat-value { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u, 1px) * 34); line-height: 1; }
+html[lang^="zh"] .lp-stat-value { font-family: var(--font-display), var(--font-body); }
+.lp-stat-text { font-size: calc(var(--u, 1px) * 14); line-height: 1.45; color: var(--ink-soft); }
+html[lang^="zh"] .lp-stat-text { word-break: keep-all; overflow-wrap: anywhere; }

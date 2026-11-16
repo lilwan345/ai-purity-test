@@ -224,7 +224,12 @@ function runFairness(content, options) {
           pct(Math.min.apply(null, chances)) + ' to ' + pct(Math.max.apply(null, chances)) +
           ' over ' + list.length + ' statements (largest relative deviation ' + pct(worst) + ')');
       });
-      checks.push(result('a', 'every statement is drawn equally often', xa, dfa, stats.chiSquareP(xa, dfa), lines));
+      var ra = result('a', 'every statement is drawn equally often', xa, dfa, stats.chiSquareP(xa, dfa), lines);
+      // The observed range over all three bands, for the tests: the result
+      // page's small print quotes it (content.js, judging.drawNote).
+      var allChances = [].concat(byBand.mild, byBand.medium, byBand.extreme).map(function (x) { return x.chance; });
+      ra.range = { min: Math.min.apply(null, allChances), max: Math.max.apply(null, allChances) };
+      checks.push(ra);
     }
 
     // ---- (b) pairs inside a stratum ----
