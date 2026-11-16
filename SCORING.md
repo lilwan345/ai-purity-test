@@ -113,7 +113,12 @@ always includes an extreme statement.
    points somewhere.
 4. **Balanced** (SAMPLER): no section leads. Two ways in:
    - **an even spread**: at least 6 admitted, every section has at least one,
-     and the deepest and shallowest sections are at most 3 points apart; or
+     the deepest and shallowest sections are at most 3 points apart, **and the
+     top section is at most 1 point ahead of the second** (`balancedMaxLead`,
+     added November 2026: before it, 4 / 1 / 1 / 1 / 1 points was "no section
+     leads", although the reason lines showed one section clearly ahead, and
+     for people with one real leaning that section was their leaning three
+     times in four); or
    - **a tie for the top**: three or more sections share the highest points
      exactly. Picking one of them would be arbitrary.
 5. **A section type**: otherwise your **leading section** decides. It is that
@@ -235,6 +240,8 @@ bank of the same shape). Counts are written mild/medium/extreme.
 | One mild thing in every section | 1/0/0 everywhere | 5 | balanced | - | 100 |
 | Four sections, no feelings for it | 2/1/0 in all but bond | 12 | balanced | - | 100 |
 | Everyday light user | 2/0/0 in four, bond 1/0/0 | 9 | balanced | - | 92 |
+| Even spread, one point ahead | school 2/0/0, every other section 1/0/0 | 6 | balanced | - | 92 |
+| Even spread, two points ahead | school 1/1/0, every other section 1/0/0 | 6 | school_lite | - | 75 |
 | Exam season with a crush | school 2/2/0, heart 1/2/0, work, bond 1/0/0 | 9 | school_lite | heart_lite | 55 |
 | Equal points, heavier answer wins | school 1/1/1, heart 2/2/0 | 7 | school_lite | heart_lite | 50 |
 | Equal points, more answers win | school 0/2/1, heart 2/1/1 | 7 | heart_deep | school_deep | 50 |
@@ -280,15 +287,21 @@ average 11.2 admitted of 30 (purity 63); 20% of results carry a secondary.
 
 | Type | Real bank (105) | Median match |
 |---|---|---|
-| untouched | 10.0% | 93 |
+| untouched | 10.1% | 93 |
 | merged | 11.7% | 65 |
-| balanced | 12.1% | 75 |
+| balanced | 9.8% | 75 |
 | soulmate (hidden) | 0.3% | 100 |
-| school_lite / school_deep | 6.5% / 6.6% | 60 / 64 |
-| work_lite / work_deep | 6.6% / 6.6% | 60 / 64 |
-| heart_lite / heart_deep | 6.5% / 6.6% | 60 / 64 |
-| brain_lite / brain_deep | 6.7% / 6.7% | 60 / 64 |
-| bond_lite / bond_deep | 6.6% / 6.4% | 60 / 64 |
+| school_lite / school_deep | 7.2% / 6.7% | 60 / 64 |
+| work_lite / work_deep | 7.1% / 6.6% | 60 / 64 |
+| heart_lite / heart_deep | 7.1% / 6.5% | 60 / 64 |
+| brain_lite / brain_deep | 7.1% / 6.5% | 60 / 64 |
+| bond_lite / bond_deep | 7.0% / 6.4% | 60 / 64 |
+
+With the lead limit (top at most 1 point ahead of the second) added in
+November 2026: before it, the same run gave balanced 12.2% and lite types
+6.6% to 6.7%. The plays it moves are even spreads with one section 2 or 3
+points ahead; they go to that section's lite type (each up by about half a
+point), and the deep types do not move.
 
 With the balanced spread at 2 points instead of 3 the same run gave balanced
 6.6%, lite types about 7.6% and deep types about 6.7%. The wider spread moves
@@ -362,7 +375,7 @@ tests). `tests/fairness.test.js` runs the same checks on 20,000 seeds on every
 | (c) picks in different strata independent | 105 tables, every pair of strata | chi2 42,052, 42,000 df | 0.43 |
 | (d) every statement equally likely at each of the 10 places; no section always first | each section first in 19.9% to 20.2% of plays vs 20% | 33 tests, smallest p 0.0096 | 0.32 after correction |
 | (e) seeds one character apart give unrelated draws | 8.577 shared statements vs 8.571 for unrelated draws; generator bits flip 50.00% | chi2 29.3, 30 df | 0.63 after correction |
-| (f) the judging has no favourite section | lite 6.52% to 6.65% each; deep 6.58% to 6.72% each; lot wins 19.5% to 20.5% each | chi2 3.34, 4.46 and 4.96, 4 df | 0.50, 0.35 and 0.29 |
+| (f) the judging has no favourite section | lite 7.00% to 7.11% each; deep 6.58% to 6.73% each; lot wins 19.5% to 20.5% each | chi2 2.99, 4.39 and 4.96, 4 df | 0.56, 0.36 and 0.29 |
 | (g) the play-off has no favourite and leaves the draw alone | each statement is the play-off pick of its stratum 13.90% to 14.67% of the time vs 14.29%; the first section's statement comes first in 50.01% of rounds; the first section of each pair wins 48.8% to 50.9% of its play-offs; wins by section 19.7% to 20.7%; the draw of the 30 byte for byte the same (digest of 20,000 draws) | chi2 96.4 on 90 df; 0.02 on 1; 1.82 on 10; 2.99 on 4 | 0.30, 0.88, 0.998, 0.56 |
 
 The crypto-seed run passes all seven as well ((g): picks chi2 113.4 on 90 df, p 0.048, 0.19 after correction; pairs chi2 3.89 on 10 df, p 0.95; draw digest identical): (a) 28.39% to 28.83%, chi2 67.0 on
@@ -474,6 +487,7 @@ invented people.
 | Heart, Brain and Bond statements much harder to admit than School (panel admit rate for mild: School 46%, Heart 26%, Brain 24%, Bond 24%) | 45 statements in Work, Heart, Brain, Bond and School rewritten around commoner acts; `s59` and `s60` swapped bands | School took 35% of panel results and Heart mild 1.5%. Balanced by rewriting, never by weighting sections in the rules |
 | `s32`: "asked AI something I'd have Googled a year ago" | "a quick fact, like how old some actor is" | Re-run panel: 20 of 24 admitted it, too broad to say anything; now 9 of 24 |
 | Balanced spread: within 2 points | Within 3 points | Re-run panel: SAMPLER 1.2% of plays at 2 points, 2.2% at 3; simulation 6.6% → 12.1% |
+| Even spread: within 3 points, any lead | Within 3 points and the top at most 1 point ahead (v4.3, November 2026) | 2.4% of plays were SAMPLER with one section 2 or 3 points ahead, and their own reason lines showed it; simulation 12.2% → 9.8%, panel 2.3% → 2.0%, panel leaning named 72.9% → 73.2% |
 
 Earlier changes (v1 to v3) introduced the weights, deep by high band or two
 extremes, balanced for three-way ties, and the lead / (lead + runner-up)
@@ -497,8 +511,9 @@ answers (`evidenceIds`), so the copy does not have to guess.
   section", never "X outweighs everything else".
 - **Untouched** players may have admitted up to 3 mild statements.
 - **Balanced** players either spread 6 or more answers evenly over all five
-  sections, or have three or more sections tied for the top (possibly with
-  only 3 answers and some sections empty). Write about evenness.
+  sections, with no section more than a point ahead of the next, or have
+  three or more sections tied for the top (possibly with only 3 answers and
+  some sections empty). Write about evenness.
 - **Hidden type** players admitted every Bond statement they saw and at least
   one extreme Heart one; they may have admitted nothing else (7 answers).
 - **Merged** players admitted at least 20, or reached the high band in all
@@ -591,7 +606,7 @@ answers (`evidenceIds`), so the copy does not have to guess.
    也没有哪条题是特殊的。
 3. **原装人类**（ANALOG）：认了 **3 条及以下**，而且**全是轻度**（纯度 90 及以上）。
 4. **雨露均沾**（SAMPLER）：没有哪块领头。两条路：
-   - **分得匀**：至少认了 6 条，五个部分都有，最深和最浅的部分相差不超过 3 分；
+   - **分得匀**：至少认了 6 条，五个部分都有，最深和最浅的部分相差不超过 3 分，**而且最高的部分比第二名最多多 1 分**（`balancedMaxLead`，2026 年 11 月加的：以前 4 / 1 / 1 / 1 / 1 分也算“没有哪块领头”，可理由那几行明明显示有一块领先，而且对只有一个真实偏向的人，那一块四次里有三次就是他的偏向）；
    - **并列第一**：三个及以上部分分数完全一样、并列最高。
 5. **部分类型**：以上都不是，就看**领头的部分**。领头部分在 **high** 档（12 分里 7 分以上），
    **或者这一部分的两条重度题都认了**，就是它的 **deep** 类型，否则是 **lite** 类型。
@@ -664,7 +679,7 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 - 羁绊全认再加一条感情重度，是隐藏款 PLUS-1，副倾向是 MY-BOT；
 - 只认了一条重度或一条中度的，是对应部分的 lite，匹配度最多 60；
 - 只认了脑子两条重度的，是 404（deep），只有 6 分、档位“mid”，因为两条重度都认了；
-- 每部分认得一样多的，或三块以上并列第一的，是雨露均沾；
+- 每部分认得一样多的，或三块以上并列第一的，是雨露均沾；学业 2 分、其他各 1 分的（只领先 1 分），还是雨露均沾；学业 3 分、其他各 1 分的（领先 2 分），是 TLDR；
 - 学业和感情完全镜像的，加赛也一直打平（人设在 30 条里认过某部分某档次的题，加赛里同部分同档次的就认），只能抽签，500 局里学业赢了 48%–52%；
 - 学业 1/2/1、感情 2/0/2 的，分数、条数、最重的档次都一样，30 条分不开；加赛第一轮是中度，这个人认学业的、不认感情的，所以学业领头（school_deep，副倾向 heart_deep）；
 - 每部分 2 轻 1 中 1 重（20 条）的，五块全在 high 档，是人形外设；
@@ -676,8 +691,9 @@ deep 还是 lite 只看领头部分，不看总数。学业 6 条全认、别的
 的部分，45% 有一个，30% 有两个，偏爱哪块是均匀随机的，所以五个部分被一视同仁。
 
 最终规则下（种子 20261113）：平均认 11.2 条（纯度 63），20% 的结果带副类型。
-各类型占比见英文第 8 节的表：原装人类 10.0%，人形外设 11.7%，雨露均沾 12.1%，隐藏款 0.3%，
-10 个部分类型都在 6.4%–6.7% 之间。“分得匀”的界线还是 2 分时，同一次模拟里雨露均沾 6.6%，
+各类型占比见英文第 8 节的表：原装人类 10.1%，人形外设 11.7%，雨露均沾 9.8%，隐藏款 0.3%，
+lite 类型 7.0%–7.2%，deep 类型 6.4%–6.7%。（加上“最高的最多领先 1 分”之前，雨露均沾 12.2%，lite 6.6%–6.7%：
+挪走的是五块很匀、但有一块领先 2 到 3 分的人，他们回到那一块的 lite 类型，deep 不受影响。）“分得匀”的界线还是 2 分时，同一次模拟里雨露均沾 6.6%，
 lite 约 7.6%、deep 约 6.7%；放宽到 3 分后，五块相差 3 分以内的人从部分类型挪到了雨露均沾。除了本该稀有的隐藏款，没有类型超过 20% 或低于 2%。
 门槛还是 25 条时，同一次模拟里人形外设 2.7%、隐藏款 1.1%、各 deep 类型约 8.4%。降到 20 条后，
 最重的那批模拟玩家归到了人形外设，主要来自 deep 类型；有些满足隐藏规则的人也先被判成人形外设
@@ -712,7 +728,7 @@ lite 约 7.6%、deep 约 6.7%；放宽到 3 分后，五块相差 3 分以内的
 | (c) 不同层的抽取互相独立 | 每两层一张表，共 105 张 | 卡方 42,052，自由度 42,000 | 0.43 |
 | (d) 组内每条在 10 个位置上概率一样；没有哪个部分总是第一个 | 各部分排第一 19.9%–20.2% vs 20% | 33 项检验，最小 p 0.0096 | 校正后 0.32 |
 | (e) 只差一个字符的种子抽出的题互不相关 | 平均共有 8.577 条 vs 不相关时 8.571；生成器各位翻转 50.00% | 卡方 29.3，自由度 30 | 校正后 0.63 |
-| (f) 判定不偏向任何部分 | 各 lite 6.52%–6.65%；各 deep 6.58%–6.72%；抽签各赢 19.5%–20.5% | 卡方 3.34、4.46、4.96，自由度 4 | 0.50、0.35、0.29 |
+| (f) 判定不偏向任何部分 | 各 lite 7.00%–7.11%；各 deep 6.58%–6.73%；抽签各赢 19.5%–20.5% | 卡方 2.99、4.39、4.96，自由度 4 | 0.56、0.36、0.29 |
 | (g) 加赛不偏向任何部分，也不改动抽题 | 每条被加赛抽中的比例 13.90%–14.67% vs 14.29%；第一个部分的题先出 50.01%；每一对里第一个部分赢 48.8%–50.9%；各部分赢 19.7%–20.7%；30 条的抽题一字不差（20,000 局的摘要） | 卡方 96.4（90）；0.02（1）；1.82（10）；2.99（4） | 0.30、0.88、0.998、0.56 |
 
 用 crypto 种子的那一遍七项也全过（(g)：抽中比例卡方 113.4，自由度 90，p 0.048，校正后 0.19；每一对卡方 3.89，自由度 10，p 0.95；抽题摘要一致）：(a) 28.39%–28.83%，卡方 67.0，自由度 90，p 0.97；
@@ -788,6 +804,7 @@ IDK / 404 3% / 4% → 4.4% / 5.1%，SORRY / MY-BOT 1% / 7% → 2.7% / 5.3%。
 | 感情、脑子、羁绊的题比学业难认得多（小组轻度认领率：学业 46%，感情 26%，脑子 24%，羁绊 24%） | 正经事、感情、脑子、羁绊和学业共改写 45 条，围绕更常见的事；`s59`、`s60` 对调档次 | 小组结果里学业占 35%，感情轻度只有 1.5%。靠改题来平衡，绝不在规则里给部分加权 |
 | `s32`：“以前会去搜的问题，现在直接问 AI” | “明星多大这种小问题，也直接问 AI” | 重测时 24 人里 20 人认，太宽，说明不了什么；现在 9 人 |
 | “分得匀”：相差 2 分以内 | 相差 3 分以内 | 重测小组里 2 分时 SAMPLER 只占 1.2%，3 分时 2.2%；模拟 6.6% → 12.1% |
+| “分得匀”：相差 3 分以内，领先多少都行 | 相差 3 分以内，而且最高的最多领先 1 分（v4.3，2026 年 11 月） | 2.4% 的局是雨露均沾，却有一块领先 2 到 3 分，结果页自己的理由就显示了这一点；模拟 12.2% → 9.8%，小组 2.3% → 2.0%，小组里点名本人偏向的比例 72.9% → 73.2% |
 
 ## 12. 写类型文案的人请注意
 
@@ -800,7 +817,7 @@ IDK / 404 3% / 4% → 4.4% / 5.1%，SORRY / MY-BOT 1% / 7% → 2.7% / 5.3%。
   写“认到了多深”，别写“认得多”。
 - **领头部分可能是打平的**，由加赛、偶尔由抽签定的。写“X 是你最重的一块”，别写“X 压过了所有部分”。
 - **原装人类**最多认过 3 条轻度。
-- **雨露均沾**要么 6 条以上匀匀分在五个部分，要么三块以上并列第一（可能只有 3 条，还有空着的部分）。写“匀”。
+- **雨露均沾**要么 6 条以上匀匀分在五个部分、最高的也只比第二名多 1 分以内，要么三块以上并列第一（可能只有 3 条，还有空着的部分）。写“匀”。
 - **隐藏款**认了见到的每条羁绊题和至少一条感情重度题，可能别的什么都没认（共 7 条）。
 - **人形外设**认了至少 20 条，或者五块都进了 high 档（最少 15 条），不一定满足隐藏规则。
   认 20 条时可能有一块空着，所以别写“每一块”。

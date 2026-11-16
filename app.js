@@ -2041,19 +2041,21 @@
 
   // Two lines built from the player's own answers (extras.reasonLines): a
   // contrast in plain numbers, and a statement they did not admit that marks
-  // the edge of the result. The keys are written out so the tests can find
+  // the edge of the result (one line when there is nothing new to say). The keys are written out so the tests can find
   // them.
   function reasonText(key, vars) {
     switch (key) {
       case 'reasonDimContrast': return t('reasonDimContrast', vars);
-      case 'reasonDimAll': return t('reasonDimAll', vars);
+      case 'reasonDimNext': return t('reasonDimNext', vars);
+      case 'reasonDimElsewhere': return t('reasonDimElsewhere', vars);
       case 'reasonDimOne': return t('reasonDimOne', vars);
       case 'reasonDimSome': return t('reasonDimSome', vars);
       case 'reasonAnalogCount': return t('reasonAnalogCount', vars);
       case 'reasonAnalogNone': return t('reasonAnalogNone', vars);
       case 'reasonAnalogPassed': return t('reasonAnalogPassed', vars);
       case 'reasonBalancedCounts': return t('reasonBalancedCounts', vars);
-      case 'reasonBalancedMax': return t('reasonBalancedMax', vars);
+      case 'reasonBalancedLead': return t('reasonBalancedLead', vars);
+      case 'reasonBalancedLevel': return t('reasonBalancedLevel', vars);
       case 'reasonMergedSpread': return t('reasonMergedSpread', vars);
       case 'reasonMergedZero': return t('reasonMergedZero', vars);
       case 'reasonMergedEven': return t('reasonMergedEven', vars);
@@ -2074,8 +2076,10 @@
     const lines = extras.reasonLines(result, content, state.drawn, yesIds()).map((line) => {
       const vars = Object.assign({}, line.vars);
       if (vars.dim) vars.dim = L(dimsByKey[vars.dim].name);
-      if (Array.isArray(vars.list)) vars.list = vars.list.map((it) => L(dimsByKey[it.dim].name) + ' ' + it.n).join(sep);
+      // A no-break space keeps "School 2" and "1 point" on one line.
+      if (Array.isArray(vars.list)) vars.list = vars.list.map((it) => L(dimsByKey[it.dim].name) + '\u00a0' + it.n).join(sep);
       if (line.quoteId) vars.quote = quoteStatement(line.quoteId);
+      if (typeof vars.pts === 'number') vars.pts = pts(vars.pts).replace(' ', '\u00a0');
       return el('p', { class: 'verdict-reason' }, keepQuotes(reasonText(line.key, vars)));
     });
     return el('div', { class: 'verdict-reasons' }, lines);

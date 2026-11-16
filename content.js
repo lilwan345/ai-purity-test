@@ -120,14 +120,16 @@ globalThis.APT_CONTENT = {
     // end of "Why you got this" (extras.reasonLines picks the pair). {quote}
     // is one of the player's statements, quoted by app.js. ---
     reasonDimContrast:   { en: "You admitted {n} of the {shown} {dim} statements. Across the other four sections you averaged {avg}.", zh: "{dim}的 {shown} 条你认了 {n} 条，其他四个部分平均 {avg} 条。" },
-    reasonDimAll:        { en: "You admitted every {dim} statement you were shown.", zh: "这一局的{dim}题，你一条不落全认了。" },
     reasonDimOne:        { en: "The one {dim} statement you passed on: {quote}", zh: "{dim}里你唯一没认的一条：{quote}" },
     reasonDimSome:       { en: "The heaviest {dim} statement you passed on: {quote}", zh: "{dim}里你没认的最重的一条：{quote}" },
+    reasonDimNext:       { en: "Your next section is {dim}, and the heaviest one there you passed on: {quote}", zh: "排第二的是{dim}，那里你没认的最重的一条：{quote}" },
+    reasonDimElsewhere:  { en: "Elsewhere, the heaviest one you passed on, in {dim}: {quote}", zh: "别的部分里，你没认的最重的一条在{dim}：{quote}" },
     reasonAnalogCount:   { en: "Your full list of admissions is {n} long, out of {total}.", zh: "{total} 条里，你认下的一共就 {n} 条。" },
     reasonAnalogNone:    { en: "Your list of admissions is empty, out of {total}.", zh: "{total} 条里，你一条都没认。" },
     reasonAnalogPassed:  { en: "Even this one passed you by: {quote}", zh: "连这条你都没干过：{quote}" },
-    reasonBalancedCounts: { en: "Admitted per section: {list}.", zh: "每个部分认的条数：{list}。" },
-    reasonBalancedMax:   { en: "No section got more than {n} of its {shown}.", zh: "每个部分 {shown} 条，哪一块你都没认超过 {n} 条。" },
+    reasonBalancedCounts: { en: "Points per section: {list}.", zh: "每个部分的分数：{list}。" },
+    reasonBalancedLead:  { en: "Your top section is only {pts} ahead of the next, not enough to call it a lead.", zh: "最高的部分只比第二名多 {pts}，算不上领头。" },
+    reasonBalancedLevel: { en: "Your top {n} sections are dead level.", zh: "排在最前的 {n} 个部分分数一模一样。" },
     reasonMergedSpread:  { en: "{total} of {all} admitted: as many as {max} of {shown} in one section, and no fewer than {min} in any.", zh: "{all} 条认了 {total} 条：最多的部分 {shown} 条认了 {max} 条，最少的也有 {min} 条。" },
     reasonMergedZero:    { en: "{total} of {all} admitted, as many as {max} of {shown} in one section; only {dim} stayed untouched.", zh: "{all} 条认了 {total} 条，最多的部分 {shown} 条认了 {max} 条，只有{dim}一条没碰。" },
     reasonMergedEven:    { en: "{total} of {all} admitted, exactly {max} of the {shown} in every section.", zh: "{all} 条认了 {total} 条，每个部分 {shown} 条都正好认了 {max} 条。" },
@@ -172,7 +174,7 @@ globalThis.APT_CONTENT = {
     howWeights:      { en: "Each play draws 30 from a bigger pile: six per section, two mild, two medium and two extreme. Mild counts 1 point, medium 2, extreme 3, so a section is worth 12.", zh: "每局从大题库里抽 30 条：每个部分 6 条，轻、中、重各 2 条。轻度算 1 分，中度 2 分，重度 3 分，每个部分满分 12。" },
     howUnsure:       { en: "“Not sure” counts as Never: no points, no purity lost.", zh: "选「不确定」的，按没干过算：不算分，也不扣纯度。" },
     howLead:         { en: "Your type comes from the section with the most points. On a tie, the heavier answer wins, then more answers; if two sections are still level, up to three short play-off rounds (two statements each) decide, and only a play-off that ends level goes to a lot fixed to your play. You get the deep version at 7 of the section's 12 points, or with both of its extreme statements.", zh: "类型看哪个部分分数最高。打平时，先看谁最重的那条更重，再看谁认得多；两个部分还平，就加赛最多三轮（每轮两条）来定，加赛也打平才按这一局固定的签。这部分拿到 12 分里的 7 分，或者两条重度都认了，就是深度版。" },
-    howSpecial:      { en: "Four results are checked first: 20 or more admitted, or the deep end of all five sections; a hidden rule; 3 or fewer, all mild; no clear lead, meaning three or more sections tie for the top, or 6 or more answers spread evenly over all five.", zh: "有四种结果先判：认了 20 条以上，或者五块都认到了深处；一条隐藏规则；最多 3 条且全是轻度；没有领头的，也就是三块以上并列第一，或者 6 条以上、五块分得很匀。" },
+    howSpecial:      { en: "Four results are checked first: 20 or more admitted, or the deep end of all five sections; a hidden rule; 3 or fewer, all mild; no clear lead, meaning three or more sections tie for the top, or 6 or more answers spread evenly over all five with no section more than a point ahead.", zh: "有四种结果先判：认了 20 条以上，或者五块都认到了深处；一条隐藏规则；最多 3 条且全是轻度；没有领头的，也就是三块以上并列第一，或者 6 条以上、五块分得很匀，最高的也不比第二名多 1 分以上。" },
     howSecondary:    { en: "A second section is named when it has at least three quarters of the lead section's points. Match compares the lead with that next section: 100% when nothing else is close, 50% for a dead heat, and at most 60% or 80% when the lead rests on one or two answers.", zh: "第二个部分的分数到了领头部分的四分之三，就列为副倾向。匹配度拿领头部分和第二名比：没人接近是 100%，打平是 50%；领头部分只靠一两条撑着时，最多 60% 或 80%。" },
     howHonest:       { en: "Same thirty statements, same answers, same result, every time. The rules are consistent; the science is zero.", zh: "同一套题、同样的答案，永远是同样的结果。规则前后一致，科学含量为零。" },
 

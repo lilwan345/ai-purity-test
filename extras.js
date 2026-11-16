@@ -478,7 +478,8 @@
   //      the rest; for the four special results, what fits that result)
   //   2. a counter-proof: a statement they did NOT admit that marks the edge
   //      of the result, quoted, or that they admitted everything there.
-  // reasonLines(result, content, drawnIds, admittedIds) -> two lines, each
+  // reasonLines(result, content, drawnIds, admittedIds) -> two lines (one
+  // when there is nothing new for the second to say), each
   //   { key (a ui key), vars (numbers, section keys, a list), quoteId (or null) }
   // app.js turns section keys into names and the quoteId into the statement.
   // ======================================================================
@@ -511,12 +512,25 @@
       var others = dims.filter(function (k) { return k !== lead; });
       var avg = others.reduce(function (sum, k) { return sum + per[k]; }, 0) / others.length;
       var passedHere = passed.filter(function (id) { return byId[id].dim === lead; });
-      return [
-        { key: 'reasonDimContrast', vars: { n: per[lead], shown: shown[lead], dim: lead, avg: String(Math.round(avg * 10) / 10) }, quoteId: null },
-        passedHere.length === 0
-          ? { key: 'reasonDimAll', vars: { dim: lead }, quoteId: null }
-          : { key: passedHere.length === 1 ? 'reasonDimOne' : 'reasonDimSome', vars: { dim: lead }, quoteId: heaviest(passedHere) }
-      ];
+      var contrast = { key: 'reasonDimContrast', vars: { n: per[lead], shown: shown[lead], dim: lead, avg: String(Math.round(avg * 10) / 10) }, quoteId: null };
+      if (passedHere.length) {
+        return [contrast, { key: passedHere.length === 1 ? 'reasonDimOne' : 'reasonDimSome', vars: { dim: lead }, quoteId: heaviest(passedHere) }];
+      }
+      // Everything in the lead section was admitted, which the first line
+      // already says. So the second says something new: the heaviest
+      // statement passed on in the next section down (by points, then
+      // statements, then section order), or further down if that one was
+      // admitted in full too. Nothing passed on anywhere: one line only.
+      var down = others.slice().sort(function (a, b) {
+        return (result.points[b] - result.points[a]) || (per[b] - per[a]) || (dims.indexOf(a) - dims.indexOf(b));
+      });
+      for (var d = 0; d < down.length; d++) {
+        var there = passed.filter(function (id) { return byId[id].dim === down[d]; });
+        if (there.length) {
+          return [contrast, { key: d === 0 ? 'reasonDimNext' : 'reasonDimElsewhere', vars: { dim: down[d] }, quoteId: heaviest(there) }];
+        }
+      }
+      return [contrast];
     }
     if (type === 'untouched') {
       var mild = passed.filter(function (id) { return byId[id].band === 'mild'; });
@@ -528,10 +542,17 @@
       ];
     }
     if (type === 'balanced') {
-      var top = Math.max.apply(null, dims.map(function (k) { return per[k]; }));
+      // SAMPLER is decided by points, so the lines give points: the five,
+      // then how far the top is ahead of the next (at most 1 point by the
+      // rules), or how many share the top.
+      var pts = dims.map(function (k) { return result.points[k]; });
+      var sorted = pts.slice().sort(function (a, b) { return b - a; });
+      var level = pts.filter(function (x) { return x === sorted[0]; }).length;
       return [
-        { key: 'reasonBalancedCounts', vars: { list: dims.map(function (k) { return { dim: k, n: per[k] }; }) }, quoteId: null },
-        { key: 'reasonBalancedMax', vars: { n: top, shown: shown[dims[0]] }, quoteId: null }
+        { key: 'reasonBalancedCounts', vars: { list: dims.map(function (k) { return { dim: k, n: result.points[k] }; }) }, quoteId: null },
+        level >= 2
+          ? { key: 'reasonBalancedLevel', vars: { n: level }, quoteId: null }
+          : { key: 'reasonBalancedLead', vars: { pts: sorted[0] - sorted[1] }, quoteId: null }
       ];
     }
     if (type === 'merged') {

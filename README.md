@@ -44,7 +44,7 @@ Useful URL parameters:
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
 | `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art), `playoff.test.js` (the play-off rounds, settling in round 1 or 3 or going to the lot with nothing else moving, play-off answers in challenge codes, the reason lines for every persona, the play history), `reveal.test.js` (the reveal's timeline and play-once rules), `stats.test.js` (what statistics may be sent), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
-| `tools/personas.js` | 31 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw, and how a persona answers a play-off (`playoffByCounts`). |
+| `tools/personas.js` | 33 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw, and how a persona answers a play-off (`playoffByCounts`). |
 | `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares (with and before the play-off) and match spread over 200,000 simulated players (each on their own draw), how often a tie decided the lead, how the play-off settles ties and how often it picks the section the player really leans to. `node tools/simulate.js` |
 | `tools/fairness.js` | Proves the draw and the judging have no favourite: seven chi-square checks (the seventh is the play-off) over 200,000 seeds on the real bank, run twice with two independent seed sources (a fixed, repeatable stream and the page's own `makeSeed()`), plus six deliberately broken versions that must be caught. Exits non-zero on failure. `node tools/fairness.js` (about 90 s) |
 | `tools/sim-helpers.js`, `tools/stats.js` | Shared pieces for the tools and tests: a synthetic bank of the same shape (for tests and controls), a seed stream, the simulated player model; chi-square and normal p-values. |
@@ -195,7 +195,8 @@ Useful URL parameters:
   or every section in the high band), the hidden type **soulmate** (every Bond
   statement shown plus at least one extreme Heart statement), **untouched**
   (3 or fewer, all mild), **balanced** (three or more sections tie for the
-  top, or 6+ spread within 3 points over all five), otherwise the deepest
+  top, or 6+ spread within 3 points over all five with the top at most 1
+  point ahead of the second, `balancedMaxLead`), otherwise the deepest
   section's `_deep` type when it is in the high band or both its extreme
   statements were admitted, else its `_lite` type. A two-way tie for the lead
   goes to the heavier admitted statement, then more statements, then **a
@@ -301,10 +302,13 @@ card stays pinned on the left):
    (`extras.reasonLines`): a contrast in plain numbers ("You admitted 5 of
    the 6 Heart statements. Across the other four sections you averaged 2.")
    and a counter-proof, a statement they did not admit that marks the edge of
-   the result, quoted ("The one Heart statement you passed on: ..."), or that
-   they admitted everything shown there. ANALOG, SAMPLER, PLUG-IN and the
+   the result, quoted ("The one Heart statement you passed on: ..."), or,
+   when they admitted everything shown there, the heaviest statement they
+   passed on in their next section down (one line only if they passed on
+   nothing at all). ANALOG, SAMPLER, PLUG-IN and the
    hidden type get their own pair (how short the list is and the mildest
-   thing they passed on; the count per section and the highest; the spread
+   thing they passed on; the points per section and how far the top is
+   ahead, at most 1 point, or how many share the top; the spread
    and the heaviest thing passed on; all of Bond and the Heart extremes).
    From three finished plays on this device, a last quiet line: "Your last 5
    plays: CC-BOT 3, HAHA-OK 1, 404 1. Most often: CC-BOT." (see "All 14 types"

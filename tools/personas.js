@@ -188,6 +188,20 @@ var PERSONAS = [
     why: 'A four-way tie at the top; picking any one of them would be arbitrary.'
   },
   {
+    name: 'Even spread, one point ahead',
+    who: 'Both mild School statements and one mild statement in every other section: 2 / 1 / 1 / 1 / 1 points.',
+    counts: { school: [2, 0, 0], work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] },
+    expect: { typeId: 'balanced', secondaryTypeId: null },
+    why: 'On the edge of SAMPLER: six admitted over all five sections, top to bottom 1 point, and School only 1 point ahead. One mild statement is not a lead.'
+  },
+  {
+    name: 'Even spread, two points ahead',
+    who: 'One mild and one medium School statement and one mild statement in every other section: 3 / 1 / 1 / 1 / 1 points.',
+    counts: { school: [1, 1, 0], work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] },
+    expect: { typeId: 'school_lite', secondaryTypeId: null },
+    why: 'Just past the edge: School is 2 points ahead of every other section, which is a lead, so "no section leads" would be false. Before November 2026 this was SAMPLER.'
+  },
+  {
     name: 'Exam season with a crush',
     who: 'School: both mild and both medium. Heart: one mild and both medium. One mild Adulting and Bond.',
     counts: { school: [2, 2, 0], heart: [1, 2, 0], work: [1, 0, 0], bond: [1, 0, 0] },

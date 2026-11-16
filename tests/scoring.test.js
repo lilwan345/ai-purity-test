@@ -297,16 +297,24 @@ test('balanced (even spread): every dimension must be touched', () => {
   assert.strictEqual(r.typeId, 'school_lite');
 });
 
-test('balanced: deepest and shallowest at most 3 points apart; 4 apart is a leaning', () => {
+test('balanced: at most 3 points from top to bottom AND the top at most 1 point ahead; otherwise a leaning', () => {
   const others = { work: [1, 0, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] }; // 1 point each
-  const two = sc(Object.assign({ school: [1, 1, 0] }, others));   // school 3 points
-  assert.strictEqual(two.typeId, 'balanced');
-  assert.strictEqual(two.match, 83);                              // 100 - 100 * 2 / 12
-  const three = sc(Object.assign({ school: [1, 0, 1] }, others)); // school 4 points
-  assert.strictEqual(three.typeId, 'balanced');
-  assert.strictEqual(three.match, 75);                            // 100 - 100 * 3 / 12
-  const four = sc(Object.assign({ school: [0, 1, 1] }, others));  // school 5 points
-  assert.strictEqual(four.typeId, 'school_lite');
+  // 2 points against 1: one ahead, spread 1.
+  const oneAhead = sc(Object.assign({ school: [2, 0, 0] }, others));
+  assert.strictEqual(oneAhead.typeId, 'balanced');
+  // Spread 3 but the top only 1 ahead of the second: still balanced (4 / 3 / 1 / 1 / 1).
+  const spread3 = sc({ school: [1, 0, 1], work: [1, 1, 0], heart: [1, 0, 0], brain: [1, 0, 0], bond: [1, 0, 0] });
+  assert.strictEqual(spread3.typeId, 'balanced');
+  assert.strictEqual(spread3.match, 75);                           // 100 - 100 * 3 / 12
+  // 2 points ahead (3 / 1 / 1 / 1 / 1): a lead, so a section type.
+  const twoAhead = sc(Object.assign({ school: [1, 1, 0] }, others));
+  assert.strictEqual(twoAhead.typeId, 'school_lite');
+  // 3 ahead (4 / 1 / 1 / 1 / 1), the case that used to read "no section leads".
+  assert.strictEqual(sc(Object.assign({ school: [1, 0, 1] }, others)).typeId, 'school_lite');
+  // 4 apart is a leaning as before.
+  assert.strictEqual(sc(Object.assign({ school: [0, 1, 1] }, others)).typeId, 'school_lite');
+  // The rule's number: exactly one point of 12, in depth points like balancedMaxSpread.
+  assert.ok(Math.abs(require('../scoring.js').RULES.balancedMaxLead - 100 / 12) < 1e-9);
 });
 
 test('balanced (tie): three or more sections sharing the top points is balanced', () => {

@@ -100,9 +100,11 @@ every one of them is decorative (empty alt text).
 | `unsureNote` | Last line of the verdict, only when the player answered "Not sure" at least once ({n} = how many, can be 1, so no plural pronoun; {total} = statements in the play). Never on the card, a preview or a peek |
 | `unsureMany` | Added after `unsureNote` from 8 "Not sure" answers on (`UNSURE_MANY` in scoring.js): the purity is probably flattering |
 | `reasonDimContrast` | Section types, first of the two personal lines: {n} of {shown} admitted in the lead section {dim}, and the average {avg} over the other four |
-| `reasonDimAll` / `reasonDimOne` / `reasonDimSome` | Section types, second line: everything shown in {dim} was admitted; the one statement passed on; the heaviest of several passed on ({quote}) |
+| `reasonDimOne` / `reasonDimSome` | Section types, second line: the one statement passed on in the lead section {dim}; the heaviest of several passed on ({quote}) |
+| `reasonDimNext` / `reasonDimElsewhere` | Section types, second line when the whole lead section was admitted (the first line already says so): the heaviest statement passed on in the next section down ({dim}, {quote}), or further down when that one was admitted in full too. With nothing passed on anywhere, there is no second line |
 | `reasonAnalogCount` / `reasonAnalogNone` / `reasonAnalogPassed` | ANALOG: how short the list is ({n} of {total}, or empty), then a mild statement they passed on ({quote}) |
-| `reasonBalancedCounts` / `reasonBalancedMax` | SAMPLER: admitted per section ({list}), then the most in any one section ({n} of {shown}) |
+| `reasonBalancedCounts` | SAMPLER, first line: points per section ({list}); SAMPLER is decided by points, so it shows points |
+| `reasonBalancedLead` / `reasonBalancedLevel` | SAMPLER, second line: how far the top section is ahead of the next ({pts}, at most 1 point by the rules), or how many share the top ({n}). Never claim more evenness than the numbers show |
 | `reasonMergedSpread` / `reasonMergedZero` / `reasonMergedEven` | PLUG-IN: {total} of {all}, the most {max} of {shown} in one section, the fewest {min} (or the one untouched section {dim}, or the same {max} in every section) |
 | `reasonHeaviestPassed` / `reasonPassedNone` | PLUG-IN and the hidden type, second line: the heaviest statement passed on ({quote}), or none at all ({all}) |
 | `reasonSoulmate` | Hidden type, first line: all {n} Bond statements, {h} of {hs} extreme Heart |

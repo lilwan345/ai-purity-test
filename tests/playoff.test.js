@@ -156,7 +156,7 @@ test('answer codes: a play-off travels in the code, old 8-character codes still 
 });
 
 // ---------- the personal reason lines ----------
-test('reason lines: for every persona, two lines whose numbers agree with the result', () => {
+test('reason lines: for every persona, two lines (one when nothing new) whose numbers agree with the result', () => {
   const seeds = seedStream('reason-lines');
   const seen = new Set();
   PERSONAS.forEach((persona) => {
@@ -166,7 +166,8 @@ test('reason lines: for every persona, two lines whose numbers agree with the re
       const first = score(admitted, content, drawn);
       const r = first.playoff ? score(admitted, content, drawn, null, playoffByCounts(content, first.playoff.rounds, persona.counts)) : first;
       const lines = extras.reasonLines(r, content, drawn, admitted);
-      assert.strictEqual(lines.length, 2, persona.name);
+      assert.ok(lines.length === 1 || lines.length === 2, persona.name);
+      if (lines.length === 1) assert.ok(drawn.every((id) => admitted.includes(id)), 'one line only when nothing at all was passed on');
       lines.forEach((line) => {
         seen.add(line.key);
         const ui = content.ui[line.key];
@@ -177,7 +178,8 @@ test('reason lines: for every persona, two lines whose numbers agree with the re
           assert.ok(drawn.includes(line.quoteId) && !admitted.includes(line.quoteId), persona.name + ': quotes a statement shown but not admitted');
         }
       });
-      const [a, b] = lines;
+      const a = lines[0];
+      const b = lines[1];
       if (r.typeId.includes('_')) {
         const lead = r.dominantDim;
         assert.strictEqual(a.key, 'reasonDimContrast');
@@ -185,8 +187,18 @@ test('reason lines: for every persona, two lines whose numbers agree with the re
         const others = DIM_KEYS.filter((k) => k !== lead);
         assert.strictEqual(Number(a.vars.avg), Math.round(others.reduce((s, k) => s + r.perDim[k], 0) / 4 * 10) / 10);
         const passedHere = drawn.filter((id) => byId[id].dim === lead && !admitted.includes(id));
-        if (passedHere.length === 0) assert.strictEqual(b.key, 'reasonDimAll');
-        else {
+        if (passedHere.length === 0) {
+          // The lead section was admitted in full: the second line must say
+          // something else, a statement passed on in another section.
+          if (b) {
+            assert.ok(['reasonDimNext', 'reasonDimElsewhere'].includes(b.key), b.key);
+            assert.notStrictEqual(byId[b.quoteId].dim, lead);
+            assert.strictEqual(byId[b.quoteId].dim, b.vars.dim);
+            const down = DIM_KEYS.filter((k) => k !== lead)
+              .sort((x, y) => (r.points[y] - r.points[x]) || (r.perDim[y] - r.perDim[x]) || (DIM_KEYS.indexOf(x) - DIM_KEYS.indexOf(y)));
+            if (b.key === 'reasonDimNext') assert.strictEqual(b.vars.dim, down[0], 'the next section down');
+          }
+        } else {
           assert.strictEqual(b.key, passedHere.length === 1 ? 'reasonDimOne' : 'reasonDimSome');
           assert.strictEqual(byId[b.quoteId].dim, lead);
           const heaviest = Math.max(...passedHere.map((id) => scoring.statementWeight(byId[id])));
@@ -197,8 +209,18 @@ test('reason lines: for every persona, two lines whose numbers agree with the re
         if (r.total) assert.strictEqual(a.vars.n, r.total); else assert.strictEqual(a.key, 'reasonAnalogNone');
         assert.strictEqual(byId[b.quoteId].band, 'mild');
       } else if (r.typeId === 'balanced') {
-        assert.deepStrictEqual(a.vars.list.map((x) => x.n), DIM_KEYS.map((k) => r.perDim[k]));
-        assert.strictEqual(b.vars.n, Math.max(...DIM_KEYS.map((k) => r.perDim[k])));
+        // Points, as the rule uses; the second line never claims more
+        // evenness than there is: the real lead, or the real number level.
+        assert.deepStrictEqual(a.vars.list.map((x) => x.n), DIM_KEYS.map((k) => r.points[k]));
+        const sorted = DIM_KEYS.map((k) => r.points[k]).sort((x, y) => y - x);
+        if (sorted[0] === sorted[1]) {
+          assert.strictEqual(b.key, 'reasonBalancedLevel');
+          assert.strictEqual(b.vars.n, sorted.filter((x) => x === sorted[0]).length);
+        } else {
+          assert.strictEqual(b.key, 'reasonBalancedLead');
+          assert.strictEqual(b.vars.pts, sorted[0] - sorted[1]);
+          assert.ok(b.vars.pts <= 1, 'SAMPLER never has a lead of 2 or more');
+        }
       } else if (r.typeId === 'merged') {
         assert.strictEqual(a.vars.total, r.total);
         assert.strictEqual(a.vars.max, Math.max(...DIM_KEYS.map((k) => r.perDim[k])));
@@ -210,8 +232,8 @@ test('reason lines: for every persona, two lines whose numbers agree with the re
       }
     }
   });
-  ['reasonDimContrast', 'reasonDimAll', 'reasonDimOne', 'reasonDimSome', 'reasonAnalogCount', 'reasonAnalogPassed',
-    'reasonBalancedCounts', 'reasonBalancedMax', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven', 'reasonHeaviestPassed', 'reasonPassedNone', 'reasonSoulmate']
+  ['reasonDimContrast', 'reasonDimOne', 'reasonDimSome', 'reasonDimNext', 'reasonAnalogCount', 'reasonAnalogPassed',
+    'reasonBalancedCounts', 'reasonBalancedLead', 'reasonBalancedLevel', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven', 'reasonHeaviestPassed', 'reasonPassedNone', 'reasonSoulmate']
     .forEach((key) => assert.ok(seen.has(key), key + ' comes up for some persona'));
   // Nothing admitted at all.
   const drawn = drawStatements(content, 'abc123');

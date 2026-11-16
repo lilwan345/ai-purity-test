@@ -68,8 +68,8 @@
     'continuePlay', 'startOver', 'restartSameSet', 'brandHomeLabel',
     // the play-off, the personal reason lines and the play history
     'playoffIntro', 'playoffAgain', 'playoffCount', 'playoffProgress', 'matchPlayoff', 'matchPlayoffLot',
-    'reasonDimContrast', 'reasonDimAll', 'reasonDimOne', 'reasonDimSome', 'reasonAnalogCount', 'reasonAnalogNone',
-    'reasonAnalogPassed', 'reasonBalancedCounts', 'reasonBalancedMax', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven',
+    'reasonDimContrast', 'reasonDimOne', 'reasonDimSome', 'reasonDimNext', 'reasonDimElsewhere', 'reasonAnalogCount', 'reasonAnalogNone',
+    'reasonAnalogPassed', 'reasonBalancedCounts', 'reasonBalancedLead', 'reasonBalancedLevel', 'reasonMergedSpread', 'reasonMergedZero', 'reasonMergedEven',
     'reasonHeaviestPassed', 'reasonPassedNone', 'reasonSoulmate', 'historyLine', 'historyAllDifferent', 'listAnd', 'typesPlays'
   ];
 
@@ -144,6 +144,13 @@
     // it is 2.1% on the panel and 12.1% in the simulation.
     balancedMinTotal: 6,
     balancedMaxSpread: 25,
+    // ...and the top section at most this many depth points ahead of the
+    // second (100 / 12 = exactly one point of 12). Added in November 2026:
+    // with only the spread limit, a play like 4 / 1 / 1 / 1 / 1 points was
+    // SAMPLER ("no section leads") although one section clearly led, and for
+    // people with one real leaning that section was their leaning three times
+    // in four. A lead of 2 or more points is a lead, so it gets a section type.
+    balancedMaxLead: 100 / 12,
     // balanced, way 2: this many dimensions (or more) share the top points
     // exactly. No single section leads, so no section type would be honest.
     balancedTieMin: 3,
@@ -629,11 +636,16 @@
       extremesIn('heart') >= rules.soulmateHeartExtremes;
 
     var isUntouched = total <= rules.untouchedMaxTotal && heaviestAdmitted <= BAND_WEIGHTS.mild;
-    // Balanced has two ways in: an even spread over all five sections, or a
-    // three-way (or bigger) tie for the top, where no section can claim you.
+    // Balanced has two ways in: an even spread over all five sections (no
+    // more than 3 points from top to bottom AND the top no more than 1 point
+    // ahead of the second), or a three-way (or bigger) tie for the top, where
+    // no section can claim you.
     // (The 1e-9 keeps floating-point rounding from deciding a spread that
     // sits exactly on the limit.)
-    var isBalanced = (total >= rules.balancedMinTotal && everyDimTouched && spread <= rules.balancedMaxSpread + 1e-9) ||
+    var byDepth = depths.slice().sort(function (a, b) { return b - a; });
+    var topLead = byDepth[0] - byDepth[1];   // the top section's lead over the second
+    var isBalanced = (total >= rules.balancedMinTotal && everyDimTouched && spread <= rules.balancedMaxSpread + 1e-9 &&
+      topLead <= rules.balancedMaxLead + 1e-9) ||
       tiedDims.length >= rules.balancedTieMin;
 
     // The type the player gets when the hidden rule is skipped. Used as the
