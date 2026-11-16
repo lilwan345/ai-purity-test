@@ -60,7 +60,7 @@ globalThis.APT_CONTENT = {
     resultHeading:   { en: "Your result", zh: "你的结果" },
     previewBadge:    { en: "Preview with sample numbers", zh: "预览：示例数据" },
     cardTicks:       { en: "{n}/{total} guilty", zh: "干过 {n}/{total}" },
-    cardNote:        { en: "lilwan345.github.io/ai-purity-test", zh: "lilwan345.github.io/ai-purity-test" },
+    cardNote:        { en: "guiltyofai.vercel.app", zh: "guiltyofai.vercel.app" },
     barsLabel:       { en: "How much weight each section carries", zh: "每个部分有多重" },
     barAria:         { en: "{name}: {n} of 10 squares", zh: "{name}：10 格里占了 {n} 格" },
     superpower:      { en: "Superpower", zh: "超能力" },

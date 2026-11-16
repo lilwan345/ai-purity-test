@@ -2,32 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script>
+    // The site moved to guiltyofai.vercel.app. Links to the old address carry
+    // on to the new one with their play and answer codes intact.
+    if (location.hostname === 'lilwan345.github.io') {
+      location.replace('https://guiltyofai.vercel.app/' + location.search + location.hash);
+    }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#E8ECF1">
   <title>AI Purity Test</title>
   <meta name="description" content="Thirty statements about what you have done with AI, drawn fresh from a bigger pile every time. Get a purity score and a type. Zero science.">
-  <link rel="canonical" href="https://lilwan345.github.io/ai-purity-test/">
+  <link rel="canonical" href="https://guiltyofai.vercel.app/">
   <!-- Link preview (a pasted link shows a card). One language only in static
        HTML, so English. og.png is made from tools/og.html (README). -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://lilwan345.github.io/ai-purity-test/">
+  <meta property="og:url" content="https://guiltyofai.vercel.app/">
   <meta property="og:title" content="AI Purity Test">
   <meta property="og:description" content="30 things people do with AI. Own up to yours, get a purity score and one of 14 types. Two minutes, zero science.">
-  <meta property="og:image" content="https://lilwan345.github.io/ai-purity-test/og.png">
+  <meta property="og:image" content="https://guiltyofai.vercel.app/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="AI Purity Test: other tests ask who you are. This one asks what you did.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="AI Purity Test">
   <meta name="twitter:description" content="30 things people do with AI. Own up to yours, get a purity score and one of 14 types. Two minutes, zero science.">
-  <meta name="twitter:image" content="https://lilwan345.github.io/ai-purity-test/og.png">
+  <meta name="twitter:image" content="https://guiltyofai.vercel.app/og.png">
   <!-- Empty icon: stops the browser asking the server for a favicon.ico that does not exist -->
   <link rel="icon" href="data:,">
   <!-- ?v= on every local file: GitHub Pages lets browsers cache them for
        10 minutes, so a new version gets a new address. Bump it before each
        push with `node tools/bump-version.js` (all of them change together). -->
-  <link rel="stylesheet" href="styles.css?v=20261116f">
+  <link rel="stylesheet" href="styles.css?v=20261116g">
 </head>
 <body>
   <header class="topbar">
@@ -52,10 +59,10 @@
        (comparison, remarks, collection; they use the scoring functions),
        then the characters (optional: without art.js the types just show no
        picture), then the UI. -->
-  <script src="content.js?v=20261116f"></script>
-  <script src="scoring.js?v=20261116f"></script>
-  <script src="extras.js?v=20261116f"></script>
-  <script src="art.js?v=20261116f"></script>
-  <script src="app.js?v=20261116f"></script>
+  <script src="content.js?v=20261116g"></script>
+  <script src="scoring.js?v=20261116g"></script>
+  <script src="extras.js?v=20261116g"></script>
+  <script src="art.js?v=20261116g"></script>
+  <script src="app.js?v=20261116g"></script>
 </body>
 </html>

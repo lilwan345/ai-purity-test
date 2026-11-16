@@ -367,8 +367,8 @@ test('app.js: previews, peeks and comparison links never add to the collection',
 
 // ---------- the card's footer line ----------
 test('card footer: the address alone, in both languages', () => {
-  assert.strictEqual(content.ui.cardNote.en, 'lilwan345.github.io/ai-purity-test');
-  assert.strictEqual(content.ui.cardNote.zh, 'lilwan345.github.io/ai-purity-test');
+  assert.strictEqual(content.ui.cardNote.en, 'guiltyofai.vercel.app');
+  assert.strictEqual(content.ui.cardNote.zh, 'guiltyofai.vercel.app');
 });
 
 // ---------- the challenge link's privacy line ----------

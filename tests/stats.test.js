@@ -10,7 +10,7 @@ require('../content.js');
 const content = globalThis.APT_CONTENT;
 const { statUrl, sendStat, statsAllowed, statNameOk, externalOrigin, STAT_EVENTS, STAT_ENDPOINT } = extras;
 
-const REAL = { protocol: 'https:', hostname: 'lilwan345.github.io', search: '?seed=k3x9q0&vs=0a1b2c3d&re=9z8y7x6w&from=bond_deep' };
+const REAL = { protocol: 'https:', hostname: 'guiltyofai.vercel.app', search: '?seed=k3x9q0&vs=0a1b2c3d&re=9z8y7x6w&from=bond_deep' };
 const ALL_NAMES = ['/'].concat(STAT_EVENTS, scoring.TYPE_IDS.map((id) => 'result:' + id));
 
 test('stats: the event list is the fixed one', () => {
@@ -42,7 +42,7 @@ test('stats: a request holds only p, t, e, s, r and rnd, never a query, an id, a
     ids.forEach((id) => assert.ok(!new RegExp('\\b' + id + '\\b').test(decodeURIComponent(url)), id + ' in ' + url));
   });
   // A referrer with a path or query is refused outright.
-  assert.strictEqual(new URL(statUrl('/', { referrer: 'https://lilwan345.github.io/ai-purity-test/?seed=k3x9q0' })).searchParams.get('r'), null);
+  assert.strictEqual(new URL(statUrl('/', { referrer: 'https://guiltyofai.vercel.app/?seed=k3x9q0' })).searchParams.get('r'), null);
 });
 
 test('stats: only the real site counts', () => {
@@ -51,16 +51,17 @@ test('stats: only the real site counts', () => {
     { protocol: 'file:', hostname: '' },
     { protocol: 'http:', hostname: 'localhost' },
     { protocol: 'http:', hostname: '127.0.0.1' },
-    { protocol: 'http:', hostname: 'lilwan345.github.io' },
+    { protocol: 'http:', hostname: 'guiltyofai.vercel.app' },
+    { protocol: 'https:', hostname: 'lilwan345.github.io' },
     { protocol: 'https:', hostname: 'someone-else.github.io' },
-    { protocol: 'https:', hostname: 'lilwan345.github.io.evil.com' },
+    { protocol: 'https:', hostname: 'guiltyofai.vercel.app.evil.com' },
     null
   ].forEach((loc) => assert.strictEqual(statsAllowed(loc), false, JSON.stringify(loc)));
 });
 
 test('stats: sendStat hands one clean URL to the sender on the real site, nothing elsewhere, never throws', () => {
   const sent = [];
-  const env = { location: REAL, referrer: 'https://lilwan345.github.io/ai-purity-test/?seed=k3x9q0&vs=0a1b2c3d', screen: 1440, send: (u) => sent.push(u) };
+  const env = { location: REAL, referrer: 'https://guiltyofai.vercel.app/?seed=k3x9q0&vs=0a1b2c3d', screen: 1440, send: (u) => sent.push(u) };
   assert.strictEqual(sendStat('/', env), true);
   assert.strictEqual(sendStat('result:heart_deep', env), true);
   assert.strictEqual(sendStat('result:s07', env), false);

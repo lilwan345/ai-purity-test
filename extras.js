@@ -660,10 +660,10 @@
   // GoatCounter's own count.js always adds location.search to every hit and
   // the full referrer by default, so it is not used: statUrl builds the
   // documented /count request itself. And only the real site counts:
-  // https://lilwan345.github.io, nothing from file://, localhost or a copy.
+  // https://guiltyofai.vercel.app, nothing from file://, localhost or a copy.
   // ======================================================================
   var STAT_ENDPOINT = 'https://leowan34.goatcounter.com/count';
-  var STAT_HOST = 'lilwan345.github.io';
+  var STAT_HOST = 'guiltyofai.vercel.app';
   var STAT_EVENTS = [
     'start', 'finish', 'tiebreak', 'save-image', 'copy-link', 'challenge-made', 'challenge-opened',
     'compare-shown', 'reply-opened', 'new-questions', 'start-over', 'lang:en', 'lang:zh'

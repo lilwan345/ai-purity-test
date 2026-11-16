@@ -1,0 +1,5 @@
+tests/
+tools/
+art-src/
+.local/
+node_modules/

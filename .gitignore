@@ -5,3 +5,7 @@ content/draft.json
 
 # private working data (panel answers used for checks)
 .local/
+
+# Vercel project link
+.vercel
+.env*

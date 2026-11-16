@@ -525,7 +525,7 @@ An empty list `[]` means the content is valid.
   - If the image cannot be made, a toast says so instead of claiming success.
 - **Copy link** copies the page URL with `?from=<type>&seed=<seed>&lang=<lang>`,
   so a friend who opens it plays the same 30 statements.
-- The card's bottom line is the address alone, `lilwan345.github.io/ai-purity-test`,
+- The card's bottom line is the address alone, `guiltyofai.vercel.app`,
   on screen and in the PNG.
 
 ## Compare with a friend
@@ -579,7 +579,7 @@ The owner counts visits and results with GoatCounter (account
 to `sendStat` in `extras.js`; `statUrl` there builds the request, so what can
 be sent is decided in one place.
 
-- **Only on the real site**: `https://lilwan345.github.io`. Nothing is sent
+- **Only on the real site**: `https://guiltyofai.vercel.app`. Nothing is sent
   from `file://`, `localhost` or any other host (`statsAllowed`).
 - **What is sent**: a GET to `https://leowan34.goatcounter.com/count` with
   `p` (the name), `t` (the same name, or "AI Purity Test" for the page view),
@@ -631,7 +631,7 @@ be sent is decided in one place.
 
 `index.html` carries Open Graph and Twitter card tags (English: static HTML
 has one language) and a canonical link, all with absolute URLs to
-https://lilwan345.github.io/ai-purity-test/. The picture, `og.png`
+https://guiltyofai.vercel.app/. The picture, `og.png`
 (1200 x 630), is drawn by `tools/og.html` from content.js and art.js; make it
 again after changing the title, the lead line or the characters:
 

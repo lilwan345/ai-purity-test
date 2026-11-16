@@ -208,7 +208,7 @@ test('question screen: a labelled back button ("← Back" / "← 上一题"), no
 
 test('index.html: link preview tags with absolute URLs, a canonical link and og.png at 1200 x 630', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const SITE = 'https://lilwan345.github.io/ai-purity-test/';
+  const SITE = 'https://guiltyofai.vercel.app/';
   assert.ok(html.includes('<link rel="canonical" href="' + SITE + '">'));
   ['og:title', 'og:description', 'og:image', 'og:url', 'og:type', 'twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']
     .forEach((name) => assert.match(html, new RegExp('(property|name)="' + name + '" content="[^"]+"'), name));
