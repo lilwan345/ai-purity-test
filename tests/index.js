@@ -8,3 +8,4 @@ require('./answers.test.js');
 require('./gallery.test.js');
 require('./draw.test.js');
 require('./fairness.test.js');
+require('./art.test.js');

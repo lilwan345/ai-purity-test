@@ -30,9 +30,12 @@
   <!-- Short confirmations ("Link copied"); role=status makes screen readers announce them -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Order matters: content first, then the scoring rules, then the UI. -->
+  <!-- Order matters: content first, then the scoring rules, then the
+       characters (optional: without art.js the types just show no picture),
+       then the UI. -->
   <script src="content.js"></script>
   <script src="scoring.js"></script>
+  <script src="art.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

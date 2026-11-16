@@ -286,6 +286,10 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   from { opacity: 0; transform: rotate(calc(var(--tilt, 0deg) * 3)) scale(.7); }
   to   { opacity: 1; transform: rotate(var(--tilt, 0deg)) scale(1); }
 }
+/* Character stickers: the drawing on its own colour, same white edge */
+.sticker-sheet .sticker-faces { margin-bottom: 14px; gap: 12px 14px; }
+.sticker-sheet .sticker.sticker-art { padding: 2px; border-radius: 14px; line-height: 0; }
+.sticker-art-img { display: block; width: 84px; height: 84px; pointer-events: none; }
 .sticker-small { font-size: 18px; padding: 4px 10px 3px; box-shadow: 0 0 0 3px var(--paper); }
 
 @media (min-width: 900px) {
@@ -302,6 +306,8 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   .sticker-sheet { margin: 0; }
   .sticker-sheet ul { display: grid; grid-template-columns: repeat(2, max-content); gap: 18px 14px; }
   .sticker-sheet .sticker { font-size: 34px; }
+  .sticker-sheet .sticker-faces { grid-template-columns: repeat(3, max-content); margin-bottom: 22px; }
+  .sticker-art-img { width: 104px; height: 104px; }
 }
 
 /* ---------- Question screens (one statement at a time) ---------- */
@@ -672,7 +678,7 @@ html[lang^="zh"] .q-text {
   aspect-ratio: 3 / 4;
   display: flex;
   flex-direction: column;
-  padding: calc(var(--pad) * 1cqw);
+  padding: calc(var(--padY) * 1cqw) calc(var(--pad) * 1cqw);
   overflow: hidden;
   border-radius: 18px;
   background: var(--type-bg);
@@ -699,8 +705,32 @@ html[lang^="zh"] .q-text {
   font-weight: 800;
   white-space: nowrap;   /* size and line-height are set inline by app.js */
 }
+/* The row under the code: name and tagline, and the type's character on the
+   right when there is one. app.js sets the row's height (the same midH the
+   PNG uses) and has already wrapped the words to the column beside the
+   picture; the words sit in the middle of the row, as in the PNG. */
+.card-mid { margin-top: calc(var(--gapCode) * 1cqw); }
+.card-mid.has-art {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: calc((var(--artS) - var(--artOverX) + var(--gapArt)) * 1cqw);
+}
+/* The square may hang a little past the padding and rise into the code's
+   line box (the drawings have their own margin; CARD in app.js explains
+   artOverX / artOverY). Its size (--artS) and rise (--artR) are per card. */
+.card-art {
+  position: absolute;
+  top: calc(var(--artR) * -1cqw);
+  right: calc(var(--artOverX) * -1cqw);
+  width: calc(var(--artS) * 1cqw);
+  height: calc(var(--artS) * 1cqw);
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;      /* decoration: taps and long-presses go to the card */
+}
 .card-name {
-  margin-top: calc(var(--gapCode) * 1cqw) !important;
   font-weight: 700;
   line-height: calc(var(--nameLine) * 1cqw);
 }
@@ -1075,6 +1105,19 @@ html[lang^="zh"] .roast { font-size: 19px; line-height: 1.75; }
 html[lang^="zh"] .pair-kicker { font-size: 14px; letter-spacing: .04em; }
 .pair-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; } /* chips line up even when a name wraps */
 .pair-name { font-weight: 700; line-height: 1.3; }
+/* The other type's character, small, on a disc of its own colour so it sits
+   on the colour it was drawn for (the card behind is white). */
+.pair-art {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  margin: -6px 2px -6px -2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--art-bg);
+  pointer-events: none;
+}
+.pair-head:has(.pair-art) { align-items: center; }
 .pair-line { font-size: 15px; line-height: 1.45; color: var(--ink); text-wrap: pretty; }
 /* The hidden type as a pairing before it is earned: like the locked grid
    card (dashed, no colour, not a button), so the lock holds here too. */
@@ -1256,6 +1299,17 @@ html[lang^="zh"] .types-title { font-family: var(--font-body); font-size: clamp(
   font-weight: 700;
   line-height: 1.3;
 }
+/* The character, right-aligned under the top line like on the big card. Its
+   square hangs a little past the padding (the drawing has its own margin). */
+.tcard-art {
+  display: block;
+  flex: none;
+  width: 60cqw;
+  height: 60cqw;
+  margin: 2px -4px 0 auto;
+  pointer-events: none;
+}
+.tcard-art + .tcard-code { padding-top: 4px; }
 .tcard-code {
   display: block;
   margin-top: auto;

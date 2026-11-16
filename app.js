@@ -59,6 +59,130 @@
   const statementsById = {};
   content.statements.forEach((s) => { if (s && s.id) statementsById[s.id] = s; });
 
+  // ---------------------------------------------------------------------
+  // Character art (art.js, made by tools/pack-art.js)
+  // ---------------------------------------------------------------------
+  /*
+   * globalThis.APT_ART = { typeId: '<svg ...>' }, one hand-drawn character
+   * per type. It is optional: if art.js is missing, or lacks a type, that
+   * type simply shows no character (the card falls back to its plain layout).
+   *
+   * Every picture is used as an <img> from a data: URI, never as inline
+   * markup: decorative (alt=""), no ids that could clash, nothing that runs.
+   * The same URI feeds the canvas for the saved PNG. Canvas can only draw an
+   * image that has finished loading, so all of them are loaded and decoded
+   * at startup (preloadArt), and "Save image" waits for its one if needed.
+   * The URI gives the SVG a large intrinsic size (ART_PX) so every browser
+   * rasterises it sharply at PNG size; on screen CSS sets the size.
+   *
+   * tests/art.test.js runs the block between the two ART HELPERS markers on
+   * its own, so it may only use globalThis.APT_ART, Image, document and
+   * Promise, and must never throw.
+   */
+  // ART HELPERS START
+  const ART_PX = 480;
+  const artCache = {};
+
+  // The SVG text for a type, or null when there is none (or it is not an SVG).
+  function artSvg(typeId) {
+    let art = null;
+    try { art = globalThis.APT_ART; } catch (e) { art = null; }
+    if (!art || typeof art !== 'object' || !Object.prototype.hasOwnProperty.call(art, typeId)) return null;
+    const svg = art[typeId];
+    return typeof svg === 'string' && /^<svg[\s>]/.test(svg) && /<\/svg>\s*$/.test(svg) ? svg : null;
+  }
+
+  function hasArt(typeId) {
+    return artSvg(typeId) !== null;
+  }
+
+  // data: URI for a type's picture (cached), sized ART_PX square.
+  function artUri(typeId) {
+    const svg = artSvg(typeId);
+    if (!svg) return null;
+    const entry = artCache[typeId] || (artCache[typeId] = {});
+    if (!entry.uri) {
+      const sized = svg.replace(/^<svg\b[^>]*>/, (tag) => tag
+        .replace(/\s(width|height)="[^"]*"/g, '')
+        .replace(/^<svg\b/, '<svg width="' + ART_PX + '" height="' + ART_PX + '"'));
+      entry.uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sized);
+    }
+    return entry.uri;
+  }
+
+  // Loads (once) the Image the canvas draws. Resolves with the Image when it
+  // can be drawn, or null (no art, a load error); never rejects.
+  function loadArt(typeId) {
+    const uri = artUri(typeId);
+    if (!uri) return Promise.resolve(null);
+    const entry = artCache[typeId];
+    if (entry.loading) return entry.loading;
+    entry.loading = new Promise((resolve) => {
+      let img;
+      try { img = new Image(); } catch (e) { resolve(null); return; }
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        if (!ok) { resolve(null); return; }
+        // Safari can paint a freshly loaded SVG image blank the first time it
+        // is drawn onto a canvas; one throwaway draw gets that out of the way.
+        try {
+          const warm = document.createElement('canvas');
+          warm.width = 8;
+          warm.height = 8;
+          warm.getContext('2d').drawImage(img, 0, 0, 8, 8);
+        } catch (e) { /* not important */ }
+        entry.img = img;
+        resolve(img);
+      };
+      img.onload = () => {
+        // decode() makes sure the pixels are ready. Some WebKit versions
+        // reject it (or never settle) for SVG although the image draws fine,
+        // so a rejection counts as ready, and so does waiting 500 ms.
+        if (img.decode) {
+          img.decode().then(() => finish(true), () => finish(true));
+          setTimeout(() => finish(true), 500);
+        } else {
+          finish(true);
+        }
+      };
+      img.onerror = () => finish(false);
+      img.src = uri;
+      if (img.complete && img.naturalWidth) img.onload();
+    });
+    return entry.loading;
+  }
+
+  // The loaded Image for a type, or null if it is not ready (yet).
+  function artImage(typeId) {
+    const entry = artCache[typeId];
+    const img = entry && entry.img;
+    return img && img.complete !== false && (img.naturalWidth || img.width) ? img : null;
+  }
+
+  // Waits for a type's picture, but never longer than `ms`. Resolves either way.
+  function artReady(typeId, ms) {
+    if (!hasArt(typeId) || artImage(typeId)) return Promise.resolve(artImage(typeId));
+    return Promise.race([loadArt(typeId), new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
+  }
+
+  // Starts loading every picture in art.js. Returns a promise for all of them.
+  function preloadArt(typeIds) {
+    return Promise.all((typeIds || []).map((id) => loadArt(id)));
+  }
+  // ART HELPERS END
+
+  // A decorative <img> of a type's character, or null when there is none.
+  function artImg(typeId, className, style) {
+    const uri = artUri(typeId);
+    if (!uri) return null;
+    return el('img', {
+      class: className, src: uri, alt: '', 'aria-hidden': 'true', style: style,
+      width: '240', height: '240', draggable: 'false', decoding: 'async'
+    });
+  }
+
   // How many statements at the start of a play quietly say "close enough
   // counts" (people were answering too literally).
   const CLOSE_ENOUGH_FOR = 3;
@@ -324,6 +448,10 @@
   // so a sticker with its code and colour would give the secret away.
   const TEASER_TYPES = ['bond_deep', 'work_deep', 'brain_lite', 'heart_lite', 'school_lite', 'heart_deep'];
   const TEASER_TILTS = [-6, 4, -2, 7, -4, 3];
+  // Three of them also show their character above the codes. Same rule:
+  // never the hidden type.
+  const TEASER_ART = ['bond_deep', 'brain_lite', 'heart_deep'];
+  const TEASER_ART_TILTS = [-5, 3, -2];
 
   function sticker(type, extraClass, tilt, delay) {
     return el('span', {
@@ -372,7 +500,17 @@
     const stickers = TEASER_TYPES.filter((id) => typesById[id]).map((id, i) =>
       el('li', {}, [sticker(typesById[id], '', TEASER_TILTS[i % TEASER_TILTS.length], 120 + i * 70)]));
 
+    // A few characters as die-cut stickers above the codes (only the ones
+    // art.js has; none at all without it). Decorative, like the codes.
+    const faces = TEASER_ART.filter((id) => typesById[id] && hasArt(id)).map((id, i) =>
+      el('li', {}, [el('span', {
+        class: 'sticker sticker-art',
+        style: '--sticker-bg:' + typesById[id].color + ';--tilt:' + TEASER_ART_TILTS[i % TEASER_ART_TILTS.length] +
+          'deg;--delay:' + (40 + i * 70) + 'ms'
+      }, [artImg(id, 'sticker-art-img')])]));
+
     const sheet = el('figure', { class: 'sticker-sheet' }, [
+      faces.length > 0 && el('ul', { class: 'sticker-faces', 'aria-hidden': 'true' }, faces),
       el('ul', { 'aria-hidden': 'true' }, stickers),
       el('figcaption', {}, [
         el('span', { class: 'teaser-text', text: t('typesTeaser') }),
@@ -1250,7 +1388,12 @@
       }
       return el('button', { class: 'pair', type: 'button', 'data-nav': 'pair-' + otherId, onclick: () => peekAt(otherId) }, [
         el('span', { class: 'pair-kicker', text: kind }),
-        el('span', { class: 'pair-head' }, [chip(other), el('span', { class: 'pair-name', text: L(other.name) })]),
+        // The other type's character, small, when art.js has one (decorative).
+        el('span', { class: 'pair-head' }, [
+          artImg(otherId, 'pair-art', '--art-bg:' + other.color),
+          chip(other),
+          el('span', { class: 'pair-name', text: L(other.name) })
+        ]),
         el('span', { class: 'pair-line' }, keepQuotes(L(line))),
         el('span', { class: 'pair-go', 'aria-hidden': 'true', text: '→' })
       ]);
@@ -1402,6 +1545,9 @@
         el('span', { class: 'tcard-label', text: tileLabel(type) }),
         mine && el('span', { class: 'tcard-you', text: t('typesYou') })
       ]),
+      // The character, when art.js has one (decorative: the button's name
+      // comes from its text). The locked card above never gets one.
+      artImg(type.id, 'tcard-art'),
       el('span', {
         class: 'tcard-code',
         style: 'font-size:calc(' + code.size.toFixed(2) + ' * 1cqw)'
@@ -1438,10 +1584,19 @@
    * Layout, top to bottom:
    *   top row (product name ... ticks)
    *   free space (whatever is left over)
-   *   CODE  (the hero: as big as width and height allow)
-   *   name, tagline
+   *   CODE  (as big as width and height allow)
+   *   name, tagline on the left | the type's character on the right
    *   a fixed gap (gapScore), so every card has the same rhythm
    *   PURITY label, score, five bars, note — pinned to the bottom
+   *
+   * The character (art.js) is the other hero: it is what people screenshot.
+   * It sits beside the name and tagline, artMax (47) units square, so it
+   * costs no width from the code, the score or the bars; the name and
+   * tagline wrap in the narrower column next to it (up to 3 and 4 lines
+   * there). Only a name with a very long word ("Professionally") makes the
+   * square smaller, down to artMin, so that word still fits at a readable
+   * size. A type without a picture gets the plain layout: name and tagline
+   * across the full width, the code taking the height instead.
    *
    * The five bars show WEIGHT, not counts: each section fills depth / 10 of
    * its ten squares (depth = points out of the 12 a section can score in one
@@ -1453,27 +1608,43 @@
    */
   const CARD = {
     width: 100, height: 400 / 3,
-    pad: 7,
-    topSize: 3.4, topLine: 4.4,
-    gapTopMin: 5,                          // smallest space between the top row and the code
+    pad: 7, padY: 6.2,                     // side and top/bottom padding
+    topSize: 3.4, topLine: 4,
+    gapTopMin: 2.5,                        // smallest space between the top row and the code
     codeMaxSize: 28, codeLineRatio: 0.94,  // code size is fitted per type, see buildCardModel
     gapCode: 2.2,
     nameSize: 6.2, nameMinSize: 5.2, nameLine: 7.4, nameMaxLines: 2,
     gapName: 1.4,
     tagSize: 3.9, tagMinSize: 3.5, tagLine: 5.2, tagMaxLines: 2,
-    gapScore: 7,
-    scoreLabelSize: 3, scoreLabelLine: 4.6,
-    puritySize: 15, pctSize: 7, purityLine: 13.5,
-    gapPurity: 2.6,
-    barRow: 6, barLabelW: 16, barLabelSize: 3.4, barGap: 1.6,
-    barStroke: 0.45, barRadius: 0.9,
-    gapBars: 2.8,
-    noteSize: 3.1, noteLine: 4.4,
+    // Beside the character the column is narrow, so more lines are allowed,
+    // and the name may shrink a little further for one very long word.
+    // nameOneLineArt: a name stays on one line only down to this size;
+    // below it, two lines at a larger size read better ("The / Accessory").
+    nameMaxLinesArt: 3, nameMinSizeArt: 4.8, nameOneLineArt: 5.6, tagMaxLinesArt: 4,
+    // The character: a square on the right, below the code. Every drawing
+    // keeps a few percent of empty margin inside its square, so the square
+    // may hang artOverX past the right padding and artOverY into the gap
+    // above the score without the ink getting closer to the edge or the
+    // score than the text does. It also rises into the empty bottom of the
+    // code's line box (codes are capitals and digits: nothing hangs below
+    // the baseline): by what the font leaves free there, keeping artClear
+    // from the glyphs, at most artRaiseMax (see artRaiseFor).
+    artMax: 47, artMin: 40, wordsMinW: 36, gapArt: 2.5, artOverX: 2, artOverY: 2.5,
+    artRaiseMax: 3, artClear: 1.2,
+    gapScore: 3.2,
+    scoreLabelSize: 3, scoreLabelLine: 4,
+    puritySize: 14, pctSize: 6.6, purityLine: 12.6,
+    gapPurity: 1.6,
+    barRow: 4.6, barLabelW: 18, barLabelSize: 3.4, barGap: 3,
+    barStroke: 0.45, barRadius: 0.8,
+    gapBars: 1.8,
+    noteSize: 3.1, noteLine: 4.2,
     // The small column on the right of the score: "MATCH" (on the label row),
     // the match number, then the secondary chip ("ALSO [HAHA-OK]") when there
-    // is one. It fits beside the score's two rows, so it adds no height:
-    // 4.6 (label) + 7.4 + 0.8 + 5.2 = 18 <= 4.6 + 13.5.
-    matchSize: 7, matchPctSize: 4, matchLine: 7.4,
+    // is one. It fits beside the score's two rows (plus a little of the gap
+    // under them), so it adds no height: 4 + 6.8 + 0.8 + 5.2 = 16.8 <=
+    // 4 + 12.6 + 1.6.
+    matchSize: 7, matchPctSize: 4, matchLine: 6.8,
     gapChip: 0.8, chipH: 5.2, chipSize: 3.5, chipPadX: 1.5,
     chipStroke: 0.4, chipRadius: 1.2, chipLabelGap: 1.4
   };
@@ -1542,18 +1713,44 @@
     return lines;
   }
 
-  // For two lines, picks the break that makes them as even as possible, so a
-  // single word never sits alone on the second line ("...than / you.").
-  function balanceTwo(ctx, tokens, maxWidth) {
+  // For two or three lines, picks the breaks that make the lines as even as
+  // possible, so a single word never sits alone on the last line
+  // ("...than / you."). In Chinese a break after clause punctuation or a
+  // phrase-ending word (the same ZH_BREAK_AFTER as statementPieces) wins over
+  // an even one, so a tagline splits at "，" ("领英上的你，/ 本人有魅力多了"),
+  // not mid-word.
+  function balanceLines(ctx, tokens, maxWidth, count) {
+    const cjk = new RegExp('[' + CJK + ']');
+    const canBreak = (i) => i > 0 && i < tokens.length && !NO_LINE_START.test(tokens[i].text);
+    // How good a break before token i is: 2 after clause punctuation, 1 after
+    // a phrase-ending word ("的"), 0 elsewhere (Latin text: always 0).
+    const breakScore = (i) => {
+      const last = tokens[i - 1].text.slice(-1);
+      if (!cjk.test(tokens[i - 1].text + tokens[i].text) || !ZH_BREAK_AFTER.test(last)) return 0;
+      return /[，、：；。！？」…]/.test(last) ? 2 : 1;
+    };
     let best = null;
+    const consider = (cuts) => {
+      const bounds = [0].concat(cuts, tokens.length);
+      const lines = [];
+      let widest = 0;
+      for (let k = 0; k < bounds.length - 1; k++) {
+        const line = joinTokens(tokens.slice(bounds[k], bounds[k + 1]));
+        widest = Math.max(widest, ctx.measureText(line).width);
+        if (widest > maxWidth) return;
+        lines.push(line);
+      }
+      const good = cuts.reduce((sum, i) => sum + breakScore(i), 0);
+      if (!best || good > best.good || (good === best.good && widest < best.widest)) {
+        best = { widest: widest, good: good, lines: lines };
+      }
+    };
     for (let i = 1; i < tokens.length; i++) {
-      if (NO_LINE_START.test(tokens[i].text)) continue;
-      const a = joinTokens(tokens.slice(0, i));
-      const b = joinTokens(tokens.slice(i));
-      const widest = Math.max(ctx.measureText(a).width, ctx.measureText(b).width);
-      if (widest <= maxWidth && (!best || widest < best.widest)) best = { widest: widest, lines: [a, b] };
+      if (!canBreak(i)) continue;
+      if (count === 2) consider([i]);
+      else for (let j = i + 1; j < tokens.length; j++) if (canBreak(j)) consider([i, j]);
     }
-    return best ? best.lines : null;
+    return best;
   }
 
   // Finds the largest size (<= startSize) at which `text` fits in maxLines.
@@ -1584,14 +1781,49 @@
       size *= 0.94;
     }
     let out = lines.map(joinTokens);
-    if (lines.length === 2) {
-      out = balanceTwo(ctx, tokens, maxWidth) || out;
+    if (lines.length === 2 || lines.length === 3) {
+      let best = balanceLines(ctx, tokens, maxWidth, lines.length);
+      // Chinese: when two lines cannot break at punctuation ("它不记得你，你 /
+      // 记得…"), three lines that break at the "，" and at a phrase end read
+      // better ("它不记得你，/ 你记得它说的 / 每一句"), if a third line is allowed.
+      if (best && lines.length === 2 && maxLines >= 3 && best.good < 2) {
+        const three = balanceLines(ctx, tokens, maxWidth, 3);
+        if (three && three.good >= 3) best = three;
+      }
+      if (best) out = best.lines;
     } else if (lines.length > maxLines) {
       // Still too long at the smallest size: cut and add an ellipsis.
       out = out.slice(0, maxLines);
       out[maxLines - 1] = out[maxLines - 1].replace(/\s*\S$/, '') + '…';
     }
     return { size: size, lines: out };
+  }
+
+  // Width (card units) of the widest piece of `text` that cannot be broken:
+  // a Latin word, or one CJK character.
+  function widestToken(text, weight, family, size) {
+    const ctx = measurer();
+    ctx.font = canvasFont(weight, size, family);
+    return Math.max.apply(null, tokenize(text).map((tok) => ctx.measureText(tok.text).width / UNIT).concat(0));
+  }
+
+  // How far (card units) the character may rise into the bottom of the
+  // code's line box: the room the font leaves under the code's glyphs (in
+  // the line box and the gap under it), less artClear, at most artRaiseMax.
+  // Worked out from the font's own numbers, the way CSS places the line, so
+  // it holds for Avenir Next Condensed and for the "APT Display" fallback.
+  function artRaiseFor(codeText, family, sizeUnits) {
+    const ctx = measurer();
+    ctx.font = canvasFont(800, sizeUnits, family);
+    const m = ctx.measureText(codeText);
+    const size = sizeUnits * UNIT;
+    const ascent = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : size * 0.8;
+    const descent = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : size * 0.2;
+    const inkBelow = m.actualBoundingBoxDescent !== undefined ? Math.max(0, m.actualBoundingBoxDescent) : size * 0.05;
+    const line = sizeUnits * CARD.codeLineRatio * UNIT;
+    const baseline = (line - (ascent + descent)) / 2 + ascent;
+    const free = (line - baseline - inkBelow) / UNIT + CARD.gapCode - CARD.artClear;
+    return Math.max(0, Math.min(CARD.artRaiseMax, free));
   }
 
   function buildCardModel(type, result) {
@@ -1610,22 +1842,56 @@
     // Body text gets a 10% safety margin: at small screen sizes the system font
     // switches to a wider "text" cut than the canvas measures at PNG size, so a
     // line that just fits in the PNG could spill over the card edge on screen.
-    const name = fitText(L(type.name), 700, fonts.body, C.nameSize, inner * 0.92, C.nameMaxLines, C.nameMinSize);
-    const tagline = fitText(L(type.tagline), 500, fonts.body, C.tagSize, inner * 0.9, C.tagMaxLines, C.tagMinSize);
+    // With a character, the name and tagline wrap in the column beside it.
+    const withArt = hasArt(type.id);
+    const nameText = L(type.name);
+    const tagText = L(type.tagline);
+    // The character's size: artMax, unless the name or tagline has a word
+    // too wide for the column that leaves, even at their smallest size.
+    let artSize = 0;
+    if (withArt) {
+      const needW = Math.max(C.wordsMinW,
+        widestToken(nameText, 700, fonts.body, C.nameMinSizeArt) / 0.92,
+        widestToken(tagText, 500, fonts.body, C.tagMinSize) / 0.9);
+      artSize = Math.max(C.artMin, Math.min(C.artMax, inner + C.artOverX - C.gapArt - needW));
+    }
+    const wordsW = withArt ? inner - (artSize - C.artOverX) - C.gapArt : inner;
+    const name = fitText(nameText, 700, fonts.body, C.nameSize, wordsW * 0.92,
+      withArt ? C.nameMaxLinesArt : C.nameMaxLines, withArt ? C.nameOneLineArt : C.nameMinSize);
+    const tagline = fitText(tagText, 500, fonts.body, C.tagSize, wordsW * 0.9,
+      withArt ? C.tagMaxLinesArt : C.tagMaxLines, C.tagMinSize);
+    const wordsH = name.lines.length * C.nameLine + C.gapName + tagline.lines.length * C.tagLine;
 
-    // The code is the loudest thing on the card, so it grows to fill the width
-    // (short codes get huge). It may only use the height left once everything
-    // else, including the fixed gap above the score, has its place.
-    const headRest = C.gapCode + name.lines.length * C.nameLine + C.gapName + tagline.lines.length * C.tagLine;
-    const usedHeight = C.pad * 2 + C.topLine + C.gapTopMin + headRest + C.gapScore + C.bottomHeight;
-    const codeRoom = C.height - usedHeight; // height available for the code's line box
-    const codeMax = Math.min(C.codeMaxSize, codeRoom / C.codeLineRatio);
-    const code = fitText(type.code, 800, fonts.display, codeMax, inner, 1);
-    code.line = code.size * C.codeLineRatio;
+    // The code grows to fill the width (short codes get huge). It may only
+    // use the height left once everything else, including the character and
+    // the fixed gap above the score, has its place. How far the character
+    // may rise into the code's line box depends on the code's size, so the
+    // fit runs twice: first assuming the largest rise, then with the rise
+    // that size really allows (it can only get a touch smaller).
+    let artRaise = withArt ? C.artRaiseMax : 0;
+    let midH = 0;
+    let code = null;
+    for (let pass = 0; pass < 2; pass++) {
+      // The row under the code: the words, and the character when there is
+      // one. The words sit in the middle of the row, beside the character.
+      midH = withArt ? Math.max(artSize - C.artOverY - artRaise, wordsH) : wordsH;
+      const usedHeight = C.padY * 2 + C.topLine + C.gapTopMin + C.gapCode + midH + C.gapScore + C.bottomHeight;
+      const codeRoom = C.height - usedHeight; // height available for the code's line box
+      const codeMax = Math.min(C.codeMaxSize, codeRoom / C.codeLineRatio);
+      code = fitText(type.code, 800, fonts.display, codeMax, inner, 1);
+      code.line = code.size * C.codeLineRatio;
+      if (!withArt) break;
+      const raise = artRaiseFor(type.code, fonts.display, code.size);
+      if (raise >= artRaise - 0.01) break;
+      artRaise = raise;
+    }
+    if (withArt) midH = Math.max(artSize - C.artOverY - artRaise, wordsH);
+    const wordsOffset = (midH - wordsH) / 2;
+    const headRest = C.gapCode + midH;
 
     // Where the code starts: the head block sits a fixed gap above the score,
     // and any leftover space goes between the top row and the code.
-    const headTop = C.height - C.pad - C.bottomHeight - C.gapScore - headRest - code.line;
+    const headTop = C.height - C.padY - C.bottomHeight - C.gapScore - headRest - code.line;
 
     // The secondary chip: its width is measured once here, so the screen and
     // the PNG draw exactly the same box around the code.
@@ -1657,6 +1923,17 @@
       headTop: headTop,
       name: name,
       tagline: tagline,
+      midH: midH,
+      wordsOffset: wordsOffset,
+      // Where the character goes (card units), or null for the plain layout.
+      art: withArt ? {
+        id: type.id,
+        uri: artUri(type.id),
+        x: C.width - C.pad - artSize + C.artOverX,
+        y: headTop + code.line + C.gapCode - artRaise,
+        size: artSize,
+        raise: artRaise
+      } : null,
       purity: String(result.purity),
       scoreLabel: t('liveLabel').toUpperCase(),
       dims: dims,
@@ -1696,12 +1973,23 @@
           style: 'font-size:calc(' + model.code.size + ' * 1cqw);line-height:calc(' + model.code.line + ' * 1cqw)',
           'aria-hidden': 'true'
         }, lines(model.code)),
-        el('h1', {
-          class: 'card-name', tabindex: '-1', 'data-focus': true,
-          'aria-label': model.type.code + ' ' + L(model.type.name),
-          style: 'font-size:calc(' + model.name.size + ' * 1cqw)'
-        }, lines(model.name)),
-        el('p', { class: 'card-tagline', style: 'font-size:calc(' + model.tagline.size + ' * 1cqw)' }, lines(model.tagline))
+        // Name and tagline, with the character beside them when there is one.
+        // The row is exactly midH tall, as in the PNG.
+        el('div', {
+          class: 'card-mid' + (model.art ? ' has-art' : ''),
+          style: 'height:calc(' + model.midH + ' * 1cqw)' +
+            (model.art ? ';--artS:' + model.art.size + ';--artR:' + model.art.raise : '')
+        }, [
+          el('div', { class: 'card-words' }, [
+            el('h1', {
+              class: 'card-name', tabindex: '-1', 'data-focus': true,
+              'aria-label': model.type.code + ' ' + L(model.type.name),
+              style: 'font-size:calc(' + model.name.size + ' * 1cqw)'
+            }, lines(model.name)),
+            el('p', { class: 'card-tagline', style: 'font-size:calc(' + model.tagline.size + ' * 1cqw)' }, lines(model.tagline))
+          ]),
+          model.art && artImg(model.art.id, 'card-art')
+        ])
       ]),
       el('div', { class: 'card-bottom' }, [
         el('div', { class: 'card-score' }, [
@@ -1752,7 +2040,8 @@
     else ctx.rect(x, y, w, h);
   }
 
-  function drawCard(model) {
+  // opts.noArt: draw without the character (the fallback in exportCard).
+  function drawCard(model, opts) {
     const canvas = document.createElement('canvas');
     canvas.width = PNG_W;
     canvas.height = PNG_H;
@@ -1779,7 +2068,7 @@
 
     // --- top row ---
     ctx.font = canvasFont(700, C.topSize, f.body);
-    const topBase = baselineIn(ctx, C.pad, C.topLine, C.topSize);
+    const topBase = baselineIn(ctx, C.padY, C.topLine, C.topSize);
     ctx.textAlign = 'left';
     ctx.fillText(model.appName, left, topBase);
     ctx.textAlign = 'right';
@@ -1789,11 +2078,21 @@
     // --- head: code, name, tagline (placed a fixed gap above the score) ---
     let y = model.headTop;
     y = textBlock(model.code, 800, f.display, model.code.line, y);
-    y = textBlock(model.name, 700, f.body, C.nameLine, y + C.gapCode);
+    y = textBlock(model.name, 700, f.body, C.nameLine, y + C.gapCode + model.wordsOffset);
     textBlock(model.tagline, 500, f.body, C.tagLine, y + C.gapName);
 
+    // --- the character, beside the name and tagline ---
+    // saveImage and prepareShareFile wait for the picture before they get
+    // here; if it still is not loaded, the card is drawn without it.
+    const artImgNode = model.art && !(opts && opts.noArt) ? artImage(model.art.id) : null;
+    if (artImgNode) {
+      try {
+        ctx.drawImage(artImgNode, model.art.x * UNIT, model.art.y * UNIT, model.art.size * UNIT, model.art.size * UNIT);
+      } catch (e) { /* a broken picture: the card is still fine without it */ }
+    }
+
     // --- bottom block, measured up from the bottom edge ---
-    y = C.height - C.pad - C.bottomHeight;
+    y = C.height - C.padY - C.bottomHeight;
 
     // Small spaced-out label ("PURITY", "MATCH", "ALSO"), left or right aligned.
     function smallLabel(text, x, align, top, lineH) {
@@ -1886,10 +2185,47 @@
     return canvas;
   }
 
+  // The card as a PNG. If the browser refuses to export a canvas with the
+  // character on it (a "tainted" canvas: current browsers allow a data: SVG
+  // without outside references, some old Safari versions did not), it tries
+  // once more without the character instead of failing.
+  function cardDataUrl(model) {
+    for (const noArt of [false, true]) {
+      try {
+        const url = drawCard(model, { noArt: noArt }).toDataURL('image/png');
+        if (url.length > 100) return url;
+      } catch (e) { /* tainted or out of memory: try the plain card */ }
+      if (!model.art) break;
+    }
+    return '';
+  }
+
   function cardBlob(model) {
     return new Promise((resolve) => {
-      try { drawCard(model).toBlob(resolve, 'image/png'); } catch (e) { resolve(null); }
+      const attempt = (noArt) => {
+        const retry = !noArt && model.art;
+        try {
+          drawCard(model, { noArt: noArt }).toBlob((blob) => {
+            if (blob || !retry) resolve(blob);
+            else attempt(true);
+          }, 'image/png');
+        } catch (e) {
+          if (retry) attempt(true);
+          else resolve(null);
+        }
+      };
+      attempt(false);
     });
+  }
+
+  // How long "Save image" waits for a character that has not loaded yet
+  // (normally it loaded at startup, so there is no wait at all).
+  const ART_WAIT_MS = 4000;
+
+  // Resolves once the card's character can be drawn (or there is none, or
+  // it failed / timed out: then the card is drawn without it).
+  function cardArtReady(model) {
+    return model.art ? artReady(model.art.id, ART_WAIT_MS) : Promise.resolve(null);
   }
 
   function fileName(model) {
@@ -1914,23 +2250,25 @@
   }
 
   function saveImage(model) {
-    let canvas;
-    try {
-      canvas = drawCard(model);
-    } catch (e) {
-      toast(t('imageFailed'));
+    // The character was loaded at startup (preloadArt), so this is normally
+    // synchronous. On a slow device, wait for it first: a saved card without
+    // its character is the one thing this button must not produce.
+    if (model.art && !artImage(model.art.id)) {
+      cardArtReady(model).then(() => saveImageNow(model));
       return;
     }
+    saveImageNow(model);
+  }
 
+  function saveImageNow(model) {
     if (shouldShowImage()) {
-      let dataUrl = '';
-      try { dataUrl = canvas.toDataURL('image/png'); } catch (e) { /* handled below */ }
+      const dataUrl = cardDataUrl(model);
       if (dataUrl.length < 100) { toast(t('imageFailed')); return; }
       showImageOverlay(dataUrl, model);
       return;
     }
 
-    canvas.toBlob((blob) => {
+    cardBlob(model).then((blob) => {
       if (!blob) { toast(t('imageFailed')); return; }
       const url = URL.createObjectURL(blob);
       const link = el('a', { href: url, download: fileName(model) });
@@ -1939,7 +2277,7 @@
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       toast(t('imageSaved'));
-    }, 'image/png');
+    });
   }
 
   // A full-screen sheet with the PNG and a "press and hold to save" hint.
@@ -1977,7 +2315,8 @@
     model.file = null;
     if (!navigator.canShare) return;
     setTimeout(() => {
-      cardBlob(model).then((blob) => {
+      // Wait for the character first, so the shared picture has it too.
+      cardArtReady(model).then(() => cardBlob(model)).then((blob) => {
         if (!blob) return;
         try {
           const file = new File([blob], fileName(model), { type: 'image/png' });
@@ -2062,6 +2401,11 @@
   setUrlParams({ seed: seedParam() });
 
   render();
+
+  // Load every character now, so that "Save image" can draw the card's one
+  // straight away (canvas cannot wait for an image inside a tap). Small:
+  // about 100 KB of SVG in all, already in memory from art.js.
+  preloadArt(content.types.map((type) => type.id));
 
   // Mark this history entry with the layers on show (see "Moving between
   // layers"). After a refresh it keeps its depth; a peek it recorded is

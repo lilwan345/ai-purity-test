@@ -15,6 +15,8 @@ Words in `{braces}` are filled in by app.js and must be kept (they may move with
 In the `secondary…` lines each language may use {code}, {name} or both: the English
 type names read badly mid-sentence ("part The Text Decoder"), so English uses the code.
 `validateContent` in scoring.js reports any key that is missing.
+The characters (art.js) are pictures without words: they add no keys, and
+every one of them is decorative (empty alt text).
 
 | Key | Where it appears |
 |---|---|
@@ -25,7 +27,7 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `seedFromLink` | Landing, one quiet line when the seed came from a link: these are the sender's 30 statements, so the scores compare. Second line of the `fromFriend` banner, or on its own above the title when the link had a seed but no type |
 | `start` | Landing button |
 | `fromFriend` | Landing banner when opened from a shared link ({name} = type name) |
-| `typesTeaser` | Landing, caption under the sticker cluster |
+| `typesTeaser` | Landing, caption under the sticker cluster (three character stickers above six code stickers) |
 | `langSwitch` | Language button label (name of the OTHER language) |
 | `langSwitchLabel` | Language button: hidden hint read after the visible word ("中文 – Switch to Chinese") |
 | `progress` | Question screen, read out by screen readers before each statement ({n}, {total}). The visible "12 / 30" is plain numbers and needs no text. |
@@ -117,4 +119,4 @@ type names read badly mid-sentence ("part The Text Decoder"), so English uses th
 | `typesBack` | Back button on a type opened from the grid |
 | `typesBackHome` / `typesBackQuiz` | The grid's back button when the screen underneath is the landing page / a question (on a result it reuses `peekBack`, on a preview `peekBackTo`) |
 
-Length notes for the card: the type name gets up to 2 lines and the tagline up to 2 lines; both shrink to fit if longer. `cardNote` is one line and shrinks to fit. Dimension names appear as bar labels on the card, so short names (one word / two characters) look best.
+Length notes for the card: the type name gets up to 2 lines and the tagline up to 2 lines (beside the character: name up to 3 lines and tagline up to 4, because both wrap in the column beside the picture, about 40% of the card's width); both shrink to fit if longer. In Chinese, put a "，" where a two-line tagline should break: the card breaks there first. `cardNote` is one line and shrinks to fit. Dimension names appear as bar labels on the card, so short names (one word / two characters) look best.

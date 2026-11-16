@@ -4,7 +4,7 @@ A one-page quiz. Each play draws 30 things people do with AI from a bank
 of 105, shows them one at a time, mildest first, and you answer each
 with "Guilty" or "Never" (or a small "Not sure", which counts as "Never").
 You get a purity score from 0 to 100 plus
-one of 14 comic "types" on a card you can save as a picture. English and Simplified Chinese. It is for fun and has zero science
+one of 14 comic "types", each with its own hand-drawn character, on a card you can save as a picture. English and Simplified Chinese. It is for fun and has zero science
 in it. Nothing gets stored on a server or sent anywhere.
 
 ## Run it locally
@@ -27,14 +27,17 @@ Useful URL parameters:
 
 | File | What it is |
 |---|---|
-| `index.html` | Page shell. Loads `content.js`, then `scoring.js`, then `app.js`. |
+| `index.html` | Page shell. Loads `content.js`, then `scoring.js`, then `art.js`, then `app.js`. |
 | `content.js` | All words: interface text, the 5 dimensions, the statement bank (each with a band), the 14 types. Data only. |
 | `content.sample.js` | Old placeholder content from before the bank (no bands, old flags). Not loaded by anything; do not copy its shape. |
 | `scoring.js` | Pure functions: the seed and the draw, scoring, and a content checker. Also runs under Node for tests. |
 | `app.js` | The UI: screens, answering, the result screen and card, the PNG export and sharing. Also holds the sample player for each type. |
+| `art.js` | The 14 characters, one SVG string per type id (`globalThis.APT_ART`). **Generated** by `tools/pack-art.js`; do not edit by hand. Optional: without it, or for a type it lacks, the app shows no character and the card uses its plain layout. |
+| `tools/pack-art.js` | Checks the drawings in `art-src/c/out/<type id>.svg` and packs them into `art.js`. `node tools/pack-art.js` (see "The characters" below). |
+| `art-src/` | The drawings and the generator that drew them (owned by the art side; the app never reads it). |
 | `styles.css` | All styling. Colours and fonts are tokens at the top. Also holds the embedded display font (see below). |
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
-| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), and the "all types" grid and the sample players (`gallery.test.js`). Run `node --test tests/` |
+| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
 | `tools/personas.js` | 30 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw. |
 | `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares and match spread over 200,000 simulated players (each on their own draw), and how often a tie decided the lead. `node tools/simulate.js` |
@@ -176,8 +179,8 @@ from one `scoring.score()` call on the player's answers, so the screen and the
 rules cannot disagree. Top to bottom (one column on a phone; on a laptop the
 card stays pinned on the left):
 
-1. **The card**: code, name, tagline, purity, five bars, plus a small
-   **match** number and, when there is a secondary type, an "Also" chip with
+1. **The card**: code, the type's character beside the name and tagline,
+   purity, five bars, plus a small **match** number and, when there is a secondary type, an "Also" chip with
    its code. The saved PNG shows both too. The bars show **weight**, not
    counts (each fills depth / 10 squares), so the longest bar is always the
    section that decided the type. **Save image, Copy link and Share sit right
@@ -201,7 +204,8 @@ card stays pinned on the left):
    second".
 7. **Your other leaning** (only with a secondary type): one line with the real
    points ("School is right behind Heart, 8 points to 9"), and a "See CODE" link.
-8. **Gets on with / Clashes with**: two cards; tapping one shows that type.
+8. **Gets on with / Clashes with**: two cards, each with the other type's
+   character small on a square of its colour; tapping one shows that type.
 9. "New questions" (a new seed, straight to statement 1) and "See all 14 types", then a closed "How this is scored" panel with six plain sentences.
    (A second "See all 14 types" link sits just above the pairing cards.)
 
@@ -217,9 +221,9 @@ returns to the player's own result.
 
 "See all 14 types" (全部人格) shows every type as a small copy of the result
 card: its colour, a top line (section and depth, such as "School · light",
-or for the four special types how they are reached), the code as large as the
-card allows (fitted with the same `fitText` as the big card), the name and
-the tagline.
+or for the four special types how they are reached), the type's character
+(right-aligned under the top line), the code as large as the card allows
+(fitted with the same `fitText` as the big card), the name and the tagline.
 
 - **Where it opens**: a link under the sticker caption on the landing page;
   on the result, a link just above the two pairing cards and another next to
@@ -234,9 +238,10 @@ the tagline.
   is a result underneath, is marked "You" and goes straight back to their real
   result instead.
 - **The hidden type** shows as a locked card (dashed outline, "???", one hint
-  line, no code or name) until the player has actually got it on this device.
-  The same lock covers MY-BOT's "Gets on with" card (which points at it) and
-  any attempt to peek at it; it is never one of the landing stickers, and the
+  line, no code, name or character) until the player has actually got it on this device.
+  The same lock covers MY-BOT's "Gets on with" card (which points at it, and
+  shows no character while locked) and
+  any attempt to peek at it; it is never one of the landing stickers (codes or characters), and the
   merged sample player stops one extreme Bond statement short of its rule. It
   unlocks when the player gets it as their result, or as the "Also" type of
   the merged result (which means the same rule was met). Then one flag goes into `localStorage`
@@ -327,7 +332,8 @@ An empty list `[]` means the content is valid.
 
 ## Sharing
 
-- **Save image** draws the result card onto a 1080 x 1440 canvas.
+- **Save image** draws the result card onto a 1080 x 1440 canvas, character
+  included (see "The characters" for how the picture gets onto the canvas).
   - On a laptop it downloads the PNG and says "Image saved".
   - On phones and inside in-app browsers (Xiaohongshu, WeChat, Instagram and
     so on, which ignore download links) it opens the picture full screen with
@@ -358,9 +364,78 @@ both, so the PNG matches what is on screen. (One exception: on very narrow
 phones the small card text has an 11px floor on screen only.)
 
 Card layout, top to bottom: product name and "Guilty" count; the type code, as
-large as the space allows; the type name and tagline (two lines at most,
-balanced so no word sits alone); a fixed gap; the purity score, with a small
-right-hand column beside it (the match number, then the secondary chip when
-there is one; it fits beside the score, so it adds no height); five bars that
-run the full width, filled by weight; the note. Any spare height goes above the code, so every
-card has the same distance between the tagline and the score.
+large as the space allows; then a row with the type name and tagline on the
+left and the type's **character** on the right (a square of `CARD.artMax` =
+47 units, nearly half the card's width; the name and tagline wrap in the
+narrower column beside it, the name in up to three lines and the tagline in up
+to four, and sit in the middle of the row); a fixed gap; the purity score, with
+a small right-hand column beside it (the match number, then the secondary chip
+when there is one; it fits beside the score, so it adds no height); five bars
+that run the full width, filled by weight; the note. Any spare height goes
+above the code, so every card has the same distance between the character row
+and the score.
+
+The character sits beside the words rather than above or below them because
+the card has no spare height: the score, the bars and the note take about 47
+of its 133 units, and stacking a picture on top of the code would leave both
+small. Beside the name and tagline it costs no width from the code, the score
+or the bars. To make room for a 47-unit figure without shrinking the code, the
+top and bottom padding (`padY`), the bar rows and the gaps around the score are
+a little tighter than the sides. Every drawing keeps a little empty margin
+inside its square, so the square hangs 2 units into the right padding
+(`artOverX`) and 2.5 units into the gap above the score (`artOverY`), and rises
+into the empty bottom of the code's line box (codes have no descenders): by as
+much as the font leaves free under the glyphs, keeping 1.2 units clear, at most
+3 (`artRaiseFor`, worked out from the font's own metrics, so it holds for
+Avenir Next Condensed and the "APT Display" fallback alike). A name or tagline
+with one word too wide for the column at its smallest size would make the
+square smaller (`artMin` 40); none of today's do. A type without a character
+(art.js missing or lacking it) gets the plain layout: name and tagline across
+the full width, the code taking the height instead.
+
+In Chinese, a two- or three-line name or tagline breaks after clause
+punctuation if it can, otherwise after a phrase-ending word (`的` and the
+others in `ZH_BREAK_AFTER`), and only then wherever the lines come out most
+even (`balanceLines`). Beside the character, a tagline that cannot break at
+its "，" in two lines takes three ("它不记得你，/ 你记得它说的 / 每一句").
+
+## The characters
+
+One hand-drawn SVG per type: viewBox 0 0 240 240, no fonts or filters, a navy
+marker line with a white scribble fill, drawn to sit on the type's own card
+colour.
+
+- **Making art.js.** The drawings live in `art-src/c/out/<type id>.svg`.
+  `node tools/pack-art.js` checks each one (one `<svg>` root with that
+  viewBox and the SVG namespace, at most 12 KB, no `<script>`, event
+  handlers, `<foreignObject>`, `<image>`, text or filters, no link or `url()`
+  to anything outside the file), adds `width="240" height="240"` to a root
+  without them, and writes `art.js` in type order. It prints the types it
+  found and any that are missing; a missing type is just left out. A drawing
+  that fails a check stops the run and `art.js` is not written. Four early
+  drawings under their old names next to `art-src/c/build.js` (`analog`,
+  `ccbot`, `404`, `mybot`) stand in when `out/` lacks those types. Rerun it
+  after every change to the drawings; `tests/art.test.js` fails while
+  `art.js` is behind `art-src/c/out/`.
+- **On screen** each character is an `<img>` from a `data:` URI (never inline
+  markup), with `alt=""` and `aria-hidden="true"`, so it adds nothing for
+  screen readers or the keyboard. It shows on the result card, on each grid
+  card, small on the two pairing cards, and as three character stickers above
+  the code stickers on the landing page (`TEASER_ART` in `app.js`; never the
+  hidden type). The only motion is the stickers' existing entrance, which
+  "reduce motion" switches off like everything else.
+- **In the PNG.** A canvas can only draw an image that has finished loading,
+  and a tap cannot wait. So right after the first render the app loads every
+  character (`preloadArt`): an `Image` per type, from the same data URI but
+  with the SVG's width and height raised to 480 so every browser rasterises
+  it sharply at PNG size; it waits for `onload`, then `decode()`, and does
+  one throwaway draw onto a tiny canvas (Safari can paint a freshly loaded
+  SVG image blank the first time it is drawn). If `decode()` rejects or never
+  settles, which some WebKit versions do for SVG, it counts as ready after
+  500 ms. "Save image" draws straight away when the picture is ready (always,
+  in practice); otherwise it waits for it, at most 4 s, so it never saves a
+  card without its character because of timing. The share file waits the same
+  way. If a browser refused to export a canvas with the picture on it (a
+  "tainted" canvas; current browsers allow a self-contained data: SVG, some
+  old Safari versions did not), the app exports the card without the
+  character rather than failing.
