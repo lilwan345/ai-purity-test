@@ -708,95 +708,124 @@ CHARS.bond_lite = () => {
 // ---------- THE PURITY FIGURE (question screen) ----------
 // One margin-doodle person whose parts are swapped for machine parts as
 // purity falls (the stage table is extras.FIGURE_STAGES). Same hand as the 14:
-// the same ink, line weights, wobble and white scribble fill. Every part comes
-// twice in the file, as a group <g data-p="<part>" data-f="h"> (human) and
-// data-f="m" (machine); app.js shows one form of each, and during a change it
-// shows both, clipped either side of the scan line (the two clip paths at the
-// top). The antenna has only a machine form; "lights" is not a drawing but the
-// eye lights going from dim to full (class pf-light). The only colour besides
-// ink and white is ACCENT, and only on machine parts and the scan line.
-// Stands about 210 units tall; app.js shows it 46 to 78 px tall, so details
-// are drawn big (screen eyes, a fat antenna tip) to survive at 48 px.
+// the same ink, wobble, pen loops and white scribble fill, but drawn as a
+// small, round, friendly person (big head, small body, short legs), with a
+// finer line (outline 4.5, details 3.4, against 6 in the 14) so the face still
+// reads at 59 px tall. Every part comes twice in the file, as a group
+// <g data-p="<part>" data-f="h"> (human) and data-f="m" (machine); app.js shows
+// one form of each, and during a change it shows both, clipped either side of
+// the scan line (the two clip paths at the top). The antenna has only a
+// machine form; "lights" is not a drawing but the eye lights going from dim to
+// full (class pf-light). Where a machine part meets the person there is a
+// seam with small ticks (beside a screen eye, at a machine shoulder, down the
+// machine head and body). The only colour besides ink and white is ACCENT,
+// and only on machine parts and the scan line.
 const ACCENT = '#3A7BFF';
+const FW = 4.5, FD = 3.4; // the figure's outline and detail weights
 function figurePart(p, form, seedN, body) {
   seed = seedN;
   return `<g data-p="${p}" data-f="${form}">${body()}</g>`;
 }
-function roundBox(x0, y0, x1, y1, r, n = 2, a = 0.8) {
+function roundBox(x0, y0, x1, y1, r, n = 2, a = 0.6) {
   // a rounded rectangle as a wobbly polygon (corners cut at r)
-  return sub([[x0 + r, y0], [x1 - r, y0 + 1], [x1, y0 + r], [x1 + 1, y1 - r], [x1 - r, y1], [x0 + r, y1 + 1], [x0, y1 - r], [x0 - 1, y0 + r]], n, a);
+  return sub([[x0 + r, y0], [x1 - r, y0 + 0.5], [x1, y0 + r], [x1 + 0.5, y1 - r], [x1 - r, y1], [x0 + r, y1 + 0.5], [x0, y1 - r], [x0 - 0.5, y0 + r]], n, a);
 }
-function screenEye(cx, cy) { // a little ink screen with a light inside
-  const scr = roundBox(cx - 10, cy - 8, cx + 10, cy + 8, 4, 1, 0.4);
-  return scribble(scr, { col: INK, sp: 4, w: 6, dx: 0, dy: 0, shrink: 0.5 }) + ink(loopPath(scr, 1), 4.2) +
-    `<rect class="pf-light" x="${cx - 5}" y="${cy - 3}" width="10" height="6" rx="2" fill="${ACCENT}" stroke="none"/>`;
+const fline = (pts, w = FD, n = 1, a = 0.35) => line(pts, w, n, a);
+const fshape = (poly, opts = {}) => scribble(poly, Object.assign({ sp: 6, w: 7, dx: 2, dy: 1.5, shrink: 1.5 }, opts)) + ink(loopPath(poly, 1), opts.w2 || FW);
+// a seam: a slightly kinked line with small ticks across it
+function seam(pts, ticks) {
+  let s = fline(pts, 2.8, 1, 0.3);
+  ticks.forEach(([x, y, dx, dy]) => { s += fline([[x - dx, y - dy], [x + dx, y + dy]], 2.4, 1, 0.1); });
+  return s;
+}
+function screenEye(cx, cy) { // a neat ink screen with its light clearly inside
+  const scr = roundBox(cx - 9, cy - 7, cx + 9, cy + 7, 3.5, 1, 0.25);
+  return `<path d="${curve([...scr, scr[0]])}" fill="${INK}" stroke-width="2.6"/>` +
+    `<rect class="pf-light" x="${cx - 5.5}" y="${cy - 2.5}" width="11" height="5" rx="1.6" fill="${ACCENT}" stroke="none"/>`;
+}
+function joint(x, y, r = 3.6) { // a little accent ball joint
+  return `<circle cx="${f(x)}" cy="${f(y)}" r="${r}" fill="${ACCENT}" stroke-width="2.4"/>`;
+}
+function gripper(x, y, dir) { // a wrist joint and two pincer fingers, opening downward
+  return joint(x, y) +
+    fline([[x - 1 * dir, y + 3], [x - 6, y + 8], [x - 5.5, y + 14], [x - 2, y + 15]], FD) +
+    fline([[x + 1 * dir, y + 3], [x + 6, y + 8], [x + 5.5, y + 14], [x + 2, y + 15]], FD);
+}
+function littleShoe(x, y, dir) { // small, neat, white, toe out
+  const p = blob(x + 2 * dir, y, 8.5, 4.6, 9, 0.4);
+  return scribble(p, { col: WHITE, sp: 3.5, w: 5, dx: 0.5, dy: 0.5, shrink: 0.3 }) + ink(loopPath(p, 1), FD);
 }
 function wheel(cx, cy, r) {
-  const w = blob(cx, cy, r, r, 12, 0.8);
-  return shape(w, { sp: 5, w: 6, dx: 1, dy: 1, shrink: 0.5 }) + dot(cx, cy, 3.6);
+  const w = blob(cx, cy, r, r, 12, 0.5);
+  return fshape(w, { sp: 4.5, w: 5.5, dx: 0.5, dy: 0.5, shrink: 0.5, w2: FD + 0.4 }) + dot(cx, cy, 2.4);
 }
-const FIGURE_H = 214, FIGURE_X0 = 14, FIGURE_W = 122;
+// Layout (units): head centre (70, 60), 76 tall; body 98 to 140; feet at 172.
+const FIGURE_X0 = 18, FIGURE_W = 104, FIGURE_H = 180;
 function purityFigure() {
   DARK = false;
   const parts = [];
   // antenna (machine only): drawn first, so either head covers its foot
-  parts.push(figurePart('ant', 'm', 301, () =>
-    line([[80, 34], [82, 20], [84, 12]], 5, 1, 0.4) +
-    scribble(blob(85, 9, 7, 7, 8, 0.4), { col: ACCENT, sp: 3.5, w: 6, dx: 0.5, dy: 0.5, shrink: 0 }) +
-    ink(loopPath(blob(85, 9, 7, 7, 8, 0.4), 1), 4)));
-  // legs
-  parts.push(figurePart('legs', 'h', 311, () =>
-    line([[66, 160], [62, 194]]) + line([[86, 160], [90, 194]]) + shoe(56, 199, -1) + shoe(94, 199, 1)));
-  parts.push(figurePart('legs', 'm', 312, () =>
-    line([[64, 160], [64, 180]], 6, 1, 0.4) + line([[87, 160], [87, 180]], 6, 1, 0.4) +
-    line([[52, 182], [99, 181]], 5, 2, 0.5) + wheel(60, 196, 13) + wheel(91, 196, 13)));
-  // arms: "L" is the figure's own left (the viewer's right), "R" its right
-  parts.push(figurePart('armR', 'h', 321, () => line([[54, 112], [38, 128], [32, 148]])));
-  parts.push(figurePart('armR', 'm', 322, () =>
-    line([[54, 112], [36, 124]], 6, 1, 0.4) + line([[36, 124], [32, 144]], 6, 1, 0.4) +
-    `<circle cx="36" cy="124" r="4.5" fill="${WHITE}" stroke-width="3.6"/>` +
-    line([[23, 146], [26, 156], [32, 158]], 4.5, 1, 0.3) + line([[41, 146], [38, 156], [33, 158]], 4.5, 1, 0.3)));
-  parts.push(figurePart('armL', 'h', 331, () => line([[96, 112], [112, 126], [118, 146]])));
-  parts.push(figurePart('armL', 'm', 332, () =>
-    line([[96, 112], [114, 124]], 6, 1, 0.4) + line([[114, 124], [118, 144]], 6, 1, 0.4) +
-    `<circle cx="114" cy="124" r="4.5" fill="${WHITE}" stroke-width="3.6"/>` +
-    line([[109, 146], [112, 156], [118, 158]], 4.5, 1, 0.3) + line([[127, 146], [124, 156], [119, 158]], 4.5, 1, 0.3)));
-  // body
-  parts.push(figurePart('body', 'h', 341, () => shape(sack(75, 102))));
-  parts.push(figurePart('body', 'm', 342, () => {
-    const box = roundBox(51, 102, 100, 162, 5, 2, 0.9);
-    const panel = roundBox(62, 116, 89, 140, 3, 1, 0.5);
-    return shape(box, { sp: 7 }) + ink(loopPath(panel, 1), 3.6) +
-      scribble(blob(75.5, 128, 5.5, 5.5, 8, 0.3), { col: ACCENT, sp: 3, w: 5, dx: 0.5, dy: 0.5, shrink: 0 }) +
-      ink(loopPath(blob(75.5, 128, 5.5, 5.5, 8, 0.3), 1), 3.2) + dot(58, 152, 2.6) + dot(93, 152, 2.6);
+  parts.push(figurePart('ant', 'm', 401, () =>
+    fline([[84, 28], [87, 16], [89, 10]], FD, 1, 0.2) + joint(89.5, 7.5, 5)));
+  // legs: short stubs and small white shoes, or two little wheels
+  parts.push(figurePart('legs', 'h', 411, () =>
+    fline([[62, 138], [60, 162]], FW) + fline([[78, 138], [80, 162]], FW) + littleShoe(56, 166, -1) + littleShoe(84, 166, 1)));
+  parts.push(figurePart('legs', 'm', 412, () =>
+    fline([[61, 138], [61, 152]], FW, 1, 0.2) + fline([[79, 138], [79, 152]], FW, 1, 0.2) +
+    fline([[53, 153], [87, 152.5]], FD, 1, 0.3) + wheel(57, 163, 8.5) + wheel(83, 163, 8.5)));
+  // arms: "R" is the figure's own right (the viewer's left), "L" its left.
+  // The person's arms are short and end in a small round hand.
+  const hand = (x, y) => { const h = blob(x, y, 4.6, 4.6, 8, 0.3); return scribble(h, { col: WHITE, sp: 3, w: 5, dx: 0, dy: 0, shrink: 0 }) + ink(loopPath(h, 1), FD); };
+  parts.push(figurePart('armR', 'h', 421, () => fline([[52, 106], [42, 116], [38, 128]], FW) + hand(37, 131)));
+  parts.push(figurePart('armR', 'm', 422, () =>
+    seam([[50, 100], [52, 108], [50, 114]], [[51, 104, 2.6, -0.6], [51, 111, 2.6, -0.6]]) +
+    fline([[51, 106], [40, 114]], FW, 1, 0.2) + joint(40, 114, 3) + fline([[40, 114], [37, 124]], FW, 1, 0.2) + gripper(37, 126, -1)));
+  parts.push(figurePart('armL', 'h', 431, () => fline([[88, 106], [98, 116], [102, 128]], FW) + hand(103, 131)));
+  parts.push(figurePart('armL', 'm', 432, () =>
+    seam([[90, 100], [88, 108], [90, 114]], [[89, 104, 2.6, 0.6], [89, 111, 2.6, 0.6]]) +
+    fline([[89, 106], [100, 114]], FW, 1, 0.2) + joint(100, 114, 3) + fline([[100, 114], [103, 124]], FW, 1, 0.2) + gripper(103, 126, 1)));
+  // body: a small round bean, or a box with a seam, a window and two vents
+  parts.push(figurePart('body', 'h', 441, () =>
+    fshape(sub([[56, 97], [84, 96], [91, 112], [90, 134], [70, 141], [50, 135], [49, 112]], 2, 0.5))));
+  parts.push(figurePart('body', 'm', 442, () => {
+    const box = roundBox(51, 96, 89, 140, 6, 2, 0.5);
+    const win = roundBox(74, 106, 83, 115, 2, 1, 0.2);
+    return fshape(box) + seam([[68, 97], [66, 110], [69, 122], [67, 139]], [[67, 103, 2.4, 0], [67.5, 116, 2.4, 0], [68, 131, 2.4, 0]]) +
+      `<path d="${curve([...win, win[0]])}" fill="${ACCENT}" stroke-width="2.4"/>` +
+      fline([[74, 122], [83, 122]], 2.6, 1, 0.2) + fline([[74, 127], [81, 127]], 2.6, 1, 0.2);
   }));
-  // head
-  parts.push(figurePart('head', 'h', 351, () => {
-    const h = head(75, 64, 33, 36, -0.04);
-    return shape(h) + ghost(h) + cowlick(70, 30) + ear(42, 70, -1) + bigNose(98, 72, 1);
+  // head: a round friendly face with the family's curl, or a rounded box
+  // with a seam down it and two bolts
+  parts.push(figurePart('head', 'h', 451, () => {
+    const h = blob(70, 60, 39, 37, 15, 1.2, 0, (a) => 1 + 0.03 * Math.sin(a));
+    return fshape(h, { sp: 7, w: 8 }) +
+      fline([[63, 25], [61, 17], [67, 13], [71, 17], [67, 20]], FD, 1, 0.2) + // the curl
+      fline([[31, 58], [27, 59], [27, 66], [31, 67]], FD, 1, 0.2);            // a small ear
   }));
-  parts.push(figurePart('head', 'm', 352, () => {
-    const h = roundBox(43, 30, 107, 98, 9, 2, 0.9);
-    return shape(h) + ghost(h) + dot(39, 64, 4.2) + dot(111, 64, 4.2) + line([[52, 40], [62, 39]], 3.4, 1, 0.3);
+  parts.push(figurePart('head', 'm', 452, () => {
+    const h = roundBox(32, 24, 108, 96, 13, 2, 0.5);
+    return fshape(h, { sp: 7, w: 8 }) + fline([[40, 34], [48, 33]], 2.6, 1, 0.1) +
+      `<circle cx="29" cy="62" r="3" fill="${WHITE}" stroke-width="2.4"/><circle cx="111" cy="62" r="3" fill="${WHITE}" stroke-width="2.4"/>`;
   }));
-  // eyes (on either head): deadpan lid eye or a screen
-  const lid = (x, y) => dot(x + 1, y + 2) + line([[x - 8, y - 2], [x + 8, y - 2]], 4.5, 1, 0.5);
-  parts.push(figurePart('eyeL', 'h', 361, () => lid(88, 58)));
-  parts.push(figurePart('eyeL', 'm', 362, () => screenEye(88, 59)));
-  parts.push(figurePart('eyeR', 'h', 371, () => lid(63, 58)));
-  parts.push(figurePart('eyeR', 'm', 372, () => screenEye(63, 59)));
-  // mouth: a flat little line, or a speaker grille
-  parts.push(figurePart('mouth', 'h', 381, () => line([[66, 86], [75, 88], [84, 85]], 4.5, 1)));
-  parts.push(figurePart('mouth', 'm', 382, () => {
-    const g = roundBox(62, 80, 88, 92, 3, 1, 0.3);
-    return ink(loopPath(g, 1), 4) + [68.5, 75, 81.5].map((x) => line([[x, 82], [x, 90]], 3.2, 1, 0.2)).join('');
+  // eyes (on either head): a round dot, or a neat screen with a seam beside it
+  parts.push(figurePart('eyeL', 'h', 461, () => dot(84, 62, 4.4)));
+  parts.push(figurePart('eyeL', 'm', 462, () =>
+    seam([[74, 24], [76, 38], [73, 48], [75, 56]], [[75, 31, 2.4, 0], [74, 44, 2.4, 0]]) + screenEye(85, 62) +
+    fline([[95, 75], [99, 75], [99, 79]], 2.6, 1, 0.1)));
+  parts.push(figurePart('eyeR', 'h', 471, () => dot(56, 62, 4.4)));
+  parts.push(figurePart('eyeR', 'm', 472, () => screenEye(55, 62)));
+  // mouth: a small smile, or a little speaker grille
+  parts.push(figurePart('mouth', 'h', 481, () => fline([[64, 75], [66.5, 78.5], [70.5, 79.5], [74.5, 78.5], [77, 75]], FD, 1, 0.05)));
+  parts.push(figurePart('mouth', 'm', 482, () => {
+    const g = roundBox(62, 73, 78, 81, 2.5, 1, 0.15);
+    return ink(loopPath(g, 1), 2.8) + [67, 70, 73].map((x) => fline([[x, 75], [x, 79]], 2, 1, 0.05)).join('');
   }));
   // the scan line: drawn once at y = 0 and moved down by app.js
-  const scan = `<g class="pf-scan" opacity="0"><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="10" stroke-opacity=".2"/><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="3"/></g>`;
+  const scan = `<g class="pf-scan" opacity="0"><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="9" stroke-opacity=".2"/><path d="M${FIGURE_X0 - 2},0H${FIGURE_X0 + FIGURE_W + 2}" stroke="${ACCENT}" stroke-width="2.6"/></g>`;
   const clips = `<defs><clipPath id="pf-new"><rect class="pf-clip-new" x="${FIGURE_X0 - 10}" y="${-FIGURE_H}" width="${FIGURE_W + 20}" height="${FIGURE_H}"/></clipPath>` +
     `<clipPath id="pf-old"><rect class="pf-clip-old" x="${FIGURE_X0 - 10}" y="0" width="${FIGURE_W + 20}" height="${FIGURE_H}"/></clipPath></defs>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${FIGURE_X0} 0 ${FIGURE_W} ${FIGURE_H}" width="${FIGURE_W}" height="${FIGURE_H}">${clips}` +
-    `<g fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">${parts.join('')}${scan}</g></svg>`;
+    `<g fill="none" stroke="${INK}" stroke-width="${FW}" stroke-linecap="round" stroke-linejoin="round">${parts.join('')}${scan}</g></svg>`;
   fs.writeFileSync(path.join(OUT, 'purity-figure.svg'), svg);
   return svg.length;
 }

@@ -2214,12 +2214,12 @@ html[lang^="zh"] .lp-stat-text { word-break: keep-all; overflow-wrap: anywhere; 
   z-index: 3;
   height: var(--fig-h);
   width: auto;
-  aspect-ratio: 122 / 214;
+  aspect-ratio: 104 / 180;   /* the drawing's viewBox (art-src/c/build.js) */
   overflow: visible;
   pointer-events: none;
   transform-origin: 50% 100%;
 }
-.q-figure .pf-light { opacity: .3; transition: opacity 120ms ease-out; }
+.q-figure .pf-light { opacity: .6; transition: opacity 120ms ease-out; }
 .q-figure.pf-lights-on .pf-light { opacity: 1; }
 @media (min-width: 700px) {
   .q-stage { --fig-h: clamp(56px, calc(13vh - 24px), 88px); }

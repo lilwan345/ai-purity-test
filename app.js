@@ -1523,7 +1523,7 @@
       scan: svg.querySelector('.pf-scan'),
       clipNew: svg.querySelector('.pf-clip-new'),
       clipOld: svg.querySelector('.pf-clip-old'),
-      height: svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal.height : 214
+      height: svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal.height : 180
     };
     return svg;
   }
