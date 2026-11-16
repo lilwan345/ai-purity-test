@@ -11,7 +11,9 @@ Words in `{braces}` are filled in by app.js and must be kept (they may move with
 `dimRowMeta` {n} {shown} {pts} {band}; `dimAria` {name} {n} {shown} {pts} {band}; `pointOne` / `pointMany` {n};
 `secondaryDim` {dim} {leadDim} {a} {b} {code} {name}; `secondaryTie` {dim} {leadDim} {code} {name};
 `secondarySoulmate` / `secondaryMerged` {code} {name};
-`seeType` {code}; `peekNote` {code}; `peekBackTo` {code}.
+`seeType` {code}; `peekNote` {code}; `peekBackTo` {code};
+`typesCollected` {n} {total}; `comparePurity` {n}; `comparePurerYou` / `comparePurerFriend` {pts} (already "12 points");
+`compareTie` {n}; `compareMeta` {dim} {weight}.
 In the `secondary…` lines each language may use {code}, {name} or both: the English
 type names read badly mid-sentence ("part The Text Decoder"), so English uses the code.
 `validateContent` in scoring.js reports any key that is missing.
@@ -41,7 +43,7 @@ every one of them is decorative (empty alt text).
 | `resultHeading` | Result screen, screen-reader label |
 | `previewBadge` | Badge shown only with ?preview= |
 | `cardTicks` | Card top-right ({n} admitted of {total} shown) |
-| `cardNote` | Card bottom line (also in the PNG) |
+| `cardNote` | Card bottom line (also in the PNG): the site address alone, the same in both languages |
 | `barsLabel` | Card bars, screen-reader label (the bars show weight, not counts) |
 | `barAria` | Each bar, screen-reader text ({name}, {n} = filled squares out of 10) |
 | `superpower` | Result, label |
@@ -118,5 +120,33 @@ every one of them is decorative (empty alt text).
 | `typesYou` | Tag on the player's own card (one short word) |
 | `typesBack` | Back button on a type opened from the grid |
 | `typesBackHome` / `typesBackQuiz` | The grid's back button when the screen underneath is the landing page / a question (on a result it reuses `peekBack`, on a preview `peekBackTo`) |
+| `typesCollected` | Under the grid's intro, once at least one type is collected on this device ({n} of {total} = 14) |
+| `typesCollectedMark` | Screen-reader word on a collected card (the stamp itself is decorative) |
+
+| **Compare with a friend** (challenge and reply links; README "Compare with a friend") | |
+|---|---|
+| `challengeAction` | Button under the share buttons on the player's own result: copies the challenge link |
+| `challengePrivacy` | The one plain line right under that button, shown before anything is copied: whoever opens the link can see which statements you admitted. Keep it plain and true |
+| `challengeCopied` | Toast after copying the challenge link |
+| `challengeLanding` | Landing, in place of `seedFromLink` / `fromFriend` when the link is a challenge. Must not name the sender's type or answers |
+| `compareTitle` | Heading of the comparison block (kicker on the result; big heading on a reply link; also the page title there) |
+| `compareYou` / `compareFriend` | Labels over the two small cards |
+| `comparePurity` | Under each small card ({n} = purity) |
+| `comparePurerYou` / `comparePurerFriend` / `compareTie` | Who is purer and by how much ({pts}); or a tie ({n}) |
+| `compareSame` / `compareTheyBest` / `compareTheyClash` / `compareNone` | How the two types get along when "your" type's own `bestWithLine` / `clashWithLine` does not apply: same type; only their type gets on / clashes with yours; no pairing at all |
+| `compareBoth` / `compareOnlyFriend` / `compareOnlyYou` | Headings of the three statement lists (up to 3 / 2 / 2, heaviest first) |
+| `compareBothNone` | In place of the first list when nothing was admitted by both |
+| `compareMeta` | Small line over each listed statement: section and band word |
+| `sendBack` | Button on the comparison after a challenge: copies the reply link |
+| `sendBackNote` | Line under it: the link carries both sets of answers and anyone who opens it sees the comparison |
+| `replyIntro` | Reply link, quiet line above the heading |
+| `replyStart` | Reply link, button at the bottom: a fresh play of one's own |
+
+**The AI's remarks** are not `ui` keys: they live in `content.remarks`, lists of `{ en, zh }` lines under
+`general`, `mild` / `medium` / `extreme` (statement bands) and `school` / `work` / `heart` / `brain` / `bond`
+(sections). Each list needs at least one line; English at most 40 characters, Chinese at most 14, no emoji, no
+exclamation marks (`validateRemarks` in extras.js, also run on page load and by the tests). Voice: a deadpan
+witness who was there; never an accusation, nothing about the player's intelligence, looks or relationships.
+They show in a small bubble above the Guilty button, hidden from screen readers.
 
 Length notes for the card: the type name gets up to 2 lines and the tagline up to 2 lines (beside the character: name up to 3 lines and tagline up to 4, because both wrap in the column beside the picture, about 40% of the card's width); both shrink to fit if longer. In Chinese, put a "，" where a two-line tagline should break: the card breaks there first. `cardNote` is one line and shrinks to fit. Dimension names appear as bar labels on the card, so short names (one word / two characters) look best.

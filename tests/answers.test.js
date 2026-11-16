@@ -106,7 +106,10 @@ test('app.js: the player\'s answers reach scoring only through admittedIds', () 
   assert.doesNotMatch(src, /state\.answers\[[a-z]+\] === 'yes'/);
   // Saved state goes through the shared helper (resumePlay, tested below),
   // which cleans the answers against the play's own draw.
-  assert.match(src, /scoring\.resumePlay\(saved, params\.get\('seed'\), content\)/);
+  // The link seed is the address's ?seed=, except on a reply link (which
+  // only shows a comparison and leaves this tab's own play alone).
+  assert.match(src, /scoring\.resumePlay\(saved, linkSeed, content\)/);
+  assert.match(src, /restoreState\(compareLink && compareLink\.re \? null : params\.get\('seed'\)\)/);
   // Live purity, the result and the samples are all scored on the drawn set.
   assert.doesNotMatch(src, /scoring\.score\([^)]*content\)/, 'every score() call passes the drawn ids');
   // The 50-statement save is never read.

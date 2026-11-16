@@ -1429,3 +1429,154 @@ html[lang^="zh"] .tcard-hint { word-break: keep-all; overflow-wrap: anywhere; }
     transition-duration: 1ms !important;
   }
 }
+
+/* ---------- The result reveal (app.js, startReveal) ---------- */
+/* While it plays, Web Animations hold every piece at its starting point;
+   these rules only keep the normal entrance and the card's <img> out of
+   the way (the inline drawing sits on top of it), and stop taps from
+   reaching buttons that are not visible yet. */
+.result.is-revealing { pointer-events: none; }
+.result.is-revealing .card-wrap,
+.result.was-revealed .card-wrap { animation: none; }
+.result.is-revealing img.card-art { visibility: hidden; }
+.result.is-revealing .card-code { transform-origin: 0 100%; }
+.reveal-art { overflow: visible; }
+
+/* ---------- The AI's remark while answering (app.js, showRemark) ---------- */
+/* A small chat bubble above the Guilty button, on its own fixed layer so the
+   next statement comes in under it and nothing moves. app.js sets right and
+   bottom from the button's position. */
+.ai-remark {
+  position: fixed;
+  z-index: 25;
+  max-width: min(78vw, 340px);
+  padding: 7px 13px 8px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 180ms ease-out, transform 260ms var(--spring);
+}
+.ai-remark.is-on { opacity: 1; transform: none; }
+/* Beside the button (wide windows): centred on it, the tail on the left */
+.ai-remark.is-side { border-radius: 14px 14px 14px 4px; transform: translate(-6px, -50%); }
+.ai-remark.is-side.is-on { transform: translate(0, -50%); }
+html[lang^="zh"] .ai-remark { font-size: 15px; letter-spacing: .02em; }
+
+/* ---------- Challenge a friend (under the share buttons) ---------- */
+.challenge { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--rule); }
+.challenge .btn { width: 100%; }
+.challenge-note { margin: 8px 2px 0; font-size: 14px; line-height: 1.45; color: var(--ink-soft); text-wrap: pretty; }
+
+/* ---------- The comparison block ---------- */
+.compare {
+  margin: 0 0 32px;
+  padding: 20px 18px 18px;
+  background: var(--sheet);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--rule), 0 18px 36px -28px rgba(28, 37, 65, .45);
+}
+.compare-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 4px 0 16px;
+}
+/* A flex column (not grid): the card is a size container, so it must take
+   its width from the column, never from its own content. */
+.compare-side { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.compare-who {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+html[lang^="zh"] .compare-who { font-size: 14px; letter-spacing: .04em; }
+.compare-side .tcard { margin: 4px; width: auto; flex: 1 0 auto; }
+.tcard-static { cursor: default; }
+.tcard-static:hover, .tcard-static:active { transform: none !important; }
+.compare-purity {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.1;
+}
+html[lang^="zh"] .compare-purity { font-family: var(--font-body); font-size: 19px; }
+.compare-purer { margin: 0; font-size: 19px; font-weight: 650; line-height: 1.4; text-wrap: pretty; }
+.compare-relation { margin: 6px 0 0; font-size: 16px; line-height: 1.5; text-wrap: pretty; }
+.compare-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  vertical-align: 1px;
+}
+.compare-list { margin-top: 18px; }
+.compare-list-title { margin: 0 0 2px; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.compare-list ul { list-style: none; margin: 0; padding: 0; }
+.compare-list li { padding: 10px 0; border-bottom: 1px dashed var(--rule); }
+.compare-empty { margin: 6px 0 0; font-weight: 600; }
+.compare-send { margin-top: 20px; padding-top: 0; border-top: 0; }  /* the list above already ends in a rule */
+.compare-send .btn { width: 100%; }
+
+/* A reply link: the comparison on its own page */
+.reply { max-width: 640px; margin: 0 auto; padding-top: 8px; }
+.reply-title {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(36px, 10vw, 56px);
+  line-height: .95;
+}
+html[lang^="zh"] .reply-title { font-family: var(--font-body); font-size: clamp(32px, 9vw, 48px); line-height: 1.15; }
+.reply .seed-note-alone { margin: 0 0 12px; }
+.reply-end { margin: 8px 0 24px; }
+
+/* ---------- The collection on "all types" ---------- */
+.types-collected {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 3px 12px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) { .types-collected { grid-column: 1; justify-self: start; } }
+/* A small ink stamp with a tick, on the card's top-right corner */
+.tcard-stamp {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 3px var(--sheet);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+.tcard-stamp svg { display: block; width: 100%; height: 100%; }
+.tcard-stamp path { fill: none; stroke: var(--sheet); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Phones: the two comparison cards are narrower than grid cards, so the
+   block gives them a little more room and the tagline a size smaller
+   (keeps Chinese taglines from leaving one character on its own line). */
+@media (max-width: 420px) {
+  .compare { padding: 18px 12px 16px; }
+  .compare-cards { gap: 10px; }
+  .compare .tcard-tagline { font-size: 12px; }
+  .compare-who, .compare-purity, .compare-purer, .compare-relation, .compare-list, .compare > .kicker { padding: 0 4px; }
+  .compare-side .compare-who, .compare-side .compare-purity { padding: 0 4px; }
+}

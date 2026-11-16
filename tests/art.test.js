@@ -160,7 +160,9 @@ test('art.js: once art-src/c/out holds all 14, art.js has all 14 and is up to da
 
 test('index.html: art.js loads after scoring.js and before app.js', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const order = ['content.js', 'scoring.js', 'art.js', 'app.js'].map((f) => html.indexOf('<script src="' + f + '"></script>'));
+  // Each reference may carry a ?v= version (tools/bump-version.js).
+  const at = (f) => html.search(new RegExp('<script src="' + f.replace('.', '\\.') + '(\\?v=[^"]*)?"></script>'));
+  const order = ['content.js', 'scoring.js', 'extras.js', 'art.js', 'app.js'].map(at);
   order.forEach((i) => assert.ok(i > 0));
   assert.deepStrictEqual([...order].sort((a, b) => a - b), order);
 });
@@ -286,7 +288,7 @@ test('app.js: the art is optional everywhere it is used', () => {
 
 test('app.js: the locked hidden type never shows its character', () => {
   // The locked grid card and the locked pairing return before any artImg call.
-  const tile = appSource.match(/function typeTile\(type, mine, hiddenOpen\) \{([\s\S]*?)\n {2}\}/)[1];
+  const tile = appSource.match(/function typeTile\(type, mine, hiddenOpen, collected\) \{([\s\S]*?)\n {2}\}/)[1];
   const lockedTile = tile.slice(tile.indexOf("if (type.id === 'soulmate' && !hiddenOpen)"), tile.indexOf('return el(\'button\''));
   assert.ok(lockedTile.length > 0);
   assert.doesNotMatch(lockedTile, /artImg/);

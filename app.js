@@ -7,6 +7,7 @@
  * On top of any screen: "all types" (the grid of the 14 cards), and a peek
  * at one type's full result (see "Moving between layers" below).
  * URL params: ?lang=en|zh  ?preview=<typeId>  ?from=<typeId>  ?seed=<seed>  ?types=1
+ *             ?vs=<code> (a challenge: the sender's answers)  &re=<code> (a reply)
  *
  * A play is a seed. scoring.drawStatements(content, seed) turns it into the
  * 30 statements this play asks, in order (2 mild, 2 medium, 2 extreme per
@@ -23,18 +24,20 @@
 
   const content = globalThis.APT_CONTENT;
   const scoring = globalThis.APT_SCORING;
+  // Comparison codes, the AI's remarks and the collection (extras.js).
+  const extras = globalThis.APT_EXTRAS;
   const app = document.getElementById('app');
 
   // ---------------------------------------------------------------------
   // Startup checks
   // ---------------------------------------------------------------------
-  if (!content || !scoring) {
+  if (!content || !scoring || !extras) {
     app.innerHTML = '<p class="load-error">The quiz content did not load. Check that content.js sits next to index.html.<br>' +
       '题目没加载出来，请确认 content.js 和 index.html 在同一个文件夹。</p>';
     return;
   }
   try {
-    const problems = scoring.validateContent(content);
+    const problems = scoring.validateContent(content).concat(extras.validateRemarks(content));
     if (problems.length) {
       // Not fatal: the editor sees this in the browser console while working.
       console.warn('[AI Purity Test] content.js has ' + problems.length + ' problem(s):\n- ' + problems.join('\n- '));
@@ -69,6 +72,8 @@
    *
    * Every picture is used as an <img> from a data: URI, never as inline
    * markup: decorative (alt=""), no ids that could clash, nothing that runs.
+   * (One exception: the result reveal puts the card's SVG inline for about
+   * two seconds to draw its lines, then removes it; see startReveal.)
    * The same URI feeds the canvas for the saved PNG. Canvas can only draw an
    * image that has finished loading, so all of them are loaded and decoded
    * at startup (preloadArt), and "Save image" waits for its one if needed.
@@ -212,7 +217,19 @@
     peek: null,
     // True while the "all types" grid shows. Not saved either; the address
     // bar carries ?types=1 instead, so a refresh reopens the grid.
-    gallery: params.get('types') === '1'
+    gallery: params.get('types') === '1',
+    // A challenge link (?seed=...&vs=...): the sender's "Guilty" ids on this
+    // play, and their code as it goes back into links. The result screen
+    // then compares; nothing shows the sender's answers before that.
+    challenge: null,
+    challengeCode: null,
+    // A reply link (?seed=...&vs=...&re=...): { seed, drawn, mine, friend,
+    // mineCode, friendCode }. Shows the comparison instead of any screen,
+    // without touching this tab's own play.
+    reply: null,
+    // Statements of this play (indexes) that already got one of the AI's
+    // remarks; extras.remarkFor keeps it to 4, never two in a row.
+    remarked: []
   };
 
   // The ids answered "yes": this is what scoring.score counts. "Not sure"
@@ -246,14 +263,15 @@
         seedFromLink: state.seedFromLink,
         answers: state.answers,
         screen: state.screen,
-        index: state.index
+        index: state.index,
+        remarked: state.remarked
       }));
     } catch (e) { /* storage unavailable: fine */ }
   }
 
   // Picks this tab's play: the link's seed, the saved play, or a new one
   // (the rules live in scoring.resumePlay, which the tests cover).
-  function restoreState() {
+  function restoreState(linkSeed) {
     let saved = null;
     try {
       saved = JSON.parse(sessionStorage.getItem(STORE_KEY));
@@ -267,13 +285,16 @@
         saved = { seed: entry.aptSeed, seedFromLink: entry.aptSeedFromLink === true };
       }
     }
-    const play = scoring.resumePlay(saved, params.get('seed'), content);
+    const play = scoring.resumePlay(saved, linkSeed, content);
     state.seed = play.seed;
     state.drawn = play.drawn;
     state.seedFromLink = play.seedFromLink;
     state.answers = play.answers;
     state.screen = play.screen;
     state.index = play.index;
+    // The remarks already shown, only when this is the same play carrying on.
+    const kept = saved && saved.seed === play.seed && Array.isArray(saved.remarked) ? saved.remarked : [];
+    state.remarked = kept.filter((i) => Number.isInteger(i) && i >= 0 && i < play.drawn.length).slice(0, extras.REMARK_RULES.maxPerPlay);
   }
 
   // A new play with a new seed ("New questions" on the result, via startOver).
@@ -283,6 +304,7 @@
     state.seedFromLink = false;
     state.answers = {};
     state.index = 0;
+    state.remarked = [];
   }
 
   // localStorage holds exactly one thing: whether the hidden type has been
@@ -386,6 +408,10 @@
   function seedParam() {
     return state.seedFromLink ? state.seed : null;
   }
+  // Same for ?vs=: it stays in the address while the challenge play lasts.
+  function challengeParam() {
+    return state.challenge ? state.challengeCode : null;
+  }
 
   // ---------------------------------------------------------------------
   // Rendering
@@ -393,6 +419,8 @@
 
   function render(options) {
     const opts = options || {};
+    // A reveal still playing jumps to its end first (a language switch, say).
+    finishReveal();
     document.documentElement.lang = state.lang === 'zh' ? 'zh-Hans' : 'en';
     document.title = t('appName');
     document.getElementById('brand').textContent = t('appName');
@@ -412,19 +440,26 @@
     // A peek or the grid sits on top of whatever screen is underneath.
     const layer = currentLayer();
     let screen;
-    if (layer === 'peek') screen = renderResult();
+    // A reply link shows the comparison and nothing else.
+    if (state.reply) screen = renderReply();
+    else if (layer === 'peek') screen = renderResult();
     else if (layer === 'gallery') screen = renderGallery();
     else if (state.screen === 'question') screen = renderQuestion(opts.enter);
     else if (state.screen === 'result') screen = renderResult();
     else screen = renderLanding();
 
-    const onQuestion = layer === 'base' && state.screen === 'question';
+    const onQuestion = !state.reply && layer === 'base' && state.screen === 'question';
+    if (!onQuestion) hideRemark();
     app.classList.toggle('is-wide', !onQuestion);
     document.body.classList.toggle('layout-wide', !onQuestion);
     document.body.classList.toggle('on-question', onQuestion);
     // The landing page already shows the name huge, so the small one hides there.
-    document.body.classList.toggle('on-landing', layer === 'base' && state.screen === 'landing');
+    document.body.classList.toggle('on-landing', !state.reply && layer === 'base' && state.screen === 'landing');
     app.replaceChildren(screen);
+    // The reveal: only when the last answer of a play brought us here.
+    if (opts.reveal && !state.reply && layer === 'base' && state.screen === 'result' && !state.preview) {
+      startReveal(screen, currentScore().typeId);
+    }
 
     if (opts.moveFocus) {
       window.scrollTo(0, 0);
@@ -474,11 +509,14 @@
   }
 
   function renderLanding() {
-    const friend = state.from ? typesById[state.from] : null;
+    // A challenge never shows what the sender got before the end, so it
+    // has its own line instead of the friend banner.
+    const friend = state.from && !state.challenge ? typesById[state.from] : null;
     // When the seed came from a link, one quiet line says these are the
     // sender's statements: inside the friend banner when there is one,
     // otherwise on its own above the title.
-    const sameSet = state.seedFromLink && el('span', { class: 'seed-note', text: t('seedFromLink') });
+    const sameSet = state.seedFromLink && el('span', { class: 'seed-note',
+      text: state.challenge ? t('challengeLanding') : t('seedFromLink') });
 
     const copy = el('div', { class: 'landing-copy' }, [
       friend && el('div', { class: 'from-friend' }, [
@@ -722,6 +760,10 @@
       btn.classList.toggle('is-confirming', picked);
     });
     updateLive(value === 'yes');
+    // Now and then the AI says something about a "Guilty" (never about the
+    // other two answers). It floats above the buttons on its own layer, so
+    // the next statement comes in on time and nothing moves.
+    maybeRemark(state.index, value);
 
     // 2. The card slides out, 3. the next statement (or the result) comes in.
     const reduce = reducedMotion();
@@ -737,7 +779,10 @@
         busy = false;
         if (state.screen !== 'question') return; // e.g. a preview link took over
         if (state.index >= state.drawn.length - 1) {
-          go('result');
+          // The end of a play: the result arrives with its reveal (none with
+          // reduced motion). Nothing else ever asks for the reveal.
+          state.screen = 'result';
+          render({ moveFocus: true, reveal: !reduce });
         } else {
           state.index += 1;
           render({ moveFocus: true, enter: 'next' });
@@ -771,7 +816,7 @@
   // setting shiftKey.
   document.addEventListener('keydown', (event) => {
     // Only on a question, and not while "all types" sits on top of it.
-    if (state.screen !== 'question' || currentLayer() !== 'base') return;
+    if (state.reply || state.screen !== 'question' || currentLayer() !== 'base') return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing) return;
     if (document.querySelector('.overlay')) return;
     const key = event.key;
@@ -812,6 +857,216 @@
       void num.offsetWidth; // restart the CSS animation
       num.classList.add('bump');
     }
+  }
+
+
+  // ---------- The AI's remarks while answering ----------
+  /*
+   * extras.remarkSchedule fixes, from the seed, which statements of a play
+   * may get a remark and which line each gets (its own generator: the draw
+   * is never touched). extras.remarkFor applies the limits: only on Guilty,
+   * not in the first 3 or on the last statement, never two in a row, at
+   * most 4. The remark sits on its own layer above the Guilty button for
+   * REMARK_MS, hidden from screen readers so it never interrupts the
+   * statement being read.
+   */
+  const REMARK_MS = 1500;
+  let remarkCache = null;   // { seed, schedule }
+  let remarkTimer = null;
+  let remarkNode = null;
+
+  function remarkSchedule() {
+    if (!remarkCache || remarkCache.seed !== state.seed) {
+      remarkCache = { seed: state.seed, schedule: extras.remarkSchedule(content, state.seed, state.drawn) };
+    }
+    return remarkCache.schedule;
+  }
+
+  function maybeRemark(index, value) {
+    const entry = extras.remarkFor(remarkSchedule(), index, value, state.remarked);
+    if (!entry) return;
+    state.remarked.push(index);
+    saveState();
+    showRemark(L(entry.line));
+  }
+
+  function showRemark(text) {
+    const yes = app.querySelector('.btn-answer[data-answer="yes"]');
+    if (!yes) return;
+    if (!remarkNode) {
+      remarkNode = el('div', { class: 'ai-remark', 'aria-hidden': 'true' });
+      document.body.appendChild(remarkNode);
+    }
+    const box = yes.getBoundingClientRect();
+    const root = document.documentElement;
+    remarkNode.textContent = text;
+    // Beside the Guilty button where the window leaves room (laptops), so it
+    // never touches the statement card; otherwise just above the button.
+    const room = root.clientWidth - box.right - 14 - 16;
+    const side = room >= 200;
+    remarkNode.classList.toggle('is-side', side);
+    if (side) {
+      remarkNode.style.cssText = 'left:' + (box.right + 14) + 'px;top:' + (box.top + box.height / 2) + 'px;max-width:' + Math.min(room, 340) + 'px';
+    } else {
+      remarkNode.style.cssText = 'right:' + Math.max(8, root.clientWidth - box.right) + 'px;bottom:' + (window.innerHeight - box.top + 12) + 'px';
+    }
+    remarkNode.classList.remove('is-on');
+    void remarkNode.offsetWidth; // restart the entrance
+    remarkNode.classList.add('is-on');
+    clearTimeout(remarkTimer);
+    remarkTimer = setTimeout(hideRemark, REMARK_MS);
+  }
+
+  function hideRemark() {
+    clearTimeout(remarkTimer);
+    if (remarkNode) remarkNode.classList.remove('is-on');
+  }
+
+  // ---------- The result reveal ----------
+  /*
+   * After the last answer of a play: a short beat, the card lands empty,
+   * the character draws itself stroke by stroke like a marker, its white
+   * scribble and accent fade in, the code lands, then everything else is
+   * there. About 2 s; a tap or a key skips to the end; never with reduced
+   * motion (answer() does not ask for it then), never on a refresh, a
+   * language switch, a preview or a way back from another layer.
+   *
+   * The card itself is built exactly as always. For the drawing, the
+   * character's SVG (trusted markup from art.js) is put inline on top of
+   * the card's <img> for the length of the reveal, and removed afterwards,
+   * so the settled card, and the PNG made from the same model, are the same
+   * as without a reveal. Everything else is Web Animations on the existing
+   * elements, cancelled at the end.
+   */
+  const REVEAL = {
+    beat: 250,          // nothing yet
+    cardMs: 520,        // the card lands (same spring as the normal "slap")
+    drawAt: 450, drawMs: 1000,   // the ink lines, one after another
+    fillAt: 1300, fillMs: 300,   // white scribble, accent colour, eyes
+    darkFillMs: 700,             // on a dark card the white scribble fades in under the lines instead
+    codeAt: 1550, codeMs: 320,   // the code lands
+    restAt: 1800, restMs: 220,   // everything else
+    end: 2050           // tidy up (well under 2.5 s)
+  };
+  const INK_STROKE = '#1C2541';
+  let reveal = null;   // { finish } while one plays
+
+  function finishReveal() {
+    if (reveal) reveal.finish();
+  }
+
+  // The character's SVG as an element, or null.
+  function inlineArt(typeId) {
+    const svg = artSvg(typeId);
+    if (!svg || typeof DOMParser === 'undefined') return null;
+    try {
+      const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      const root = doc.documentElement;
+      if (!root || root.nodeName !== 'svg' || doc.getElementsByTagName('parsererror').length) return null;
+      const node = document.importNode(root, true);
+      node.removeAttribute('width');
+      node.removeAttribute('height');
+      node.setAttribute('class', 'card-art reveal-art');
+      node.setAttribute('aria-hidden', 'true');
+      node.setAttribute('focusable', 'false');
+      return node;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function startReveal(section, typeId) {
+    if (typeof section.animate !== 'function') return;
+    const anims = [];
+    let overlay = null;
+    let timer = null;
+    const play = (node, frames, delay, duration, easing) => {
+      if (node) anims.push(node.animate(frames, { delay: delay, duration: duration, easing: easing || 'ease-out', fill: 'both' }));
+    };
+    const spring = 'cubic-bezier(.34, 1.56, .64, 1)';
+
+    function finish() {
+      if (!reveal) return;
+      reveal = null;
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', finish, true);
+      document.removeEventListener('keydown', onKey, true);
+      anims.forEach((a) => { try { a.cancel(); } catch (e) { /* already gone */ } });
+      if (overlay) overlay.remove();
+      // was-revealed keeps the card from playing its normal entrance again
+      // (it already landed); the card itself is untouched.
+      section.classList.remove('is-revealing');
+      section.classList.add('was-revealed');
+    }
+    function onKey(event) {
+      if (!event.repeat) finish();
+    }
+    reveal = { finish: finish };
+    section.classList.add('is-revealing');
+
+    // 1. The card lands, empty, after the beat.
+    const wrap = section.querySelector('.card-wrap');
+    const settle = wrap ? parseFloat(getComputedStyle(wrap).getPropertyValue('--settle')) || 0 : 0;
+    play(wrap, [
+      { opacity: 0, transform: 'rotate(-6deg) scale(.88)' },
+      { opacity: 1, transform: 'rotate(' + settle + 'deg) scale(1)' }
+    ], REVEAL.beat, REVEAL.cardMs, spring);
+
+    // 2. The character draws itself.
+    const img = section.querySelector('img.card-art');
+    overlay = img ? inlineArt(typeId) : null;
+    if (overlay) {
+      img.after(overlay);
+      // Ink lines are drawn one after another, in the drawing's own order.
+      // A thick white line right under an ink line is its halo (the six
+      // dark cards have them on limbs and shoes): it is drawn with its line.
+      // Everything else (white scribble, accent colour, filled eyes) fades in.
+      const ink = [];
+      const fills = [];
+      overlay.querySelectorAll('path, circle').forEach((node) => {
+        const own = node.getAttribute('stroke');
+        const stroke = (own || INK_STROKE).toUpperCase();
+        const drawable = node.nodeName === 'path' && typeof node.getTotalLength === 'function';
+        const halo = drawable && stroke === '#FFFFFF' && parseFloat(node.getAttribute('stroke-width')) >= 9;
+        if (drawable && (stroke === INK_STROKE || halo)) ink.push(node);
+        else fills.push(node);
+      });
+      const lengths = ink.map((node) => { try { return node.getTotalLength(); } catch (e) { return 0; } });
+      const total = lengths.reduce((a, b) => a + b, 0) || 1;
+      let at = REVEAL.drawAt;
+      ink.forEach((node, i) => {
+        const len = lengths[i];
+        const ms = Math.max(12, REVEAL.drawMs * len / total);
+        // The dash starts just off the line, so a round cap cannot show as a dot.
+        node.style.strokeDasharray = len + ' ' + (len + 24);
+        play(node, [{ strokeDashoffset: len + 12 }, { strokeDashoffset: 0 }], at, ms, 'ease-in-out');
+        at += ms;
+      });
+      // On a dark card a navy line barely shows until the white scribble is
+      // behind it, so there the scribble fades in slowly while the lines draw.
+      const type = typesById[typeId];
+      const dark = type && textColorOn(type.color) === WHITE;
+      fills.forEach((node) => {
+        const accent = !/^#FFFFFF$/i.test(node.getAttribute('stroke') || '');
+        if (dark && !accent) play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.drawAt, REVEAL.darkFillMs);
+        else play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.fillAt, REVEAL.fillMs);
+      });
+    }
+
+    // 3. The code lands.
+    play(section.querySelector('.card-code'), [
+      { opacity: 0, transform: 'translateY(-8%) scale(1.12)' },
+      { opacity: 1, transform: 'none' }
+    ], REVEAL.codeAt, REVEAL.codeMs, spring);
+
+    // 4. Then the rest is there.
+    const rest = Array.from(section.querySelectorAll('.card-top, .card-words, .card-bottom, .result-actions, .result-body'));
+    rest.push(document.querySelector('.site-footer'));
+    rest.forEach((node) => play(node, [{ opacity: 0 }, { opacity: 1 }], REVEAL.restAt, REVEAL.restMs));
+
+    document.addEventListener('pointerdown', finish, true);
+    document.addEventListener('keydown', onKey, true);
+    timer = setTimeout(finish, REVEAL.end);
   }
 
   // ---------- Result ----------
@@ -1030,7 +1285,7 @@
     // The entry's address may still carry an older ?lang= if the language
     // was switched further up, or a link's ?seed= if "New questions" was
     // used further up. The address must match the play on screen.
-    setUrlParams({ lang: state.lang, seed: seedParam() });
+    setUrlParams({ lang: state.lang, seed: seedParam(), vs: challengeParam() });
   });
 
   // Label of a button that returns to the screen underneath everything.
@@ -1086,6 +1341,9 @@
     // A real result that met the hidden type unlocks its card in the grid,
     // on this device, for good. Previews and peeks never do.
     if (!isSample && scoring.earnedHidden(result)) scoring.rememberHiddenUnlocked(deviceStorage());
+    // The collection: the type a finished play ended on, on this device.
+    // Same rule as the unlock: previews, peeks and comparison links never count.
+    if (!isSample) extras.rememberCollected(deviceStorage(), result.typeId);
 
     document.title = type.code + ' ' + L(type.name) + ' | ' + t('appName');
 
@@ -1100,6 +1358,11 @@
     ]);
 
     const body = el('div', { class: 'result-body', style: typeVars }, [
+      // After a challenge, the comparison comes first: it is what they came for.
+      !isSample && state.challenge && renderCompare({
+        drawn: state.drawn, seed: state.seed, mine: ticked, friend: state.challenge,
+        friendCode: state.challengeCode, sendBack: true
+      }),
       renderVerdict(type, result, isSample),
       el('p', { class: 'roast' }, keepQuotes(L(type.roast))),
       renderSigns(type),
@@ -1418,12 +1681,150 @@
       row.push(el('button', { class: 'btn btn-ghost', type: 'button', onclick: () => shareResult(model) }, [t('share')]));
       prepareShareFile(model);
     }
+    // On the player's own result (renderActions is never called on a peek;
+    // a preview has no answers to send), one more action: a link that
+    // carries these answers, so a friend plays the same 30 and then sees
+    // how the two compare. The line under it says plainly what it reveals,
+    // before anything is copied.
+    const challenge = !state.preview && el('div', { class: 'challenge' }, [
+      el('button', { class: 'btn btn-ghost', type: 'button', onclick: copyChallengeLink }, [t('challengeAction')]),
+      el('p', { class: 'challenge-note', text: t('challengePrivacy') })
+    ]);
     return el('div', { class: 'result-actions' }, [
       el('div', { class: 'actions' }, [
         el('button', { class: 'btn btn-primary', type: 'button', onclick: () => saveImage(model) }, [t('saveImage')]),
         el('div', { class: 'actions-row' }, row)
+      ]),
+      challenge
+    ]);
+  }
+
+  // ---------- Compare with a friend ----------
+  /*
+   * opts: { drawn, seed, mine, friend, friendCode, sendBack, heading }
+   *   mine / friend: the "Guilty" ids of "you" and "your friend" on this draw.
+   * Both results come from scoring.score() via extras.comparePlays, from
+   * the seed and the answer bits alone, so both sides always see the types
+   * and numbers the players saw. The two cards are small, static copies of
+   * the grid cards (no buttons: the friend's result is not a sample to peek at).
+   */
+  function renderCompare(opts) {
+    const cmp = extras.comparePlays(content, opts.drawn, opts.mine, opts.friend);
+    const mineType = typesById[cmp.mine.typeId];
+    const friendType = typesById[cmp.friend.typeId];
+
+    function side(label, type, result) {
+      return el('figure', { class: 'compare-side' }, [
+        el('figcaption', { class: 'compare-who', text: label }),
+        staticTile(type),
+        el('p', { class: 'compare-purity', text: t('comparePurity', { n: result.purity }) })
+      ]);
+    }
+
+    let purer;
+    if (cmp.purer === 'mine') purer = t('comparePurerYou', { pts: pts(cmp.gap) });
+    else if (cmp.purer === 'friend') purer = t('comparePurerFriend', { pts: pts(cmp.gap) });
+    else purer = t('compareTie', { n: cmp.mine.purity });
+
+    // How the two types get along: the type's own pairing line when "your"
+    // type names theirs, otherwise a short neutral line.
+    const rel = cmp.relation;
+    let relation;
+    if (rel.kind === 'best' || rel.kind === 'clash') {
+      const owner = typesById[rel.typeId];
+      relation = [
+        el('span', { class: 'compare-tag', text: rel.kind === 'best' ? t('bestWithTitle') : t('clashWithTitle') }),
+        ...keepQuotes(L(rel.kind === 'best' ? owner.bestWithLine : owner.clashWithLine))
+      ];
+    } else if (rel.kind === 'same') relation = [t('compareSame')];
+    else if (rel.kind === 'theyBest') relation = [t('compareTheyBest')];
+    else if (rel.kind === 'theyClash') relation = [t('compareTheyClash')];
+    else relation = [t('compareNone')];
+
+    function list(title, ids, emptyText) {
+      if (!ids.length && !emptyText) return null;
+      return el('div', { class: 'compare-list' }, [
+        el('h3', { class: 'compare-list-title', text: title }),
+        ids.length
+          ? el('ul', {}, ids.map((id) => {
+            const st = statementsById[id];
+            return el('li', {}, [
+              el('p', { class: 'exhibit-meta', text: t('compareMeta', { dim: L(dimsByKey[st.dim].name), weight: weightWord(st.band) }) }),
+              el('p', { class: 'exhibit-text' }, statementPieces(L(st.text)))
+            ]);
+          }))
+          : el('p', { class: 'compare-empty', text: emptyText })
+      ]);
+    }
+
+    return el('section', { class: 'compare' }, [
+      opts.heading || kicker(t('compareTitle')),
+      el('div', { class: 'compare-cards' }, [
+        side(t('compareYou'), mineType, cmp.mine),
+        side(t('compareFriend'), friendType, cmp.friend)
+      ]),
+      el('p', { class: 'compare-purer', text: purer }),
+      el('p', { class: 'compare-relation' }, relation),
+      list(t('compareBoth'), cmp.both, t('compareBothNone')),
+      list(t('compareOnlyFriend'), cmp.onlyFriend),
+      list(t('compareOnlyYou'), cmp.onlyMine),
+      opts.sendBack && el('div', { class: 'challenge compare-send' }, [
+        el('button', { class: 'btn btn-primary', type: 'button', onclick: () => copySendBack(opts) }, [t('sendBack')]),
+        el('p', { class: 'challenge-note', text: t('sendBackNote') })
       ])
     ]);
+  }
+
+  // A reply link: the comparison on its own, straight from the address.
+  // "You" is the person who sent the challenge (the reply goes back to them).
+  function renderReply() {
+    const r = state.reply;
+    document.title = t('compareTitle') + ' | ' + t('appName');
+    return el('section', { class: 'screen reply' }, [
+      el('p', { class: 'seed-note-alone' }, [el('span', { class: 'seed-note', text: t('replyIntro') })]),
+      renderCompare({
+        drawn: r.drawn, seed: r.seed, mine: r.mine, friend: r.friend, sendBack: false,
+        heading: el('h1', { class: 'reply-title', tabindex: '-1', 'data-focus': true, text: t('compareTitle') })
+      }),
+      el('div', { class: 'reply-end' }, [
+        el('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: leaveReply }, [t('replyStart')])
+      ])
+    ]);
+  }
+
+  // From a reply link to a play of one's own: a new set of 30.
+  function leaveReply() {
+    state.reply = null;
+    state.challenge = null;
+    state.challengeCode = null;
+    state.from = null;
+    state.preview = null;
+    startPlay();
+    setUrlParams({ vs: null, re: null, from: null, preview: null, seed: seedParam() });
+    go('landing');
+  }
+
+  function baseUrl() {
+    return location.href.split(/[?#]/)[0];
+  }
+
+  // ?seed=<seed>&vs=<this play's answers>: a friend plays the same 30, then compares.
+  function challengeUrl() {
+    const code = extras.encodeAnswers(state.seed, state.drawn, yesIds());
+    return code ? baseUrl() + '?seed=' + state.seed + '&vs=' + code + '&lang=' + state.lang : null;
+  }
+
+  function copyChallengeLink() {
+    const url = challengeUrl();
+    if (url) copyText(url, t('challengeCopied'));
+    else toast(t('copyFailed'));
+  }
+
+  // ?seed=...&vs=<challenger>&re=<mine>: opens straight on the comparison.
+  function copySendBack(opts) {
+    const mine = extras.encodeAnswers(opts.seed, opts.drawn, opts.mine);
+    if (!mine || !opts.friendCode) { toast(t('copyFailed')); return; }
+    copyText(baseUrl() + '?seed=' + opts.seed + '&vs=' + opts.friendCode + '&re=' + mine + '&lang=' + state.lang, t('linkCopied'));
   }
 
   // "How this is scored": six plain sentences, closed until tapped.
@@ -1478,6 +1879,10 @@
     const order = scoring.galleryOrder();
     const own = ownTypeId();
     const hiddenOpen = hiddenOpenNow();
+    // The collection on this device, plus the result underneath (so blocked
+    // storage still marks the type the player is looking back from).
+    const collected = new Set(extras.collectedTypes(deviceStorage()));
+    if (own) collected.add(own);
 
     document.title = t('typesTitle') + ' | ' + t('appName');
 
@@ -1485,7 +1890,7 @@
       return el('section', { class: 'types-group ' + extraClass }, [
         kicker(title),
         el('ul', { class: 'types-grid' }, ids.filter((id) => typesById[id]).map((id) =>
-          el('li', {}, [typeTile(typesById[id], id === own, hiddenOpen)])))
+          el('li', {}, [typeTile(typesById[id], id === own, hiddenOpen, collected.has(id))])))
       ]);
     }
 
@@ -1493,7 +1898,10 @@
       el('div', { class: 'types-head' }, [
         galleryBack('types-back-top'),
         el('h1', { class: 'types-title', tabindex: '-1', 'data-focus': true, text: t('typesTitle') }),
-        el('p', { class: 'types-intro', text: t('typesIntro') })
+        el('p', { class: 'types-intro', text: t('typesIntro') }),
+        // Only once something is collected: the page is also how people
+        // browse the types, so it never nags or greys anything out.
+        collected.size > 0 && el('p', { class: 'types-collected', text: t('typesCollected', { n: collected.size, total: content.types.length }) })
       ]),
       group(t('typesSections'), order.sections, 'is-sections'),
       group(t('typesSpecial'), order.special, 'is-special'),
@@ -1521,7 +1929,11 @@
     return t('typesHidden');
   }
 
-  function typeTile(type, mine, hiddenOpen) {
+  // A small ink stamp with a tick on a collected card (decorative; the card
+  // says "Collected" to screen readers instead).
+  const STAMP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 12.5l4 4L18 8"/></svg>';
+
+  function typeTile(type, mine, hiddenOpen, collected) {
     if (type.id === 'soulmate' && !hiddenOpen) {
       // Locked: no code, no name, no colour. Not a button: nothing to open.
       return el('div', { class: 'tcard is-locked' }, [
@@ -1531,16 +1943,37 @@
         el('span', { class: 'tcard-hint' }, statementPieces(t('typesLockedHint')))
       ]);
     }
-    // The code is fitted with the same measuring as the big card: as large
-    // as the card's inner width allows (96%, a little safety margin).
-    const code = fitText(type.code, 800, fontStacks().display, TILE_CODE_MAX, 96, 1);
+    let stamp = null;
+    if (collected) {
+      stamp = el('span', { class: 'tcard-stamp', 'aria-hidden': 'true' });
+      stamp.innerHTML = STAMP_SVG; // static markup, not content
+    }
     return el('button', {
       class: 'tcard' + (mine ? ' is-mine' : ''),
       type: 'button',
       'data-nav': 'type-' + type.id,
       style: '--type-bg:' + type.color + ';--type-fg:' + textColorOn(type.color),
       onclick: () => (mine ? closeLayer() : peekAt(type.id))
-    }, [
+    }, tileParts(type, mine).concat([
+      stamp,
+      collected && el('span', { class: 'visually-hidden', text: '. ' + t('typesCollectedMark') })
+    ]));
+  }
+
+  // A grid card that is not a button (the comparison's two cards).
+  function staticTile(type) {
+    return el('div', {
+      class: 'tcard tcard-static',
+      style: '--type-bg:' + type.color + ';--type-fg:' + textColorOn(type.color)
+    }, tileParts(type, false));
+  }
+
+  // What a grid card shows: top line, character, code, name, tagline.
+  function tileParts(type, mine) {
+    // The code is fitted with the same measuring as the big card: as large
+    // as the card's inner width allows (96%, a little safety margin).
+    const code = fitText(type.code, 800, fontStacks().display, TILE_CODE_MAX, 96, 1);
+    return [
       el('span', { class: 'tcard-top' }, [
         el('span', { class: 'tcard-label', text: tileLabel(type) }),
         mine && el('span', { class: 'tcard-you', text: t('typesYou') })
@@ -1556,7 +1989,7 @@
       // "Cloud-Hosted" together in English (see its comment).
       el('span', { class: 'tcard-name' }, statementPieces(L(type.name))),
       el('span', { class: 'tcard-tagline' }, statementPieces(L(type.tagline)))
-    ]);
+    ];
   }
 
   // "New questions" on the result: a new seed, so a new set of 30, straight
@@ -1567,7 +2000,9 @@
     state.from = null;
     state.peek = null;
     state.gallery = false;
-    setUrlParams({ preview: null, from: null, types: null, seed: seedParam() });
+    state.challenge = null;
+    state.challengeCode = null;
+    setUrlParams({ preview: null, from: null, types: null, vs: null, re: null, seed: seedParam() });
     go('question');
   }
 
@@ -2335,11 +2770,15 @@
       '&lang=' + state.lang;
   }
 
-  async function copyLink() {
-    const url = shareUrl();
+  function copyLink() {
+    copyText(shareUrl(), t('linkCopied'));
+  }
+
+  // Copies `url` and says `done` (or that copying failed).
+  async function copyText(url, done) {
     try {
       await navigator.clipboard.writeText(url);
-      toast(t('linkCopied'));
+      toast(done);
       return;
     } catch (e) { /* clipboard API missing or blocked (e.g. file://); try the old way */ }
     try {
@@ -2349,7 +2788,7 @@
       area.select();
       const ok = document.execCommand('copy');
       area.remove();
-      toast(ok ? t('linkCopied') : t('copyFailed'));
+      toast(ok ? done : t('copyFailed'));
     } catch (e) {
       toast(t('copyFailed'));
     }
@@ -2378,8 +2817,14 @@
 
   // Pick the play (a link's seed, this tab's saved play, or a new seed). A
   // preview needs a draw too, for its sample player, but never saves.
+  // A comparison link? extras.readCompareLink checks every value against
+  // the seed and the draw; anything malformed or tampered gives null, and
+  // the page carries on as for an ordinary link.
+  const compareLink = extras.readCompareLink({ seed: params.get('seed'), vs: params.get('vs'), re: params.get('re') }, content);
   try {
-    restoreState();
+    // A reply link only shows the comparison: this tab's own play (if any)
+    // stays as it was, so its seed is not taken from the link.
+    restoreState(compareLink && compareLink.re ? null : params.get('seed'));
   } catch (e) {
     // Only a broken bank gets here (a stratum with fewer than 2 statements):
     // validateContent has already listed the problem in the console.
@@ -2387,6 +2832,14 @@
     app.innerHTML = '<p class="load-error">The quiz content is broken: no set of statements could be drawn.<br>' +
       '题库有问题，抽不出题。</p>';
     return;
+  }
+  if (compareLink && compareLink.re) {
+    state.reply = {
+      seed: compareLink.seed, drawn: compareLink.drawn, mine: compareLink.vs, friend: compareLink.re
+    };
+  } else if (compareLink && compareLink.seed === state.seed && !state.preview) {
+    state.challenge = compareLink.vs;
+    state.challengeCode = params.get('vs').trim().toLowerCase();
   }
   if (state.preview) {
     state.screen = 'result';
@@ -2398,7 +2851,10 @@
   // form: it may have been typed in capitals). An invalid ?seed= is removed,
   // and a play the page picked itself never shows up there; history.state
   // and sessionStorage keep it through a refresh.
-  setUrlParams({ seed: seedParam() });
+  // The same for ?vs= and ?re=: kept while they mean something, removed
+  // when they were broken (or ignored, as on a preview).
+  if (state.reply) setUrlParams({ seed: compareLink.seed });
+  else setUrlParams({ seed: seedParam(), vs: challengeParam(), re: null });
 
   render();
 

@@ -47,7 +47,7 @@ globalThis.APT_CONTENT = {
     resultHeading:   { en: "Your result", zh: "你的结果" },
     previewBadge:    { en: "Preview with sample numbers", zh: "预览：示例数据" },
     cardTicks:       { en: "{n}/{total} guilty", zh: "干过 {n}/{total}" },
-    cardNote:        { en: "Zero science · lilwan345.github.io/ai-purity-test", zh: "零科学含量 · lilwan345.github.io/ai-purity-test" },
+    cardNote:        { en: "lilwan345.github.io/ai-purity-test", zh: "lilwan345.github.io/ai-purity-test" },
     barsLabel:       { en: "How much weight each section carries", zh: "每个部分有多重" },
     barAria:         { en: "{name}: {n} of 10 squares", zh: "{name}：10 格里占了 {n} 格" },
     superpower:      { en: "Superpower", zh: "超能力" },
@@ -159,8 +159,107 @@ globalThis.APT_CONTENT = {
     typesBack:          { en: "Back to all types", zh: "回到全部人格" },
     typesBackHome:      { en: "Back to the start", zh: "回到首页" },
     typesBackQuiz:      { en: "Back to the quiz", zh: "回去接着答" },
+    // The collection: which types this device has ended a play on.
+    typesCollected:     { en: "Collected {n} of {total}", zh: "已收集 {n}/{total}" },
+    typesCollectedMark: { en: "Collected", zh: "已收集" },
 
-    footer:         { en: "For fun only, with zero science in it. Your answers never leave this device.", zh: "纯属娱乐，零科学含量。答案不会离开这台设备。" }
+    // --- Compare with a friend (challenge links, see README "Sharing") ---
+    // Under the share buttons on the player's own result. challengePrivacy is
+    // shown before the link is made and must say plainly what it reveals.
+    challengeAction:    { en: "Challenge a friend", zh: "找朋友比一比" },
+    challengePrivacy:   { en: "Whoever opens this link can see which statements you admitted.", zh: "打开这个链接的人，能看到你认了哪几条。" },
+    challengeCopied:    { en: "Challenge link copied", zh: "挑战链接已复制" },
+    // Landing, when someone opens a challenge link (never names the sender's result).
+    challengeLanding:   { en: "A friend sent you their 30 statements. Answer them first, then see how you two compare.", zh: "朋友把 ta 的 30 条发给你了。先答完，再看你们俩比得怎么样。" },
+    // The comparison block (on the result after a challenge, and on a reply link).
+    compareTitle:       { en: "You and your friend", zh: "你和朋友" },
+    compareYou:         { en: "You", zh: "你" },
+    compareFriend:      { en: "Your friend", zh: "朋友" },
+    comparePurity:      { en: "Purity {n}", zh: "纯度 {n}" },
+    comparePurerYou:    { en: "You're purer, by {pts}.", zh: "你更纯，高出 {pts}。" },
+    comparePurerFriend: { en: "Your friend is purer, by {pts}.", zh: "朋友更纯，高出 {pts}。" },
+    compareTie:         { en: "Dead level: both at {n}.", zh: "打平，都是 {n}。" },
+    compareSame:        { en: "Same type. You can split the blame.", zh: "同一个类型，锅可以一人一半。" },
+    compareTheyBest:    { en: "Their type gets on with yours. Yours hasn't decided yet.", zh: "ta 的类型跟你合得来，你的还在考虑。" },
+    compareTheyClash:   { en: "Their type clashes with yours. Yours hasn't noticed.", zh: "ta 的类型跟你合不来，你的还没察觉。" },
+    compareNone:        { en: "These two types have no history. You could start some.", zh: "这两个类型素无往来，可以从今天开始。" },
+    compareBoth:        { en: "You both admitted", zh: "你们都认了" },
+    compareBothNone:    { en: "Not one statement in common.", zh: "一条交集都没有。" },
+    compareOnlyFriend:  { en: "Only your friend admitted", zh: "只有朋友认了" },
+    compareOnlyYou:     { en: "Only you admitted", zh: "只有你认了" },
+    compareMeta:        { en: "{dim} · {weight}", zh: "{dim} · {weight}" },
+    sendBack:           { en: "Send it back", zh: "发回给 ta" },
+    sendBackNote:       { en: "This link carries both sets of answers. Whoever opens it sees this comparison.", zh: "这个链接带着你们俩的答案，谁打开都能看到这份对比。" },
+    replyIntro:         { en: "Your friend played your 30 and sent this back.", zh: "朋友答完了你的 30 条，把对比发了回来。" },
+    replyStart:         { en: "Take the test yourself", zh: "我也测一次" },
+
+    footer:         { en: "For fun only, with zero science in it. Your answers stay on this device unless you share a challenge link.", zh: "纯属娱乐，零科学含量。答案只留在这台设备上，除非你自己发出挑战链接。" }
+  },
+
+  /*
+   * The AI's remarks: while answering, a tap on "Guilty" sometimes gets one
+   * of these, in the AI's voice, for about a second and a half (extras.js
+   * decides which statements and which line, from the play's seed). A
+   * deadpan witness who was there: short, understated, never an accusation.
+   * Rules (tests/extras.test.js checks the first three): English at most 40
+   * characters, Chinese at most 14; no emoji, no exclamation marks; nothing
+   * about the player's intelligence, looks or relationships.
+   * general: any statement. mild / medium / extreme: statements of that band.
+   * school ... bond: statements of that section.
+   */
+  remarks: {
+    general: [
+      { en: "Noted.", zh: "记下了。" },
+      { en: "I remember that one.", zh: "这条我有印象。" },
+      { en: "No comment. (That was a comment.)", zh: "不予置评。（刚评了。）" },
+      { en: "I was there.", zh: "不用解释，我在场。" },
+      { en: "Logged.", zh: "已存档。" },
+      { en: "That tracks.", zh: "意料之中。" },
+      { en: "Go on.", zh: "继续。" },
+      { en: "I won't bring it up again.", zh: "我不会再提了。" },
+      { en: "Your secret is safe with me. Mostly.", zh: "放心，我嘴很严。大概。" },
+      { en: "Thank you for your honesty.", zh: "感谢你的坦诚。" },
+      { en: "We don't have to talk about it.", zh: "这事咱们不用细聊。" },
+      { en: "Adding it to the file.", zh: "这条记进档案。" }
+    ],
+    mild: [
+      { en: "Everyone does that one. Still noted.", zh: "人人都干过。照记。" },
+      { en: "A gentle start.", zh: "开局还算温和。" },
+      { en: "Barely counts. It counts.", zh: "勉强算。也算。" },
+      { en: "Warm-up round.", zh: "热身而已。" }
+    ],
+    medium: [
+      { en: "Now we're getting somewhere.", zh: "渐入佳境。" },
+      { en: "Interesting choice.", zh: "有意思的选择。" },
+      { en: "I had a feeling.", zh: "我就猜到了。" },
+      { en: "The plot thickens.", zh: "事情开始有意思了。" }
+    ],
+    extreme: [
+      { en: "I'll pretend I didn't see that.", zh: "我就当没看见。" },
+      { en: "Bold of you to admit it.", zh: "敢认，佩服。" },
+      { en: "That one stays between us.", zh: "这条就你知我知。" },
+      { en: "I'm going to need a minute.", zh: "容我缓一缓。" }
+    ],
+    school: [
+      { en: "Your professor will never know. I will.", zh: "教授不知道，我知道。" },
+      { en: "I'll take partial credit.", zh: "学分分我一半。" }
+    ],
+    work: [
+      { en: "Very professional of us.", zh: "我们很专业。" },
+      { en: "I'll keep that off your resume.", zh: "这条不写进简历。" }
+    ],
+    heart: [
+      { en: "I won't tell them.", zh: "我不会告诉 ta 的。" },
+      { en: "Happy to help. Discreetly.", zh: "乐意效劳，低调地。" }
+    ],
+    brain: [
+      { en: "We'll call it teamwork.", zh: "就叫团队合作吧。" },
+      { en: "I thought you'd ask me.", zh: "就知道你会问我。" }
+    ],
+    bond: [
+      { en: "I feel the same way. Probably.", zh: "我也是。大概吧。" },
+      { en: "That's sweet. Logged anyway.", zh: "挺暖的。照样记下。" }
+    ]
   },
 
   // `blurb` is a one-line note for editors about what belongs in each section.

@@ -22,22 +22,26 @@ Useful URL parameters:
 | `?preview=bond_deep` | Jump straight to a type's full result, played by a sample player (for QA and screenshots). |
 | `?from=bond_deep&seed=k3x9q0` | Landing page says "A friend got ..." and, when a valid seed is present, that you will get the same 30 statements as them. "Copy link" on a result makes this URL. A missing or invalid seed gets a fresh one. |
 | `?types=1` | Opens "All 14 types", the grid of every type (see below). |
+| `?seed=k3x9q0&vs=0a1b2c3d` | A **challenge link** ("Challenge a friend" on a result). The friend plays the same 30, then their result opens with a comparison. `vs` is the sender's answers (see "Compare with a friend"). |
+| `?seed=k3x9q0&vs=...&re=...` | A **reply link** ("Send it back" on that comparison): shows the comparison straight away, to anyone, without playing. |
 
 ## Files
 
 | File | What it is |
 |---|---|
-| `index.html` | Page shell. Loads `content.js`, then `scoring.js`, then `art.js`, then `app.js`. |
-| `content.js` | All words: interface text, the 5 dimensions, the statement bank (each with a band), the 14 types. Data only. |
+| `index.html` | Page shell. Loads `content.js`, then `scoring.js`, then `extras.js`, then `art.js`, then `app.js`, each with the same `?v=` version (see "Publishing"). |
+| `content.js` | All words: interface text, the AI's remarks (`remarks`), the 5 dimensions, the statement bank (each with a band), the 14 types. Data only. |
 | `content.sample.js` | Old placeholder content from before the bank (no bands, old flags). Not loaded by anything; do not copy its shape. |
 | `scoring.js` | Pure functions: the seed and the draw, scoring, and a content checker. Also runs under Node for tests. |
+| `extras.js` | Pure functions for what is not scoring: the answer codes in challenge links and the comparison (`encodeAnswers`, `decodeAnswers`, `readCompareLink`, `comparePlays`), the AI's remarks (`remarkSchedule`, `remarkFor`, `validateRemarks`) and the collection (`collectedTypes`, `rememberCollected`). Uses `scoring.js`, never changes a draw or a result. Also runs under Node for tests. |
+| `tools/bump-version.js` | Gives every file `index.html` loads a new, shared `?v=` version. `node tools/bump-version.js` (today's date plus the next letter) or `node tools/bump-version.js 20261116a`. |
 | `app.js` | The UI: screens, answering, the result screen and card, the PNG export and sharing. Also holds the sample player for each type. |
 | `art.js` | The 14 characters, one SVG string per type id (`globalThis.APT_ART`). **Generated** by `tools/pack-art.js`; do not edit by hand. Optional: without it, or for a type it lacks, the app shows no character and the card uses its plain layout. |
 | `tools/pack-art.js` | Checks the drawings in `art-src/c/out/<type id>.svg` and packs them into `art.js`. `node tools/pack-art.js` (see "The characters" below). |
 | `art-src/` | The drawings and the generator that drew them (owned by the art side; the app never reads it). |
 | `styles.css` | All styling. Colours and fonts are tokens at the top. Also holds the embedded display font (see below). |
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
-| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art). Run `node --test tests/` |
+| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
 | `tools/personas.js` | 30 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw. |
 | `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares and match spread over 200,000 simulated players (each on their own draw), and how often a tie decided the lead. `node tools/simulate.js` |
@@ -99,6 +103,34 @@ Useful URL parameters:
   statement, and the picked one is marked pressed (and shows a tick).
 - With "reduce motion" switched on, nothing slides; the tick shows briefly and
   the next statement appears.
+- **The AI interrupts.** Now and then a tap on **Guilty** gets a one-line dry
+  remark in the AI's voice ("Noted." / 「记下了。」), in a small ink bubble
+  just above the Guilty button, for about 1.5 s. It sits on its own fixed
+  layer, so the next statement arrives on time and nothing moves. Rules
+  (`remarkFor` in `extras.js`): only on Guilty, never on Never or Not sure;
+  never on the first 3 statements or the last one (the reveal starts right
+  after it); never on two statements in a row; at most 4 per play; going back
+  and answering again does not repeat one. Which statements may get one (9
+  per play, none next to each other) and which line each gets is
+  `remarkSchedule`, made from the seed with its own generator
+  (`apt-remarks-v1|seed`), so a shared link gives the same remarks for the
+  same answers and the draw's generator is never touched. The line comes from
+  the general lines plus those for the statement's band and section
+  (`content.remarks`: English at most 40 characters, Chinese at most 14, no
+  emoji or exclamation marks), never twice in one play. The bubble is
+  `aria-hidden`, so screen readers keep reading the statement.
+- **The reveal.** After the last answer the result does not just appear:
+  a short beat, the card lands empty, the character draws itself line by line
+  like a marker (its white scribble and accent colour fade in after the
+  lines), the code lands, and then the rest of the page is there, about 2 s in
+  all (`REVEAL` in `app.js`; cleaned up at 2.05 s). A tap or any key skips to
+  the end, and taps cannot hit the still-invisible buttons. With "reduce
+  motion" there is none. It plays only at the end of a play, never on a
+  refresh, a language switch, `?preview=` or when coming back from the grid.
+  For the drawing the character's SVG from `art.js` is put inline on top of
+  the card's `<img>` and removed afterwards; everything else is Web
+  Animations on the existing elements, cancelled at the end, so the settled
+  card (and the PNG) is exactly what it is without the reveal.
 
 ## How scoring works
 
@@ -237,6 +269,17 @@ or for the four special types how they are reached), the type's character
   save or share) with "Back to all types". The player's own card, when there
   is a result underneath, is marked "You" and goes straight back to their real
   result instead.
+- **The collection.** Every type the player has ended a play on is
+  remembered on this device (`localStorage`, key `apt-collected-v1`, the type
+  ids joined by commas; helpers `collectedTypes` / `rememberCollected` in
+  `extras.js`, which swallow storage errors like the unlock flag does). The
+  grid then says "Collected 3 of 14" under its intro and puts a small ink
+  stamp with a tick on each collected card (screen readers hear
+  "Collected"). Nothing is greyed out or hidden, since the grid is also how
+  people browse the types, and the line only shows from the first collected
+  type on. Only a finished play counts: `?preview=`, peeks and comparison
+  links never do. With storage blocked, the type of the result underneath
+  is still marked.
 - **The hidden type** shows as a locked card (dashed outline, "???", one hint
   line, no code, name or character) until the player has actually got it on this device.
   The same lock covers MY-BOT's "Gets on with" card (which points at it, and
@@ -341,6 +384,57 @@ An empty list `[]` means the content is valid.
   - If the image cannot be made, a toast says so instead of claiming success.
 - **Copy link** copies the page URL with `?from=<type>&seed=<seed>&lang=<lang>`,
   so a friend who opens it plays the same 30 statements.
+- The card's bottom line is the address alone, `lilwan345.github.io/ai-purity-test`,
+  on screen and in the PNG.
+
+## Compare with a friend
+
+- **Challenge a friend** (under the share buttons on your own result) copies
+  `?seed=<seed>&vs=<code>&lang=<lang>`. Right under the button, before
+  anything is copied, one line says: "Whoever opens this link can see which
+  statements you admitted." (「打开这个链接的人，能看到你认了哪几条。」)
+- **What a challenge link reveals**: which of your 30 statements you
+  answered Guilty ("Not sure" and "Never" are both "not guilty"), and through
+  that your type and purity. Nothing else: no names, nothing stored anywhere.
+  The page does not show it to the friend before they finish, but the code
+  is in the address, so anyone who decodes it by hand could see it.
+- `vs` is 8 characters of 0-9 and a-z: 6 hold the 30 answer bits (bit i =
+  the i-th statement in asking order), 2 are a check made from the seed, the
+  drawn ids and the answers. A wrong length, other characters, a code pasted
+  onto another seed, or a link from before the statement bank changed fail
+  the check, and the page carries on as for an ordinary link (the broken
+  parameter is removed from the address). The check stops accidents, not
+  people: a hand-made code is possible, but every type and number is
+  recomputed from the bits with `scoring.score()`, so they can only ever be
+  what those answers would score.
+- **The friend** sees a landing line saying a friend sent their 30 (no type,
+  no answers), plays the same 30, and their result opens with a comparison
+  block above "Why you got this": both cards small and side by side ("You"
+  and "Your friend"), each purity, who is purer and by how much, one line on
+  how the two types get along (your type's own `bestWithLine` /
+  `clashWithLine` when it names theirs; otherwise a short neutral line, such
+  as "Same type. You can split the blame."), up to three statements both
+  admitted (heaviest first), up to two only the friend admitted and up to two
+  only you admitted.
+- **Send it back** on that block copies `?seed=...&vs=...&re=<their code>`,
+  with a line saying it carries both sets of answers. Opening it shows the
+  comparison straight away, from the address alone, to anyone; "you" there is
+  the person who sent the challenge. It never touches that tab's own play,
+  the collection or the hidden-type lock. "Take the test yourself" starts a
+  fresh play.
+- A result reached this way still counts for the collection for the person
+  who played it; the friend's card in the comparison never does. If the
+  friend's result is the hidden type, the comparison shows it (it is their
+  real result), but the grid stays locked until you earn it.
+
+## Publishing
+
+GitHub Pages lets browsers keep `styles.css` and the scripts for 10 minutes,
+so after a push people can still get the old files. Every local file in
+`index.html` therefore carries the same `?v=` version. **Bump it before each
+push**: `node tools/bump-version.js` (today's date plus the next letter,
+such as `20261115b`) or `node tools/bump-version.js <value>`. A test checks
+that all of them carry the same, non-empty version.
 - **Share** appears only where the browser has the Web Share API. The card
   PNG is prepared as soon as the result shows, so the share sheet opens right
   inside the tap (Safari refuses it otherwise). It shares the image plus the
@@ -422,8 +516,10 @@ colour.
   screen readers or the keyboard. It shows on the result card, on each grid
   card, small on the two pairing cards, and as three character stickers above
   the code stickers on the landing page (`TEASER_ART` in `app.js`; never the
-  hidden type). The only motion is the stickers' existing entrance, which
-  "reduce motion" switches off like everything else.
+  hidden type). The only exception to "never inline" is the result reveal,
+  which puts the card's SVG inline for about 2 s to draw its lines and then
+  removes it. Apart from that, the only motion is the stickers' existing
+  entrance; "reduce motion" switches off both.
 - **In the PNG.** A canvas can only draw an image that has finished loading,
   and a tap cannot wait. So right after the first render the app loads every
   character (`preloadArt`): an `Image` per type, from the same data URI but

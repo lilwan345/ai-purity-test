@@ -56,7 +56,14 @@
     // the "all types" screen and the links that open it
     'typesLink', 'typesTitle', 'typesIntro', 'typesSections', 'typesSpecial', 'typesLite', 'typesDeep',
     'typesRuleUntouched', 'typesRuleBalanced', 'typesRuleMerged', 'typesHidden', 'typesLocked',
-    'typesLockedHint', 'typesYou', 'typesBack', 'typesBackHome', 'typesBackQuiz'
+    'typesLockedHint', 'typesYou', 'typesBack', 'typesBackHome', 'typesBackQuiz',
+    'typesCollected', 'typesCollectedMark',
+    // comparing with a friend (challenge links; the helpers live in extras.js)
+    'challengeAction', 'challengePrivacy', 'challengeCopied', 'challengeLanding',
+    'compareTitle', 'compareYou', 'compareFriend', 'comparePurity', 'comparePurerYou', 'comparePurerFriend',
+    'compareTie', 'compareSame', 'compareTheyBest', 'compareTheyClash', 'compareNone',
+    'compareBoth', 'compareBothNone', 'compareOnlyFriend', 'compareOnlyYou', 'compareMeta',
+    'sendBack', 'sendBackNote', 'replyIntro', 'replyStart'
   ];
 
   // The four DEPTH bands of a dimension in a result (how far the player went
