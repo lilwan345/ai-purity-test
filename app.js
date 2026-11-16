@@ -1806,6 +1806,7 @@
     artMaxScale: 2.4,                 // while drawn, the figure is this much bigger at most, centred on the card
     artBackAt: 2860, artBackMs: 380,  // then it shrinks to its place as the code comes down
     darkWhiteMs: 380,                 // dark cards: the white scribble first, then the ink in the rest
+    platesMs: 380,                    // print drawings: the colour plates in one pass, then the ink in the rest
     travelShare: 0.22,                // share of drawMs the pen spends moving between lines
     fillMs: 360,                      // white scribble / accent as quick strokes, after the ink
     codeAt: 2900, codeMs: 380,        // the code slams down...
@@ -1826,10 +1827,15 @@
     if (reveal) reveal.finish();
   }
 
-  // The character's SVG as an element, or null.
+  // The character's SVG as an element, or null. Its ids (the print drawings'
+  // halftone patterns and clip paths) get a prefix, so they cannot clash with
+  // anything else inline on the page.
   function inlineArt(typeId) {
-    const svg = artSvg(typeId);
-    if (!svg || typeof DOMParser === 'undefined') return null;
+    const raw = artSvg(typeId);
+    if (!raw || typeof DOMParser === 'undefined') return null;
+    const svg = raw.replace(/\sid="([^"]+)"/g, ' id="rv-$1"')
+      .replace(/url\(#([^)]+)\)/g, 'url(#rv-$1)')
+      .replace(/href="#([^"]+)"/g, 'href="#rv-$1"');
     try {
       const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
       const root = doc.documentElement;
@@ -2043,7 +2049,6 @@
         play(art, [{ transform: bigTransform }, { transform: 'translate(0px,0px) scale(1)' }],
           REVEAL.artBackAt, REVEAL.artBackMs, 'cubic-bezier(.55, 0, .25, 1)', 'forwards');
       }
-      const parts = sortArt(art);
       // Every line is hidden first: nothing may flash complete before it is drawn.
       const prep = (node) => {
         let len = 0;
@@ -2052,34 +2057,61 @@
         node.style.strokeDashoffset = String(len + 20);
         return len;
       };
-      const lines = parts.ink.map((entry) => {
-        const len = prep(entry.node);
-        if (entry.halo) prep(entry.halo);
-        return { node: entry.node, halo: entry.halo, len: len, map: toRoot(art, entry.node) };
-      }).filter((l) => l.len > 0);
-      // Longest lines first: the outline, then the details.
-      lines.sort((a, b) => b.len - a.len);
-      const quick = (list, at, ms) => {
-        list.forEach((node, i) => {
-          const len = prep(node);
-          const each = Math.max(90, ms * 0.55);
-          const delay = at + (list.length > 1 ? (ms - each) * i / (list.length - 1) : 0);
-          play(node, [{ strokeDashoffset: len + 20 }, { strokeDashoffset: 0 }], delay, each, 'cubic-bezier(.5, 0, .3, 1)');
-        });
-      };
       let inkAt = REVEAL.drawAt;
       let inkMs = REVEAL.drawMs;
-      if (dark) {
-        quick(parts.whites, REVEAL.drawAt, REVEAL.darkWhiteMs);
-        inkAt += REVEAL.darkWhiteMs + 60;
-        inkMs -= REVEAL.darkWhiteMs + 60;
-        quick(parts.accents, inkAt + inkMs, REVEAL.fillMs);
+      let lines;
+      const plates = art.querySelector('g.plates');
+      const inkGroup = art.querySelector('g.ink');
+      if (plates && inkGroup) {
+        // A two-plate print: the colour plates come in as one pass (a short
+        // fade, settling into their off-register place), then the pen draws
+        // the ink paths in the order they were drawn. Dots and eyes are tiny
+        // round-capped paths: they appear as the pen reaches them.
+        const pass = document.createElementNS(SVG_NS, 'g');
+        plates.parentNode.insertBefore(pass, plates);
+        pass.appendChild(plates);
+        play(pass, [{ opacity: 0, transform: 'translate(3px, 2px)' }, { opacity: 1, transform: 'translate(0px, 0px)' }],
+          REVEAL.drawAt, REVEAL.platesMs, 'cubic-bezier(.2, .7, .3, 1)');
+        inkAt += REVEAL.platesMs + 60;
+        inkMs -= REVEAL.platesMs + 60;
+        lines = Array.from(inkGroup.querySelectorAll('path')).map((node) => {
+          let len = 0;
+          try { len = node.getTotalLength(); } catch (e) { len = 0; }
+          const tiny = len < 2;
+          if (tiny) node.style.opacity = '0';
+          else prep(node);
+          return { node: node, halo: null, len: Math.max(len, 0.01), tiny: tiny, map: toRoot(art, node) };
+        });
       } else {
-        quick(parts.whites.concat(parts.accents), inkAt + inkMs, REVEAL.fillMs);
+        // The marker drawings, as they always were.
+        const parts = sortArt(art);
+        lines = parts.ink.map((entry) => {
+          const len = prep(entry.node);
+          if (entry.halo) prep(entry.halo);
+          return { node: entry.node, halo: entry.halo, len: len, map: toRoot(art, entry.node) };
+        }).filter((l) => l.len > 0);
+        // Longest lines first: the outline, then the details.
+        lines.sort((a, b) => b.len - a.len);
+        const quick = (list, at, ms) => {
+          list.forEach((node, i) => {
+            const len = prep(node);
+            const each = Math.max(90, ms * 0.55);
+            const delay = at + (list.length > 1 ? (ms - each) * i / (list.length - 1) : 0);
+            play(node, [{ strokeDashoffset: len + 20 }, { strokeDashoffset: 0 }], delay, each, 'cubic-bezier(.5, 0, .3, 1)');
+          });
+        };
+        if (dark) {
+          quick(parts.whites, REVEAL.drawAt, REVEAL.darkWhiteMs);
+          inkAt += REVEAL.darkWhiteMs + 60;
+          inkMs -= REVEAL.darkWhiteMs + 60;
+          quick(parts.accents, inkAt + inkMs, REVEAL.fillMs);
+        } else {
+          quick(parts.whites.concat(parts.accents), inkAt + inkMs, REVEAL.fillMs);
+        }
+        parts.dots.forEach((node, i) => play(node, [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1)' }],
+          inkAt + inkMs + 40 * i, 200, spring));
+        parts.dots.forEach((node) => { node.style.transformBox = 'fill-box'; node.style.transformOrigin = 'center'; });
       }
-      parts.dots.forEach((node, i) => play(node, [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1)' }],
-        inkAt + inkMs + 40 * i, 200, spring));
-      parts.dots.forEach((node) => { node.style.transformBox = 'fill-box'; node.style.transformOrigin = 'center'; });
 
       // The schedule: each line gets time in proportion to its length; the
       // moves between lines share travelShare of the time by distance.
@@ -2209,7 +2241,8 @@
         while (job.done < job.steps.length && job.steps[job.done].t1 <= t) {
           const s = job.steps[job.done];
           if (s.kind === 'draw') {
-            s.line.node.style.strokeDashoffset = '0';
+            if (s.line.tiny) s.line.node.style.opacity = '';
+            else s.line.node.style.strokeDashoffset = '0';
             if (s.line.halo) s.line.halo.style.strokeDashoffset = '0';
           }
           job.done += 1;
@@ -2234,7 +2267,8 @@
             const point = s.line.map(s.line.node.getPointAtLength(at));
             x = point.x; y = point.y; lift = 0;
             const off = String(s.line.len - at);
-            s.line.node.style.strokeDashoffset = off;
+            if (s.line.tiny) s.line.node.style.opacity = '';
+            else s.line.node.style.strokeDashoffset = off;
             if (s.line.halo) s.line.halo.style.strokeDashoffset = off;
           } else {
             const p = (t - s.t0) / (s.t1 - s.t0);

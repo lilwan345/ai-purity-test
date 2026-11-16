@@ -42,7 +42,7 @@ Useful URL parameters:
 | `art-src/` | The drawings and the generator that drew them (owned by the art side; the app never reads it). |
 | `styles.css` | All styling. Colours and fonts are tokens at the top. Also holds the embedded display font (see below). |
 | `fonts/Anton-OFL.txt` | Licence for the embedded fallback display font. |
-| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 12 KB cap, no script or outside reference, `art.js` up to date with `art-src/c/out/`, and the app coping with missing or broken art), `playoff.test.js` (the play-off rounds, settling in round 1 or 3 or going to the lot with nothing else moving, play-off answers in challenge codes, the reason lines for every persona, the play history), `reveal.test.js` (the reveal's timeline and play-once rules), `stats.test.js` (what statistics may be sent), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
+| `tests/` | Scoring tests on drawn sets, the draw (`draw.test.js`: 2,000 seeds per bank, always 30, six per section, two per band, escalating, repeatable), a fast copy of the fairness checks (`fairness.test.js`, 20,000 seeds), persona expectations, checks on the real `content.js` (valid, every UI key present and used, all 14 types reachable on real draws, no interface text still saying 50 or quoting old rule numbers), the stored answers and which play a page load resumes (`answers.test.js`), the "all types" grid and the sample players (`gallery.test.js`), and the characters (`art.test.js`: pack-art's checks, every id packed once all files exist, 14 KB cap, no script or outside reference, `art.js` up to date with `art-src/d/out/` and `art-src/c/out/`, the reveal's print path, and the app coping with missing or broken art), `playoff.test.js` (the play-off rounds, settling in round 1 or 3 or going to the lot with nothing else moving, play-off answers in challenge codes, the reason lines for every persona, the play history), `reveal.test.js` (the reveal's timeline and play-once rules), `stats.test.js` (what statistics may be sent), and `extras.test.js` (answer codes round trip and reject bad input, comparisons of fixed plays, the remark schedule's limits, determinism and independence from the draw, the collection with missing or blocked storage, the card footer, and the shared `?v=` version in `index.html`). Run `node --test tests/` |
 | `SCORING.md` | How a play is drawn and how the result is decided, in plain English and Chinese, with the persona table, simulated type shares and the fairness results. |
 | `tools/personas.js` | 33 named test players written as band counts per section ("admits 2 mild and 1 medium School statement"), so they fit any draw, and how a persona answers a play-off (`playoffByCounts`). |
 | `tools/simulate.js` | Prints each persona's result over 500 draws, the type shares (with and before the play-off) and match spread over 200,000 simulated players (each on their own draw), how often a tie decided the lead, how the play-off settles ties and how often it picks the section the player really leans to. `node tools/simulate.js` |
@@ -746,9 +746,13 @@ One hand-drawn SVG per type: viewBox 0 0 240 240, no fonts or filters, a navy
 marker line with a white scribble fill, drawn to sit on the type's own card
 colour.
 
-- **Making art.js.** The drawings live in `art-src/c/out/<type id>.svg`.
-  `node tools/pack-art.js` checks each one (one `<svg>` root with that
-  viewBox and the SVG namespace, at most 12 KB, no `<script>`, event
+- **Making art.js.** The drawings live in `art-src/d/out/<type id>.svg` (the
+  new two-plate print drawings, two so far; the illustrator's generator will
+  go in `art-src/d/` once all 14 are drawn) or else in
+  `art-src/c/out/<type id>.svg` (the marker drawings); a drawing in `d/out`
+  wins. `node tools/pack-art.js` checks each one (one `<svg>` root with that
+  viewBox and the SVG namespace, at most 14 KB, in-file patterns and clip
+  paths with `url(#id)` allowed, no `<script>`, event
   handlers, `<foreignObject>`, `<image>`, text or filters, no link or `url()`
   to anything outside the file), adds `width="240" height="240"` to a root
   without them, and writes `art.js` in type order. It prints the types it
@@ -758,6 +762,14 @@ colour.
   `ccbot`, `404`, `mybot`) stand in when `out/` lacks those types. Rerun it
   after every change to the drawings; `tests/art.test.js` fails while
   `art.js` is behind `art-src/c/out/`.
+- **The two kinds in the reveal.** A print drawing has a `<g class="plates">`
+  (flat colour and halftone, slightly off register) and then a
+  `<g class="ink">` (only pen lines, in drawing order). In the result reveal
+  its plates come in as one 380 ms pass, settling into place, and the pen
+  then draws the ink paths in document order (tiny dot paths appear as the
+  pen reaches them); the reveal's total length is unchanged. A drawing
+  without plates goes the marker way, as before (white scribble first on
+  dark cards, longest lines first, halos with their lines).
 - **On screen** each character is an `<img>` from a `data:` URI (never inline
   markup), with `alt=""` and `aria-hidden="true"`, so it adds nothing for
   screen readers or the keyboard. It shows on the result card, on each grid

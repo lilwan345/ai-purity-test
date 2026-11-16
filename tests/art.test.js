@@ -62,7 +62,7 @@ test('checkSvg: scripts, handlers and anything outside the file are refused', ()
   assert.deepStrictEqual(checkSvg(GOOD.replace('</svg>', '<defs><path id="p" d="M0,0"/></defs><use href="#p"/></svg>')), []);
 });
 
-test('checkSvg: the root, the size and the 12 KB cap', () => {
+test('checkSvg: the root, the size and the 14 KB cap', () => {
   assert.ok(checkSvg('<div>' + GOOD + '</div>').length > 0, 'must be an <svg> root');
   assert.ok(checkSvg(GOOD.replace('viewBox="0 0 240 240"', 'viewBox="0 0 100 100"')).length > 0, 'viewBox');
   assert.ok(checkSvg(GOOD.replace(' xmlns="http://www.w3.org/2000/svg"', '')).length > 0, 'xmlns');
@@ -70,7 +70,7 @@ test('checkSvg: the root, the size and the 12 KB cap', () => {
   assert.ok(checkSvg(GOOD.replace('</svg>', '<svg viewBox="0 0 1 1"></svg></svg>')).length > 0, 'one root only');
   const padding = '<path d="M' + '1,1L'.repeat(Math.ceil(MAX_BYTES / 4)) + '2,2"/>';
   assert.ok(checkSvg(GOOD.replace('</svg>', padding + '</svg>')).some((p) => /too big/.test(p)), 'size cap');
-  assert.strictEqual(MAX_BYTES, 12 * 1024);
+  assert.strictEqual(MAX_BYTES, 14 * 1024);
 });
 
 test('normalizeSvg: trims the file to the <svg> and gives the root a size', () => {
@@ -133,14 +133,14 @@ test('packArt: a drawing that fails a check stops the run and art.js is not writ
 // The art.js in the repo
 // ---------------------------------------------------------------------------
 
-test('art.js: every character is a clean SVG of at most 12 KB under a real type id', () => {
+test('art.js: every character is a clean SVG of at most 14 KB under a real type id', () => {
   const art = loadArtScript(path.join(ROOT, 'art.js'));
   assert.ok(art && typeof art === 'object');
   Object.keys(art).forEach((id) => {
     assert.ok(TYPE_IDS.includes(id), id + ' is a type id');
     assert.strictEqual(typeof art[id], 'string');
     assert.deepStrictEqual(checkSvg(art[id]), [], id);
-    assert.ok(Buffer.byteLength(art[id], 'utf8') <= MAX_BYTES, id + ' fits the 12 KB cap');
+    assert.ok(Buffer.byteLength(art[id], 'utf8') <= MAX_BYTES, id + ' fits the 14 KB cap');
     // No script and no web address (other than the SVG namespace itself).
     assert.doesNotMatch(art[id].replace(/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, ''), /<script|https?:\/\//i, id);
   });
@@ -151,7 +151,8 @@ test('art.js: once art-src/c/out holds all 14, art.js has all 14 and is up to da
     t.skip('art-src/c/out is not complete yet');
     return;
   }
-  const fresh = collectArt({ srcDir: OUT_DIR, oldDir: OLD_DIR });
+  // The default sources: art-src/d/out wins over art-src/c/out.
+  const fresh = collectArt();
   assert.deepStrictEqual(fresh.problems, []);
   const art = loadArtScript(path.join(ROOT, 'art.js'));
   assert.deepStrictEqual(Object.keys(art), TYPE_IDS, 'run `node tools/pack-art.js`');
@@ -300,4 +301,55 @@ test('app.js: the locked hidden type never shows its character', () => {
   const faces = appSource.match(/const TEASER_ART = (\[[^\]]*\])/);
   assert.ok(faces);
   assert.ok(!JSON.parse(faces[1].replace(/'/g, '"')).includes('soulmate'));
+});
+
+test('checkSvg: what the two-plate print drawings contain is accepted, and nothing new is let through', () => {
+  const PRINT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240"><defs>' +
+    '<pattern id="h0" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><rect x="0.5" y="0.5" width="1.7" height="1.7" rx="0.85" fill="#1D262B"/></pattern>' +
+    '<clipPath id="c0"><rect x="0" y="0" width="120" height="240"/></clipPath></defs>' +
+    '<g class="plates" transform="translate(1.8,1.4)" stroke="none"><path d="M10 10h50v50z" fill="url(#h0)" clip-path="url(#c0)"/></g>' +
+    '<g class="ink" fill="none" stroke="#1C2541" stroke-width="3"><path d="M10 10L230 230"/></g></svg>';
+  assert.deepStrictEqual(checkSvg(PRINT), []);
+  // Still refused, as before.
+  assert.ok(checkSvg(PRINT.replace('url(#h0)', 'url(https://example.com/x.svg#h0)')).length > 0, 'url() outside the file');
+  assert.ok(checkSvg(PRINT.replace('</svg>', '<image href="x.png"/></svg>')).length > 0, 'image');
+  assert.ok(checkSvg(PRINT.replace('</svg>', '<script>1</script></svg>')).length > 0, 'script');
+  assert.ok(checkSvg(PRINT.replace('<path d="M10 10L230 230"/>', '<path d="M10 10L230 230" onclick="x()"/>')).length > 0, 'handler');
+  assert.ok(checkSvg(PRINT.replace('</svg>', '<foreignObject></foreignObject></svg>')).length > 0, 'foreignObject');
+  assert.ok(checkSvg(PRINT.replace('</defs>', '<filter id="f"/></defs>')).length > 0, 'filter');
+});
+
+test('packArt: a drawing in art-src/d/out wins over art-src/c/out; the rest stay the marker drawings', () => {
+  const fresh = collectArt();
+  const D = path.join(ROOT, 'art-src', 'd', 'out');
+  TYPE_IDS.forEach((id) => {
+    const inD = fs.existsSync(path.join(D, id + '.svg'));
+    assert.strictEqual(fresh.used[id], path.join('art-src', inD ? 'd' : 'c', 'out', id + '.svg'), id);
+  });
+  ['merged', 'brain_lite'].forEach((id) => {
+    assert.ok(fs.existsSync(path.join(D, id + '.svg')), id + ' is in art-src/d/out');
+    assert.match(fresh.art[id], /<g class="plates"/);
+    assert.match(fresh.art[id], /<g class="ink"/);
+  });
+});
+
+test('reveal: a drawing with plates gets the print path (plates pass, then the ink in order); others keep the marker path', () => {
+  const block = appSource.slice(appSource.indexOf('function startReveal('), appSource.indexOf('// ---------- Result ----------'));
+  assert.match(block, /const plates = art\.querySelector\('g\.plates'\);\s*const inkGroup = art\.querySelector\('g\.ink'\);\s*if \(plates && inkGroup\) \{/);
+  // The plates come in as one pass at drawAt, the ink after them, in document order (no sort).
+  assert.match(block, /play\(pass, \[\{ opacity: 0, transform: 'translate\(3px, 2px\)' \}, \{ opacity: 1, transform: 'translate\(0px, 0px\)' \}\],\s*REVEAL\.drawAt, REVEAL\.platesMs/);
+  assert.match(block, /inkAt \+= REVEAL\.platesMs \+ 60;\s*inkMs -= REVEAL\.platesMs \+ 60;/);
+  assert.match(block, /lines = Array\.from\(inkGroup\.querySelectorAll\('path'\)\)/);
+  const printPart = block.slice(block.indexOf('if (plates && inkGroup) {'), block.indexOf('} else {\n        // The marker drawings'));
+  assert.doesNotMatch(printPart, /sortArt|\.sort\(|halo: entry/);
+  // The marker drawings: unchanged (sorted by length, halos, white scribble first on dark cards).
+  assert.match(block, /\/\/ The marker drawings, as they always were\.\s*const parts = sortArt\(art\);/);
+  assert.match(block, /lines\.sort\(\(a, b\) => b\.len - a\.len\);/);
+  // The total length of the reveal is unchanged.
+  const m = appSource.match(/drawAt: (\d+), drawMs: (\d+)/);
+  const plates = Number(appSource.match(/platesMs: (\d+)/)[1]);
+  assert.ok(plates + 60 < Number(m[2]) / 3, 'the plates take a short share of the drawing time');
+  assert.match(appSource, /end: 4560/);
+  // Inline ids are prefixed, so the drawing's patterns cannot clash with others on the page.
+  assert.match(appSource, /\.replace\(\/\\sid="\(\[\^"\]\+\)"\/g, ' id="rv-\$1"'\)/);
 });
