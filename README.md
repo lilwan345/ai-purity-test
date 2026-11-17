@@ -634,7 +634,13 @@ be sent is decided in one place.
   - `challenge-opened`: the landing opened from a challenge link (per page load);
   - `compare-shown`: the comparison on a challenged player's result (per play);
   - `reply-opened`: a reply link opened (per page load);
-  - `new-questions`, `start-over`: each tap.
+  - `new-questions`, `start-over`: each tap;
+  - `fit:<type id>:<yes|kinda|no>`: the tap on "Does this sound like you?"
+    under the description of the player's own result (never a preview or a
+    peek), once per play; remembered with the play's seed on the device
+    (`apt-fit-v1`), so a reload cannot count it twice. Read per type in
+    GoatCounter to find a description that misses; GA gets `result_fit` with
+    `type_id` and `answer`.
 - **Never sent**: the address's query (`?seed=`, `?vs=`, `?re=` and `?from=`
   hold the play and answer codes), statement ids, answers, the purity, the
   seed, or a referrer from this site.

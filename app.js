@@ -2680,6 +2680,8 @@
         el('figcaption', { text: t('aiSays') }),
         el('blockquote', { class: 'bubble' }, keepQuotes(L(type.aiSays)))
       ]),
+      // The player's own result only: a sample player has nothing to rate.
+      !isSample && renderFit(result.typeId),
       renderDimensions(type, result, new Set(ticked), isSample),
       renderSecondary(type, result),
       renderPairs(type),
@@ -2697,6 +2699,36 @@
       left,
       body
     ]);
+  }
+
+  // "Does this sound like you?" Three answers under the description. One tap
+  // per play: it sends fit:<type id>:<answer> (extras.js; the type and the
+  // answer, never the statements) and is remembered with the play's seed, so
+  // coming back to the result shows the answer given instead of asking again.
+  function renderFit(typeId) {
+    const box = el('section', { class: 'fit', 'aria-live': 'polite' });
+    const thanks = (value) => (value === 'yes' ? t('fitThanksYes') : value === 'kinda' ? t('fitThanksKinda') : t('fitThanksNo'));
+    const labels = { yes: t('fitYes'), kinda: t('fitKinda'), no: t('fitNo') };
+    function draw(given) {
+      box.replaceChildren(
+        el('p', { class: 'fit-title', text: t('fitTitle') }),
+        el('div', { class: 'fit-row' }, extras.FIT_VALUES.map((value) => el('button', {
+          class: 'btn btn-ghost fit-btn' + (given === value ? ' is-picked' : ''),
+          type: 'button',
+          disabled: given ? 'disabled' : null,
+          'aria-pressed': given ? String(given === value) : null,
+          onclick: () => {
+            extras.rememberFit(deviceStorage(), state.seed, value);
+            const fitKey = typeId + ':' + value;   // a type id and yes / kinda / no, nothing else
+            track('fit:' + fitKey, 'play');
+            draw(value);
+          }
+        }, [labels[value]]))),
+        el('p', { class: 'fit-note', text: given ? thanks(given) : t('fitNote') })
+      );
+    }
+    draw(extras.fitGiven(deviceStorage(), state.seed));
+    return box;
   }
 
   // A small all-caps heading over each part of the result.

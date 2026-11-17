@@ -675,7 +675,40 @@
     if (name === '/') return true;
     if (STAT_EVENTS.indexOf(name) !== -1) return true;
     var m = /^result:([a-z_]+)$/.exec(String(name));
-    return Boolean(m) && scoring.TYPE_IDS.indexOf(m[1]) !== -1;
+    if (m) return scoring.TYPE_IDS.indexOf(m[1]) !== -1;
+    // fit:<type id>:<yes|kinda|no>, the "does this sound like you?" tap.
+    var f = /^fit:([a-z_]+):([a-z]+)$/.exec(String(name));
+    return Boolean(f) && scoring.TYPE_IDS.indexOf(f[1]) !== -1 && FIT_VALUES.indexOf(f[2]) !== -1;
+  }
+
+  // ----------------------------------------------------------------------
+  // "Does this sound like you?" One tap on the player's own result, counted
+  // per type so a description that misses can be found and rewritten. Only
+  // the type and the answer are sent, never the statements. The tap is
+  // remembered per play (its seed) on the device, so a reload cannot count
+  // it twice.
+  // ----------------------------------------------------------------------
+  var FIT_VALUES = ['yes', 'kinda', 'no'];
+  var FIT_KEY = 'apt-fit-v1';
+  function fitName(typeId, value) { return 'fit:' + typeId + ':' + value; }
+  // fitGiven(store, seed) -> the answer already given for this play, or null.
+  function fitGiven(store, seed) {
+    try {
+      var d = JSON.parse((store && store.getItem(FIT_KEY)) || 'null');
+      return d && d.seed === seed && FIT_VALUES.indexOf(d.value) !== -1 ? d.value : null;
+    } catch (err) {
+      return null;
+    }
+  }
+  // rememberFit(store, seed, value) -> true when stored.
+  function rememberFit(store, seed, value) {
+    try {
+      if (!store || typeof seed !== 'string' || FIT_VALUES.indexOf(value) === -1) return false;
+      store.setItem(FIT_KEY, JSON.stringify({ seed: seed, value: value }));
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   // Counting happens only on the real site, over https.
@@ -800,6 +833,8 @@
     if (r) return ['test_result', { type_id: r[1] }];
     var l = /^lang:([a-z]+)$/.exec(name);
     if (l) return ['switch_language', { language: l[1] }];
+    var f = /^fit:([a-z_]+):([a-z]+)$/.exec(name);
+    if (f) return ['result_fit', { type_id: f[1], answer: f[2] }];
     return [GA_RENAME[name] || name.replace(/-/g, '_'), {}];
   }
 
@@ -1173,6 +1208,11 @@
     statUrl: statUrl,
     sendStat: sendStat,
     ownerSkip: ownerSkip,
+    FIT_VALUES: FIT_VALUES,
+    FIT_KEY: FIT_KEY,
+    fitName: fitName,
+    fitGiven: fitGiven,
+    rememberFit: rememberFit,
     GA_ID: GA_ID,
     GA_NO_COOKIE_REGIONS: GA_NO_COOKIE_REGIONS,
     gaEvent: gaEvent,

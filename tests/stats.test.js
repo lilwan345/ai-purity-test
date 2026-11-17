@@ -96,12 +96,19 @@ test('app.js: every count goes through track(), with a name from the list, and n
     const m = /^'([^']+)'(?: \+ ([\w.]+))?(?:, '(play|load)')?$/.exec(args.trim());
     assert.ok(m, 'one plain call: track(' + args + ')');
     if (m[2]) {
-      // Only result:<type id> and lang:<lang> are built, from the type id or the language.
-      assert.ok((m[1] === 'result:' && m[2] === 'finished.typeId') || (m[1] === 'lang:' && m[2] === 'state.lang'), args);
+      // Only result:<type id>, lang:<lang> and fit:<type id>:<answer> are built,
+      // from the type id, the language, or the type id plus one of three answers.
+      assert.ok((m[1] === 'result:' && m[2] === 'finished.typeId') || (m[1] === 'lang:' && m[2] === 'state.lang') ||
+        (m[1] === 'fit:' && m[2] === 'fitKey'), args);
     } else {
       assert.ok(statNameOk(m[1]), m[1] + ' is on the list');
     }
   });
+  // The fit name is a type id and one of extras.FIT_VALUES, and only the
+  // player's own result offers it.
+  assert.match(src, /const fitKey = typeId \+ ':' \+ value;/);
+  assert.match(src, /extras\.FIT_VALUES\.map\(\(value\) =>/);
+  assert.match(src, /!isSample && renderFit\(result\.typeId\)/);
   // Previews, peeks, the grid and reply links never send finish or result.
   const finishCalls = src.match(/track\('finish', 'play'\)/g) || [];
   assert.strictEqual(finishCalls.length, 1);
@@ -163,4 +170,31 @@ test('stats: Google Analytics gets the same fixed names and never the query', ()
   assert.strictEqual(extras.gaConfig({ protocol: 'https:', hostname: 'guiltyofai.vercel.app' }, 'https://www.xiaohongshu.com/explore/abc?x=1').page_referrer, 'https://www.xiaohongshu.com');
   assert.match(extras.GA_ID, /^G-[A-Z0-9]+$/);
   assert.ok(extras.GA_NO_COOKIE_REGIONS.includes('DE') && extras.GA_NO_COOKIE_REGIONS.includes('GB'));
+});
+
+test('stats: the "sounds like you?" tap sends only a type and one of three answers, once per play', () => {
+  assert.strictEqual(statNameOk('fit:heart_deep:yes'), true);
+  assert.strictEqual(statNameOk('fit:untouched:kinda'), true);
+  assert.strictEqual(statNameOk('fit:heart_deep:maybe'), false);
+  assert.strictEqual(statNameOk('fit:s07:yes'), false);
+  assert.strictEqual(statNameOk('fit:heart_deep:yes:k3x9q0'), false);
+  scoring.TYPE_IDS.forEach((id) => extras.FIT_VALUES.forEach((v) => {
+    assert.strictEqual(statNameOk(extras.fitName(id, v)), true, id + ' ' + v);
+  }));
+  assert.deepStrictEqual(extras.gaEvent('fit:brain_lite:no'), ['result_fit', { type_id: 'brain_lite', answer: 'no' }]);
+  const url = new URL(statUrl('fit:brain_lite:no', { screen: 390, rnd: 'abcde' }));
+  assert.strictEqual(url.searchParams.get('p'), 'fit:brain_lite:no');
+  assert.strictEqual(url.searchParams.get('e'), 'true');
+  // remembered with the play's seed, so a reload cannot count it twice
+  const data = {};
+  const store = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+  assert.strictEqual(extras.fitGiven(store, 'k3x9q0'), null);
+  assert.strictEqual(extras.rememberFit(store, 'k3x9q0', 'kinda'), true);
+  assert.strictEqual(extras.fitGiven(store, 'k3x9q0'), 'kinda');
+  assert.strictEqual(extras.fitGiven(store, 'zzzzzz'), null, 'a new play asks again');
+  assert.strictEqual(extras.rememberFit(store, 'k3x9q0', 'maybe'), false);
+  assert.strictEqual(extras.rememberFit(null, 'k3x9q0', 'yes'), false);
+  data[extras.FIT_KEY] = '{broken';
+  assert.strictEqual(extras.fitGiven(store, 'k3x9q0'), null);
+  assert.strictEqual(extras.fitGiven({ getItem: () => { throw new Error('blocked'); } }, 'k3x9q0'), null);
 });

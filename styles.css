@@ -1114,6 +1114,24 @@ html[lang^="zh"] .roast { font-size: 19px; line-height: 1.75; }
   font-weight: 600;
 }
 
+/* "Does this sound like you?" One row of three answers under the description.
+   A dashed outline, so it reads as a question to the reader and not as one
+   more part of the verdict. After a tap the picked answer takes the type's
+   colour and the small print becomes the reply. */
+.fit {
+  margin: 0 0 32px;
+  padding: 16px 18px 14px;
+  border: 2px dashed var(--rule);
+  border-radius: 18px;
+}
+.fit-title { margin: 0 0 10px; font-size: 17px; font-weight: 700; }
+.fit-row { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Three equal buttons on one line, also on a 320px phone. */
+.fit-btn { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 6px; font-size: 15px; white-space: nowrap; background: var(--sheet); }
+.fit-btn[disabled] { cursor: default; opacity: .4; transform: none; }
+.fit-btn.is-picked { background: var(--type-bg); color: var(--type-fg); opacity: 1; }
+.fit-note { margin: 10px 0 0; font-size: 14px; color: var(--ink-soft); }
+
 /* 6. Section by section. Each statement is a square; mild ones are small,
    extreme ones big, so the weighting is visible. Filled = admitted. */
 .dims-note { margin: -4px 0 14px; font-size: 14px; color: var(--ink-soft); text-wrap: pretty; }

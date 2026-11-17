@@ -39,6 +39,7 @@
     'superpower', 'weakness', 'aiSays',
     'saveImage', 'copyLink', 'share', 'newQuestions',
     'imageSaved', 'imageFailed', 'saveHint', 'close', 'linkCopied', 'copyFailed', 'shareText',
+    'fitTitle', 'fitYes', 'fitKinda', 'fitNo', 'fitThanksYes', 'fitThanksKinda', 'fitThanksNo', 'fitNote',
     'footer',
     // result screen: card additions, "why you got this", the other sections
     'cardMatch', 'cardAlso',

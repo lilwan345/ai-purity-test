@@ -64,6 +64,10 @@ every one of them is decorative (empty alt text).
 | `share` | Result button, under Save image (only where the browser can share) |
 | `newQuestions` | Result link-button at the bottom of the page: a new seed (a new set of 30), straight to statement 1 |
 | `imageSaved` | Toast after saving |
+| `fitTitle` | Result page, under the description: "Does this sound like you?" (own result only) |
+| `fitYes`, `fitKinda`, `fitNo` | Its three answers |
+| `fitThanksYes`, `fitThanksKinda`, `fitThanksNo` | The line shown after each answer |
+| `fitNote` | Small print under the answers: only the tap is counted |
 | `imageFailed` | Toast if the card image could not be made |
 | `saveHint` | Under the full-screen image on phones and in-app browsers |
 | `close` | Button that closes the full-screen image |
