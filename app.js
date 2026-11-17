@@ -1161,9 +1161,14 @@
   const ZH_BREAK_AFTER = /[，、：；。！？”…的着把给和]/;
 
   // Text with "\n" in it: one line per part (each part broken like a
-  // statement), with a forced line break between them.
+  // statement), with a forced line break between them. In English a short
+  // “quote” keeps its words together, so the landing never shows “I’ll at
+  // the end of one line and just ask AI.” on the next.
   function linesOf(text) {
-    return String(text).split('\n').flatMap((line, i) => (i ? [el('br')] : []).concat(statementPieces(line)));
+    return String(text).split('\n').flatMap((line, i) => {
+      const kept = state.lang === 'zh' ? line : line.replace(/“[^“”]{1,20}”/g, (q) => q.replace(/ /g, ' '));
+      return (i ? [el('br')] : []).concat(statementPieces(kept));
+    });
   }
 
   function statementPieces(text) {

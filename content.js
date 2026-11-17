@@ -21,7 +21,7 @@
 globalThis.APT_CONTENT = {
   ui: {
     appName:         { en: "AI Purity Test", zh: "AI 纯度测试" },
-    intro:           { en: "Since then you’ve asked it what to eat, how to answer that text, and why everyone was laughing.\nEvery “just ask” took a little off.", zh: "后来，你问它今天吃啥，问它那条消息怎么回，问它大家到底在笑什么梗。\n每一次“就问一下”，都扣了你一点。" },
+    intro:           { en: "At first it was only the hard stuff. Then it was what to eat, what to wear, whether to post that photo. You asked without thinking.\nAsk by ask, you got a little more bot.", zh: "一开始只是难题。后来，今天吃啥、穿哪件、这张照片发不发，你都顺手问一下。\n问着问着，你越来越“人机”了。" },
     meta:            { en: "30 little things · about 2 minutes · your answers stay on your device", zh: "30 件小事 · 约 2 分钟 · 答案不会上传" },
     // The landing story ends on this: {name} is the purest type, {n} the number of
     // other types.
@@ -424,7 +424,7 @@ globalThis.APT_CONTENT = {
    */
   landing: {
     badge:     { en: "5 sections · 105 statements · 14 types", zh: "5 个部分 · 105 条题库 · 14 种人格" },
-    lead:      { en: "You left the factory 100% human.\nUntil one day you thought, “I’ll just ask AI.”", zh: "出厂时，你是 100% 纯人类。\n直到有一天，你心想：“就问一下 AI 吧。”" },
+    lead:      { en: "You used to be 100% human.\nUntil one day, stuck on a problem, you thought, “I’ll just ask AI.”", zh: "曾经，你也是 100% 纯人类。\n直到有一天，遇到一个想不通的问题，你心想：“就问一下 AI 吧。”" },
     count:     { en: "{n} tests finished", zh: "已完成 {n} 次测试" },
     scrollCue: { en: "Scroll: what this test is", zh: "往下看：这是个什么测试" },
     ranking: {
