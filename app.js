@@ -354,6 +354,13 @@
    */
   const trackedOnce = new Set();
   let playNo = 0;   // goes up with every new play (new questions, start over)
+  // The owner's own devices don't count: open the site once with
+  // #toggle-goatcounter to switch this device off, again to switch it on.
+  const statSkip = extras.ownerSkip(deviceStorage(), location.hash);
+  if (statSkip.toggled) {
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(() => toast(statSkip.skip ? 'Stats: this device is not counted' : 'Stats: this device counts again'), 600);
+  }
   function track(name, once) {
     const key = once === 'play' ? name + '|' + playNo : name;
     if (once) {
@@ -364,7 +371,8 @@
       location: location,
       referrer: document.referrer,
       screen: window.screen ? window.screen.width : 0,
-      send: sendStatRequest
+      send: sendStatRequest,
+      skip: statSkip.skip
     });
   }
   // A fire-and-forget GET with no cookies and no Referer. If it is blocked,

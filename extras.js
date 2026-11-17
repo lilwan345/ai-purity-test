@@ -717,14 +717,39 @@
   }
 
   /*
+   * ownerSkip(store, hash) -> { skip, toggled }. The owner's own devices
+   * should not count, so the numbers show other people only. GoatCounter's
+   * convention: opening https://guiltyofai.vercel.app/#toggle-goatcounter
+   * switches counting off on that device (localStorage "skipgc" = "t"), and
+   * opening it again switches it back on. Works on any network, unlike
+   * ignoring an IP, which on a school network would also hide classmates.
+   */
+  var SKIP_KEY = 'skipgc';
+  var SKIP_HASH = '#toggle-goatcounter';
+  function ownerSkip(store, hash) {
+    try {
+      if (!store) return { skip: false, toggled: false };
+      var toggled = hash === SKIP_HASH;
+      if (toggled) {
+        if (store.getItem(SKIP_KEY) === 't') store.removeItem(SKIP_KEY);
+        else store.setItem(SKIP_KEY, 't');
+      }
+      return { skip: store.getItem(SKIP_KEY) === 't', toggled: toggled };
+    } catch (err) {
+      return { skip: false, toggled: false };
+    }
+  }
+
+  /*
    * sendStat(name, env) -> true when a request was handed to env.send.
-   * env: { location, referrer, screen, send(url) }. In the page, env is the
-   * real window; tests pass a stub. Never throws.
+   * env: { location, referrer, screen, send(url), skip }. skip = this is the
+   * owner's device (ownerSkip). In the page, env is the real window; tests
+   * pass a stub. Never throws.
    */
   function sendStat(name, env) {
     try {
       var e = env || {};
-      if (!statsAllowed(e.location)) return false;
+      if (e.skip || !statsAllowed(e.location)) return false;
       var url = statUrl(name, {
         screen: e.screen,
         referrer: name === '/' ? externalOrigin(e.referrer, STAT_HOST) : ''
@@ -1090,6 +1115,7 @@
     externalOrigin: externalOrigin,
     statUrl: statUrl,
     sendStat: sendStat,
+    ownerSkip: ownerSkip,
     // leaving and coming back
     landingChoice: landingChoice,
     restartKeepsSet: restartKeepsSet,

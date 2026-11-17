@@ -81,6 +81,10 @@ test('stats: sendStat hands one clean URL to the sender on the real site, nothin
   // A sender that throws, or none at all, is not an error.
   assert.strictEqual(sendStat('start', { location: REAL, send: () => { throw new Error('blocked'); } }), false);
   assert.strictEqual(sendStat('start', { location: REAL }), false);
+  // The owner's device (skip) sends nothing, even on the real site.
+  const own = [];
+  assert.strictEqual(sendStat('start', { location: REAL, send: (u) => own.push(u), skip: true }), false);
+  assert.deepStrictEqual(own, []);
   assert.strictEqual(externalOrigin('not a url', 'x'), '');
 });
 
@@ -124,4 +128,16 @@ test('ui copy: the footer says what is counted and what a challenge link carries
   assert.match(f.zh, /统计/);
   assert.match(f.zh, /不记录/);
   assert.match(f.zh, /挑战链接/);
+});
+
+test('stats: #toggle-goatcounter switches the owner device off and back on', () => {
+  const data = {};
+  const store = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } };
+  assert.deepStrictEqual(extras.ownerSkip(store, ''), { skip: false, toggled: false });
+  assert.deepStrictEqual(extras.ownerSkip(store, '#toggle-goatcounter'), { skip: true, toggled: true });
+  assert.deepStrictEqual(extras.ownerSkip(store, ''), { skip: true, toggled: false }, 'stays off on later visits');
+  assert.deepStrictEqual(extras.ownerSkip(store, '#toggle-goatcounter'), { skip: false, toggled: true });
+  assert.deepStrictEqual(extras.ownerSkip(null, '#toggle-goatcounter'), { skip: false, toggled: false }, 'no storage: counts as normal');
+  const broken = { getItem: () => { throw new Error('blocked'); } };
+  assert.deepStrictEqual(extras.ownerSkip(broken, ''), { skip: false, toggled: false });
 });
