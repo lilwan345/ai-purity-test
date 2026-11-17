@@ -641,7 +641,25 @@ be sent is decided in one place.
 - **Why not GoatCounter's own `count.js`**: it always adds `location.search`
   to every hit (and the full referrer by default), which would send the seed
   and answer codes. So the page builds GoatCounter's documented `/count`
-  request itself and loads no third-party script at all.
+  request itself.
+- **The owner's devices don't count**: open
+  `https://guiltyofai.vercel.app/#toggle-goatcounter` once on a device (it
+  stays off however often it is opened; `#count-me` switches it back on).
+  This stops both GoatCounter and Google Analytics on that device.
+- **Google Analytics (GA4)**, for numbers an advertiser will ask for:
+  property "AI Purity Test" under the owner's personal Google account,
+  measurement id `G-KHE88MNQTB` (`GA_ID` in `extras.js`). The same names go
+  to it (`gaEvent`: `/` → `page_view`, `start` → `test_start`, `finish` →
+  `test_finish`, `result:<id>` → `test_result` with `type_id`, `lang:xx` →
+  `switch_language`, the rest with `_` for `-`), under the same rules: only
+  on the real site, never from the owner's device. `gaConfig` sends the page
+  location as the bare `https://guiltyofai.vercel.app/` (no query, no hash),
+  an outside referrer's origin only, no automatic page view, no Google
+  signals. "Enhanced measurement" is switched off in the GA admin so GA
+  reports nothing by itself. Consent mode: ad storage denied everywhere;
+  analytics cookies denied (cookieless pings) in the EEA, the UK and
+  Switzerland. `gtag.js` is the only third-party script, loaded only when
+  counting is on.
 - **Reading the totals back.** The landing page also reads GoatCounter's
   public totals, from `https://leowan34.goatcounter.com/counter/<path>.json`
   (`{"count": "1,234"}`; GoatCounter caches them for up to four hours): the

@@ -142,3 +142,25 @@ test('stats: #toggle-goatcounter switches the owner device off for good, #count-
   const broken = { getItem: () => { throw new Error('blocked'); } };
   assert.deepStrictEqual(extras.ownerSkip(broken, ''), { skip: false, toggled: false });
 });
+
+test('stats: Google Analytics gets the same fixed names and never the query', () => {
+  assert.deepStrictEqual(extras.gaEvent('/'), ['page_view', {}]);
+  assert.deepStrictEqual(extras.gaEvent('start'), ['test_start', {}]);
+  assert.deepStrictEqual(extras.gaEvent('finish'), ['test_finish', {}]);
+  assert.deepStrictEqual(extras.gaEvent('result:heart_deep'), ['test_result', { type_id: 'heart_deep' }]);
+  assert.deepStrictEqual(extras.gaEvent('lang:zh'), ['switch_language', { language: 'zh' }]);
+  assert.deepStrictEqual(extras.gaEvent('save-image'), ['save_image', {}]);
+  assert.strictEqual(extras.gaEvent('result:s07'), null);
+  assert.strictEqual(extras.gaEvent('seed:k3x9q0'), null);
+  STAT_EVENTS.forEach((n) => assert.match(extras.gaEvent(n)[0], /^[a-z][a-z_]{0,39}$/, n));
+  const cfg = extras.gaConfig({ protocol: 'https:', hostname: 'guiltyofai.vercel.app', search: '?seed=k3x9q0&vs=0a1b', hash: '#x' },
+    'https://guiltyofai.vercel.app/?seed=k3x9q0');
+  assert.strictEqual(cfg.page_location, 'https://guiltyofai.vercel.app/');
+  assert.strictEqual(cfg.page_referrer, '', 'an internal referrer (with codes) is never sent');
+  assert.strictEqual(cfg.send_page_view, false);
+  assert.strictEqual(cfg.allow_google_signals, false);
+  assert.doesNotMatch(JSON.stringify(cfg), /seed|k3x9q0|vs=/);
+  assert.strictEqual(extras.gaConfig({ protocol: 'https:', hostname: 'guiltyofai.vercel.app' }, 'https://www.xiaohongshu.com/explore/abc?x=1').page_referrer, 'https://www.xiaohongshu.com');
+  assert.match(extras.GA_ID, /^G-[A-Z0-9]+$/);
+  assert.ok(extras.GA_NO_COOKIE_REGIONS.includes('DE') && extras.GA_NO_COOKIE_REGIONS.includes('GB'));
+});

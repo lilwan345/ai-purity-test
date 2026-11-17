@@ -763,6 +763,58 @@
   }
 
   // ======================================================================
+  // 5b. GOOGLE ANALYTICS (the numbers an advertiser will ask for)
+  //
+  // The same fixed names as GoatCounter go to GA4 (property "AI Purity
+  // Test", measurement id GA_ID), under the same rules: only on the real
+  // site, never from the owner's device, never the address's query (the
+  // play and answer codes), never statement ids, answers, the purity or the
+  // seed. The page location sent is always the bare origin + path, the
+  // referrer is an outside origin or nothing, and GA's "enhanced
+  // measurement" is switched off in the GA admin, so GA reports nothing on
+  // its own. Visitors in the EEA, the UK and Switzerland get no analytics
+  // cookies (consent mode: analytics_storage denied, cookieless pings);
+  // ads storage is denied everywhere.
+  // ======================================================================
+  var GA_ID = 'G-KHE88MNQTB';
+  var GA_NO_COOKIE_REGIONS = [
+    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV',
+    'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO', 'GB', 'CH'
+  ];
+  var GA_RENAME = { start: 'test_start', finish: 'test_finish' };
+
+  /*
+   * gaEvent(name) -> [eventName, params] for one of the fixed statistics
+   * names, or null. "/" is the page view; result:<type id> becomes
+   * test_result with that id; lang:xx becomes switch_language.
+   */
+  function gaEvent(name) {
+    if (!statNameOk(name)) return null;
+    if (name === '/') return ['page_view', {}];
+    var r = /^result:([a-z_]+)$/.exec(name);
+    if (r) return ['test_result', { type_id: r[1] }];
+    var l = /^lang:([a-z]+)$/.exec(name);
+    if (l) return ['switch_language', { language: l[1] }];
+    return [GA_RENAME[name] || name.replace(/-/g, '_'), {}];
+  }
+
+  /*
+   * gaConfig(loc, referrer) -> the settings for gtag('config', GA_ID, ...):
+   * a page location with no query or hash, an outside referrer's origin
+   * only, no automatic page view, no Google signals or ad personalisation.
+   */
+  function gaConfig(loc, referrer) {
+    return {
+      send_page_view: false,
+      page_location: loc.protocol + '//' + loc.hostname + '/',
+      page_referrer: externalOrigin(referrer, STAT_HOST),
+      page_title: 'AI Purity Test',
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false
+    };
+  }
+
+  // ======================================================================
   // 6. PUBLIC TOTALS (read back from GoatCounter, real numbers only)
   //
   // GoatCounter publishes a count per path at
@@ -1116,6 +1168,10 @@
     statUrl: statUrl,
     sendStat: sendStat,
     ownerSkip: ownerSkip,
+    GA_ID: GA_ID,
+    GA_NO_COOKIE_REGIONS: GA_NO_COOKIE_REGIONS,
+    gaEvent: gaEvent,
+    gaConfig: gaConfig,
     // leaving and coming back
     landingChoice: landingChoice,
     restartKeepsSet: restartKeepsSet,

@@ -236,7 +236,7 @@ globalThis.APT_CONTENT = {
     replyIntro:         { en: "Your friend played your 30 and sent this back.", zh: "朋友答完了你的 30 条，把对比发了回来。" },
     replyStart:         { en: "Take the test yourself", zh: "我也测一次" },
 
-    footer:         { en: "The site counts visits and which result people get, never which statements anyone admitted. Only a challenge link carries answers, and only to whoever you send it to.", zh: "网站只统计访问次数和大家测出的人格，不记录任何人认了哪几条。只有挑战链接会带上答案，也只有你发给的那个人能看到。" }
+    footer:         { en: "The site counts visits and which result people get (with GoatCounter and Google Analytics), never which statements anyone admitted. Only a challenge link carries answers, and only to whoever you send it to.", zh: "网站只统计访问次数和大家测出的人格（用 GoatCounter 和 Google Analytics），不记录任何人认了哪几条。只有挑战链接会带上答案，也只有你发给的那个人能看到。" }
   },
 
   /*
@@ -525,7 +525,7 @@ globalThis.APT_CONTENT = {
       title: { en: "Questions", zh: "常见问题" },
       items: [
         { q: { en: "Can anyone see my answers?", zh: "我的答案会被别人看到吗？" },
-          a: { en: "No. The result is worked out on your device, and the site only counts visits and which result people get. Only a challenge link that you send yourself carries answers.", zh: "不会。结果在你的设备上算，网站只统计访问次数和大家测出的人格。只有你自己发出去的挑战链接会带上答案。" } },
+          a: { en: "No. The result is worked out on your device, and the site only counts visits and which result people get, with GoatCounter and Google Analytics. Neither ever sees your answers. Only a challenge link that you send yourself carries answers.", zh: "不会。结果在你的设备上算，网站只用 GoatCounter 和 Google Analytics 统计访问次数和大家测出的人格，两者都看不到你的答案。只有你自己发出去的挑战链接会带上答案。" } },
         { q: { en: "Why are the questions different every time?", zh: "为什么每次题目不一样？" },
           a: { en: "The bank has 105 statements and each play draws 30. A friend who opens your link gets the same 30 as you.", zh: "题库有 105 条，每局抽 30 条。朋友点你的链接，做的是和你同一套题。" } },
         { q: { en: "Is the result accurate?", zh: "结果准吗？" },

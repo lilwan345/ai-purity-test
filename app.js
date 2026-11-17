@@ -366,6 +366,22 @@
       toastTimer = setTimeout(() => document.getElementById('toast').classList.remove('is-on'), 5000);
     }, 600);
   }
+  // Google Analytics (extras.js 5b), loaded only where GoatCounter counts:
+  // the real site, not the owner's device. The config strips the query, so
+  // play and answer codes never reach Google; EEA/UK/CH get no cookies.
+  const gaOn = !statSkip.skip && extras.statsAllowed(location);
+  if (gaOn) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function gtag() { window.dataLayer.push(arguments); };
+    window.gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+    window.gtag('consent', 'default', { analytics_storage: 'denied', region: extras.GA_NO_COOKIE_REGIONS });
+    window.gtag('js', new Date());
+    window.gtag('config', extras.GA_ID, extras.gaConfig(location, document.referrer));
+    const tag = document.createElement('script');
+    tag.async = true;
+    tag.src = 'https://www.googletagmanager.com/gtag/js?id=' + extras.GA_ID;
+    document.head.appendChild(tag);
+  }
   function track(name, once) {
     const key = once === 'play' ? name + '|' + playNo : name;
     if (once) {
@@ -379,6 +395,10 @@
       send: sendStatRequest,
       skip: statSkip.skip
     });
+    if (gaOn) {
+      const ev = extras.gaEvent(name);
+      if (ev) window.gtag('event', ev[0], ev[1]);
+    }
   }
   // A fire-and-forget GET with no cookies and no Referer. If it is blocked,
   // slow or offline, nothing on the page notices.
