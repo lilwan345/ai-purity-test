@@ -396,8 +396,11 @@
       skip: statSkip.skip
     });
     if (gaOn) {
+      // Each event carries the clean location itself: the Google tag
+      // ignores the page's config (see extras.gaEvent).
       const ev = extras.gaEvent(name);
-      if (ev) window.gtag('event', ev[0], ev[1]);
+      const cfg = extras.gaConfig(location, document.referrer);
+      if (ev) window.gtag('event', ev[0], Object.assign({ page_location: cfg.page_location, page_referrer: cfg.page_referrer }, ev[1]));
     }
   }
   // A fire-and-forget GET with no cookies and no Referer. If it is blocked,

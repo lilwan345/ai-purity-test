@@ -649,13 +649,18 @@ be sent is decided in one place.
 - **Google Analytics (GA4)**, for numbers an advertiser will ask for:
   property "AI Purity Test" under the owner's personal Google account,
   measurement id `G-KHE88MNQTB` (`GA_ID` in `extras.js`). The same names go
-  to it (`gaEvent`: `/` → `page_view`, `start` → `test_start`, `finish` →
+  to it (`gaEvent`: `/` sends nothing, because the Google tag, now a Tag
+  Manager container on Google's side, sends its own `page_view` on every load
+  and ignores the page's config; `start` → `test_start`, `finish` →
   `test_finish`, `result:<id>` → `test_result` with `type_id`, `lang:xx` →
   `switch_language`, the rest with `_` for `-`), under the same rules: only
   on the real site, never from the owner's device. `gaConfig` sends the page
   location as the bare `https://guiltyofai.vercel.app/` (no query, no hash),
   an outside referrer's origin only, no automatic page view, no Google
-  signals. "Enhanced measurement" is switched off in the GA admin so GA
+  signals; every event also carries that clean `page_location` itself. Because
+  the tag's own page view uses the browser's address, the GA admin's "Redact
+  data" removes the query keys `seed`, `vs`, `re` and `from` before anything
+  is sent. "Enhanced measurement" is switched off in the GA admin so GA
   reports nothing by itself. Consent mode: ad storage denied everywhere;
   analytics cookies denied (cookieless pings) in the EEA, the UK and
   Switzerland. `gtag.js` is the only third-party script, loaded only when

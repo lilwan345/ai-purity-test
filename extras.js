@@ -785,12 +785,17 @@
 
   /*
    * gaEvent(name) -> [eventName, params] for one of the fixed statistics
-   * names, or null. "/" is the page view; result:<type id> becomes
-   * test_result with that id; lang:xx becomes switch_language.
+   * names, or null. "/" gives null: the Google tag (now a Tag Manager
+   * container on Google's side) sends its own page_view on every load and
+   * ignores the page's config, so sending one here would count it twice.
+   * Its page location is the browser's address, so the GA admin redacts
+   * the query keys that carry codes (seed, vs, re, from) before anything
+   * leaves the page. result:<type id> becomes test_result with that id;
+   * lang:xx becomes switch_language.
    */
   function gaEvent(name) {
     if (!statNameOk(name)) return null;
-    if (name === '/') return ['page_view', {}];
+    if (name === '/') return null;
     var r = /^result:([a-z_]+)$/.exec(name);
     if (r) return ['test_result', { type_id: r[1] }];
     var l = /^lang:([a-z]+)$/.exec(name);

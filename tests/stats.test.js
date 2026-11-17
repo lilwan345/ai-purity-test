@@ -144,7 +144,7 @@ test('stats: #toggle-goatcounter switches the owner device off for good, #count-
 });
 
 test('stats: Google Analytics gets the same fixed names and never the query', () => {
-  assert.deepStrictEqual(extras.gaEvent('/'), ['page_view', {}]);
+  assert.strictEqual(extras.gaEvent('/'), null, 'the Google tag sends its own page_view');
   assert.deepStrictEqual(extras.gaEvent('start'), ['test_start', {}]);
   assert.deepStrictEqual(extras.gaEvent('finish'), ['test_finish', {}]);
   assert.deepStrictEqual(extras.gaEvent('result:heart_deep'), ['test_result', { type_id: 'heart_deep' }]);
