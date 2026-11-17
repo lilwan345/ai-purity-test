@@ -111,7 +111,7 @@ test('ui copy: the numbers in "How this is scored" and the grid are the real rul
 
 test('ui copy: the new play keys exist, and the short ones stay short', () => {
   const len = (s) => Array.from(s).length;
-  ['closeEnough', 'closeEnoughHint', 'seedFromLink', 'newQuestions', 'matchTieLot'].forEach((key) => {
+  ['closeEnoughHint', 'seedFromLink', 'newQuestions', 'matchTieLot'].forEach((key) => {
     assert.ok(UI_KEYS.includes(key), key + ' is in UI_KEYS');
     assert.ok(content.ui[key] && content.ui[key].en && content.ui[key].zh, key + ' has en and zh');
   });
@@ -262,8 +262,8 @@ test('content.js: in Chinese, every run between break points fits one phone line
     let run = '';
     let inQuote = false;
     chars.forEach((ch, i) => {
-      if (ch === '「') { if (run) { out.push(run); run = ''; } inQuote = true; }
-      if (ch === '」') inQuote = false;
+      if (ch === '“') { if (run) { out.push(run); run = ''; } inQuote = true; }
+      if (ch === '”') inQuote = false;
       run += ch;
       const next = chars[i + 1];
       const afterNext = chars[i + 2] || '';
@@ -276,7 +276,7 @@ test('content.js: in Chinese, every run between break points fits one phone line
   const width = (s) => Array.from(s).reduce((sum, ch) => sum + (/\s/.test(ch) ? 0.25 : /[\x21-\x7e]/.test(ch) ? 0.5 : 1), 0);
   const tooLong = [];
   content.statements.forEach((s) => runs(s.text.zh).forEach((run) => {
-    if (width(run) > 11.5) tooLong.push(s.id + ': 「' + run + '」 is ' + width(run) + ' wide');
+    if (width(run) > 11.5) tooLong.push(s.id + ': “' + run + '” is ' + width(run) + ' wide');
   }));
   // The two lines that once broke before a comma on a phone would fail here.
   assert.ok(runs('聊到一半直接关掉对话框，没说再见').some((r) => width(r) > 11.5));

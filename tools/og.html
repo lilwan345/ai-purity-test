@@ -46,7 +46,7 @@
   document.getElementById('badge').textContent = C.landing.badge.en;
   document.getElementById('title').textContent = C.ui.appName.en;
   // One sentence per line.
-  C.landing.lead.en.split(/(?<=\.) /).forEach(function (part, i) {
+  C.landing.lead.en.split(/\n|(?<=\.) |(?<=,) (?=“)/).forEach(function (part, i) {
     if (i) document.getElementById('lead').appendChild(document.createElement('br'));
     document.getElementById('lead').appendChild(document.createTextNode(part));
   });

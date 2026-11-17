@@ -595,11 +595,12 @@
       text: state.challenge ? t('challengeLanding') : t('seedFromLink') });
 
     // The plain landing page (nobody's link, no play under way) also gets a
-    // badge, a lead line, the real count (when there is one) and a cue to
-    // the sections below. With a play under way or a friend's link, the
-    // first screen stays exactly as it was.
+    // badge, the real count (when there is one) and a cue to the sections
+    // below. The short story under the title (lead, intro, introPunch) is
+    // on every landing: it is what the test is and why to start it.
     const plain = !friend && !sameSet && answeredCount() === 0;
     const LC = content.landing || {};
+    const purest = typesById.untouched;
     const copy = el('div', { class: 'landing-copy' }, [
       friend && el('div', { class: 'from-friend' }, [
         sticker(friend, 'sticker-small', -4),
@@ -608,11 +609,14 @@
       !friend && sameSet && el('p', { class: 'seed-note-alone' }, [sameSet]),
       plain && LC.badge && el('p', { class: 'landing-badge', text: L(LC.badge) }),
       el('h1', { class: 'landing-title', tabindex: '-1', 'data-focus': true, text: t('appName') }),
-      plain && LC.lead && el('p', { class: 'landing-lead' }, statementPieces(L(LC.lead))),
-      el('p', { class: 'lede', text: t('intro') }),
-      el('p', { class: 'meta', text: t('meta') }),
-      el('p', { class: 'close-enough', text: t('closeEnough') }),
+      LC.lead && el('p', { class: 'landing-lead' }, linesOf(L(LC.lead))),
+      el('p', { class: 'lede' }, linesOf(t('intro'))),
+      el('p', { class: 'close-enough landing-punch' }, linesOf(t('introPunch', {
+        name: purest ? L(purest.name) : '',
+        n: content.types.length - 1
+      }))),
       landingActions(),
+      el('p', { class: 'meta landing-meta', text: t('meta') }),
       // The real number of finished tests, filled in after the first paint
       // when the site's public count is at least 100 (renderFinishCount).
       plain && extras.statsAllowed(location) && el('p', { class: 'landing-count', 'aria-live': 'polite' })
@@ -634,7 +638,6 @@
       faces.length > 0 && el('ul', { class: 'sticker-faces', 'aria-hidden': 'true' }, faces),
       el('ul', { 'aria-hidden': 'true' }, stickers),
       el('figcaption', {}, [
-        el('span', { class: 'teaser-text', text: t('typesTeaser') }),
         typesLink('types-landing')
       ])
     ]);
@@ -878,7 +881,7 @@
         el('span', { class: 'lp-rank-words' }, [
           el('span', { class: 'lp-rank-code', text: locked(r.typeId) ? '???' : ty.code }),
           !locked(r.typeId) && el('span', { class: 'lp-rank-name' }, statementPieces(L(ty.name))),
-          !locked(r.typeId) && el('span', { class: 'lp-rank-tag' }, statementPieces(state.lang === 'zh' ? '「' + L(ty.tagline) + '」' : '“' + L(ty.tagline) + '”'))
+          !locked(r.typeId) && el('span', { class: 'lp-rank-tag' }, statementPieces('“' + L(ty.tagline) + '”'))
         ]),
         el('span', { class: 'lp-rank-share', text: share(r.share) }),
         el('span', { class: 'lp-rank-bar', 'aria-hidden': 'true' }, [el('i', { style: 'width:' + (100 * r.share / max).toFixed(1) + '%' })])
@@ -1147,7 +1150,7 @@
   //    the line of the word before it, so no line starts with "&".
   //  - Chinese: styles.css turns off breaking between Chinese characters
   //    (word-break: keep-all), and this adds a <wbr> (a "you may break here")
-  //    after clause punctuation, around 「quotes」 and after a few small words
+  //    after clause punctuation, around “quotes” and after a few small words
   //    that usually end a phrase. So lines break at "，" or after "的", not
   //    in the middle of a word ("毕 / 竟"). Nothing breaks inside a quote.
   //    Spaces become no-break spaces, so a Latin word stays with its
@@ -1155,7 +1158,13 @@
   //    fits, the browser still breaks anywhere (overflow-wrap: anywhere), so
   //    nothing overflows; keep each clause short enough for one phone line
   //    (about 11 characters) and that never happens.
-  const ZH_BREAK_AFTER = /[，、：；。！？」…的着把给和]/;
+  const ZH_BREAK_AFTER = /[，、：；。！？”…的着把给和]/;
+
+  // Text with "\n" in it: one line per part (each part broken like a
+  // statement), with a forced line break between them.
+  function linesOf(text) {
+    return String(text).split('\n').flatMap((line, i) => (i ? [el('br')] : []).concat(statementPieces(line)));
+  }
 
   function statementPieces(text) {
     if (state.lang !== 'zh') {
@@ -1173,7 +1182,7 @@
     // Content should still keep clauses short enough that it never happens
     // (tests/content.test.js checks the runs).
     const pushRun = (r) => {
-      const m = r.match(/^([\s\S]*[^\s])([，。！？、；：」』）》…]+)$/);
+      const m = r.match(/^([\s\S]*[^\s])([，。！？、；：”’）》…]+)$/);
       if (m && Array.from(m[1]).length > 1) {
         const head = Array.from(m[1]);
         const last = head.pop();
@@ -1184,14 +1193,14 @@
     };
     const flush = () => { pushRun(run); pieces.push(el('wbr')); run = ''; };
     chars.forEach((ch, i) => {
-      if (ch === '「') {
+      if (ch === '“') {
         if (run) flush();
         inQuote = true;
       }
-      if (ch === '」') inQuote = false;
+      if (ch === '”') inQuote = false;
       run += ch;
       const next = chars[i + 1];
-      // Never break right before closing punctuation ("……」" stays together),
+      // Never break right before closing punctuation ("……”" stays together),
       // before a space (the next line would start with a gap), or before a
       // single character that ends its clause ("分钟的 / 课，" would look lost).
       const afterNext = chars[i + 2] || '';
@@ -2728,11 +2737,11 @@
       default: return '';
     }
   }
-  // A statement quoted inside a sentence: “...” in English, 「...」 in
-  // Chinese (quotes inside it become 『』).
+  // A statement quoted inside a sentence: “...” in both languages; in
+  // Chinese, quotes inside it become ‘’.
   function quoteStatement(id) {
     const text = L(statementsById[id] && statementsById[id].text);
-    return state.lang === 'zh' ? '「' + text.replace(/「/g, '『').replace(/」/g, '』') + '」' : '“' + text + '”';
+    return state.lang === 'zh' ? '“' + text.replace(/“/g, '‘').replace(/”/g, '’') + '”' : '“' + text + '”';
   }
   function reasonBlock(result) {
     const sep = state.lang === 'zh' ? '、' : ', ';
@@ -2944,7 +2953,7 @@
   }
 
   // Returns `text` as nodes in which each of `phrases` (a type code or name)
-  // sits in a no-wrap span, so "HAHA-OK" or 「潜台词翻译官」 never splits
+  // sits in a no-wrap span, so "HAHA-OK" or “潜台词翻译官” never splits
   // across two lines.
   function keepWhole(text, phrases) {
     let nodes = [text];
@@ -2961,10 +2970,10 @@
   }
 
   // Long result text (the why line, signs, roast, pairings): a short
-  // 「quoted」 type name or phrase never splits across two lines
-  // (「大 / 脑云托管」). The rest of the text wraps normally.
+  // “quoted” type name or phrase in Chinese never splits across two lines
+  // (“大 / 脑云托管”). The rest of the text wraps normally.
   function keepQuotes(text) {
-    const quotes = String(text).match(/「[^「」]{1,12}」/g) || [];
+    const quotes = state.lang === 'zh' ? (String(text).match(/“[^“”]{1,12}”/g) || []) : [];
     return keepWhole(String(text), Array.from(new Set(quotes)));
   }
 
@@ -3507,7 +3516,7 @@
   const CJK = '⺀-鿿豈-﫿＀-￯　-〿';
   const TOKEN_RE = new RegExp('(\\s*)([' + CJK + ']|[^\\s' + CJK + ']+)', 'g');
   // Closing punctuation never starts a line.
-  const NO_LINE_START = /^[，。！？、；：」』）》…,.!?;:)]/;
+  const NO_LINE_START = /^[，。！？、；：”’）》…,.!?;:)]/;
 
   function tokenize(text) {
     const tokens = [];
@@ -3553,7 +3562,7 @@
     const breakScore = (i) => {
       const last = tokens[i - 1].text.slice(-1);
       if (!cjk.test(tokens[i - 1].text + tokens[i].text) || !ZH_BREAK_AFTER.test(last)) return 0;
-      return /[，、：；。！？」…]/.test(last) ? 2 : 1;
+      return /[，、：；。！？”…]/.test(last) ? 2 : 1;
     };
     let best = null;
     const consider = (cuts) => {

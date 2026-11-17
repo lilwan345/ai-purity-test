@@ -253,6 +253,12 @@ html[lang^="zh"] .landing-title { font-family: var(--font-body); font-size: clam
   line-height: 1.45;
 }
 .meta { margin: 0 0 10px; max-width: 34em; color: var(--ink-soft); }
+/* Landing: the small print sits under the start button. */
+.landing-meta { margin: 14px 0 0; font-size: 14px; }
+/* The landing story in Chinese breaks only where linesOf/statementPieces
+   allow it (after punctuation), never inside a word ("怎 / 么回"). */
+html[lang^="zh"] .landing .lede,
+html[lang^="zh"] .landing-punch { word-break: keep-all; overflow-wrap: anywhere; }
 /* "Close enough counts": the one house rule, set off by a short ink tick on
    the left so it reads as a rule, not more small print. */
 .close-enough {
@@ -1745,6 +1751,7 @@ html[lang^="zh"] .reply-title { font-family: var(--font-body); font-size: clamp(
   html[lang^="zh"] .landing .lede,
   html[lang^="zh"] .landing .meta { word-break: keep-all; overflow-wrap: anywhere; }
   .landing .close-enough { margin-bottom: calc(var(--u) * 28); padding-left: calc(var(--u) * 12); font-size: calc(var(--u) * 17); }
+  .landing .landing-meta { margin: calc(var(--u) * 14) 0 0; font-size: calc(var(--u) * 14); }
   .landing .btn-big { min-height: calc(var(--u) * 56); padding: 0 calc(var(--u) * 30); font-size: calc(var(--u) * 18); }
   .landing .landing-buttons { gap: calc(var(--u) * 12); }
   .landing .restart-note { margin-top: calc(var(--u) * 10); font-size: calc(var(--u) * 14); }

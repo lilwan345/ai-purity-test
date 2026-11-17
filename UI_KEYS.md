@@ -26,9 +26,9 @@ every one of them is decorative (empty alt text).
 | Key | Where it appears |
 |---|---|
 | `appName` | Top bar (a link back to the landing page, hidden on the landing itself), landing headline, card, page title |
-| `intro` | Landing, under the headline |
-| `meta` | Landing, small line under intro: 30 taps, and that the 30 are drawn from a bigger pile and change every time. Don't promise only two answers: every statement also offers `answerUnsure` |
-| `closeEnough` | Landing, the one house rule under `meta` (with an ink tick on the left): if you've done something like it, it counts |
+| `intro` | Landing, the middle of the short story under the headline (after `landing.lead`): everyday things people ask AI, and that each one costs a little. `\n` is a line break |
+| `meta` | Landing, the small print under the start button: how many statements, how long, and that answers stay on the device |
+| `introPunch` | Landing, the end of the story (with an ink tick on the left): how much is left; the purest type by name (`{name}`), and `{n}` other names for everyone else. `\n` is a line break |
 | `seedFromLink` | Landing, one quiet line when the seed came from a link: these are the sender's 30 statements, so the scores compare. Second line of the `fromFriend` banner, or on its own above the title when the link had a seed but no type |
 | `start` | Landing button (when nothing is answered yet) |
 | `continuePlay` | Landing, primary button when a play is under way ({n} = the statement they were on, {total} = 30) |
@@ -36,7 +36,6 @@ every one of them is decorative (empty alt text).
 | `restartSameSet` | Landing, quiet line under those two buttons, only when the play came from someone's link: starting over keeps that link's 30 |
 | `brandHomeLabel` | Top bar: hidden words after the product name, which is a link back to the landing page ("AI Purity Test, back to the start") |
 | `fromFriend` | Landing banner when opened from a shared link ({name} = type name) |
-| `typesTeaser` | Landing, caption under the sticker cluster (three character stickers above six code stickers) |
 | `langSwitch` | Language button label (name of the OTHER language) |
 | `langSwitchLabel` | Language button: hidden hint read after the visible word ("中文 – Switch to Chinese") |
 | `progress` | Question screen, read out by screen readers before each statement ({n}, {total}). The visible "12 / 30" is plain numbers and needs no text. |

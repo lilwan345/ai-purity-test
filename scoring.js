@@ -32,7 +32,7 @@
 
   // Interface text keys that app.js reads. validateContent checks they all exist.
   var UI_KEYS = [
-    'appName', 'intro', 'meta', 'closeEnough', 'seedFromLink', 'start', 'fromFriend', 'typesTeaser',
+    'appName', 'intro', 'meta', 'introPunch', 'seedFromLink', 'start', 'fromFriend',
     'langSwitch', 'langSwitchLabel',
     'progress', 'liveLabel', 'back', 'closeEnoughHint', 'answerYes', 'answerNo', 'answerUnsure', 'keysHint',
     'resultHeading', 'previewBadge', 'cardTicks', 'cardNote', 'barsLabel', 'barAria',
