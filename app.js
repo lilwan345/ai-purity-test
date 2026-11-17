@@ -355,11 +355,16 @@
   const trackedOnce = new Set();
   let playNo = 0;   // goes up with every new play (new questions, start over)
   // The owner's own devices don't count: open the site once with
-  // #toggle-goatcounter to switch this device off, again to switch it on.
+  // #toggle-goatcounter to switch this device off (#count-me: back on).
+  // The notice is in both languages and stays up longer than a toast.
   const statSkip = extras.ownerSkip(deviceStorage(), location.hash);
   if (statSkip.toggled) {
     history.replaceState(null, '', location.pathname + location.search);
-    setTimeout(() => toast(statSkip.skip ? 'Stats: this device is not counted' : 'Stats: this device counts again'), 600);
+    setTimeout(() => {
+      toast(statSkip.skip ? '✓ 本设备不再计入统计 · This device is not counted' : '本设备重新计入统计 · This device counts again');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => document.getElementById('toast').classList.remove('is-on'), 5000);
+    }, 600);
   }
   function track(name, once) {
     const key = once === 'play' ? name + '|' + playNo : name;

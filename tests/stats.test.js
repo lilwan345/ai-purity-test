@@ -130,13 +130,14 @@ test('ui copy: the footer says what is counted and what a challenge link carries
   assert.match(f.zh, /挑战链接/);
 });
 
-test('stats: #toggle-goatcounter switches the owner device off and back on', () => {
+test('stats: #toggle-goatcounter switches the owner device off for good, #count-me back on', () => {
   const data = {};
   const store = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } };
   assert.deepStrictEqual(extras.ownerSkip(store, ''), { skip: false, toggled: false });
   assert.deepStrictEqual(extras.ownerSkip(store, '#toggle-goatcounter'), { skip: true, toggled: true });
+  assert.deepStrictEqual(extras.ownerSkip(store, '#toggle-goatcounter'), { skip: true, toggled: true }, 'opening it again keeps it off');
   assert.deepStrictEqual(extras.ownerSkip(store, ''), { skip: true, toggled: false }, 'stays off on later visits');
-  assert.deepStrictEqual(extras.ownerSkip(store, '#toggle-goatcounter'), { skip: false, toggled: true });
+  assert.deepStrictEqual(extras.ownerSkip(store, '#count-me'), { skip: false, toggled: true });
   assert.deepStrictEqual(extras.ownerSkip(null, '#toggle-goatcounter'), { skip: false, toggled: false }, 'no storage: counts as normal');
   const broken = { getItem: () => { throw new Error('blocked'); } };
   assert.deepStrictEqual(extras.ownerSkip(broken, ''), { skip: false, toggled: false });
